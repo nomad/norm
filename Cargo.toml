@@ -9,3 +9,8 @@ default = ["fzf-v1"]
 fzf-v1 = []
 
 [dependencies]
+
+[[test]]
+name = "fzf-v1"
+path = "./tests/fzf_v1.rs"
+required-features = ["fzf-v1"]
