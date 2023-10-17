@@ -1,6 +1,6 @@
 use core::ops::Range;
 
-use crate::{Match, Metric};
+use crate::{CaseSensitivity, Match, Metric};
 
 /// TODO: docs.
 #[derive(Debug)]
@@ -44,7 +44,7 @@ mod v1 {
     #[derive(Default)]
     pub struct FzfV1 {
         /// TODO: docs
-        is_case_sensitive: bool,
+        case_sensitivity: CaseSensitivity,
 
         /// TODO: docs
         with_matched_ranges: bool,
@@ -61,12 +61,12 @@ mod v1 {
             debug_assert!(!query.is_empty());
 
             let range_forward =
-                forward_pass(query, candidate, self.is_case_sensitive)?;
+                forward_pass(query, candidate, self.case_sensitivity)?;
 
             let candidate = &candidate[range_forward.clone()];
 
             let start_backward =
-                backward_pass(query, candidate, self.is_case_sensitive);
+                backward_pass(query, candidate, self.case_sensitivity);
 
             Some(range_forward.start + start_backward..range_forward.end)
         }
@@ -79,11 +79,18 @@ mod v1 {
 
         /// TODO: docs
         #[inline]
-        pub fn with_matched_ranges(
+        pub fn with_case_sensitivity(
             mut self,
-            with_matched_ranges: bool,
+            case_sensitivity: CaseSensitivity,
         ) -> Self {
-            self.with_matched_ranges = with_matched_ranges;
+            self.case_sensitivity = case_sensitivity;
+            self
+        }
+
+        /// TODO: docs
+        #[inline]
+        pub fn with_matched_ranges(mut self, matched_ranges: bool) -> Self {
+            self.with_matched_ranges = matched_ranges;
             self
         }
     }
@@ -109,7 +116,7 @@ mod v1 {
                 query.raw(),
                 candidate,
                 range,
-                self.is_case_sensitive,
+                self.case_sensitivity,
                 self.with_matched_ranges,
             );
 
@@ -125,7 +132,7 @@ mod v1 {
     fn forward_pass(
         query: &str,
         candidate: &str,
-        is_case_sensitive: bool,
+        case_sensitivity: CaseSensitivity,
     ) -> Option<Range<usize>> {
         let mut start_offset = None;
 
@@ -136,7 +143,7 @@ mod v1 {
         let mut query_char = query_chars.next().expect("query is not empty");
 
         for (offset, mut candidate_char) in candidate.char_indices() {
-            if !is_case_sensitive {
+            if case_sensitivity.is_insensitive() {
                 candidate_char.make_ascii_lowercase();
             }
 
@@ -168,7 +175,7 @@ mod v1 {
     fn backward_pass(
         query: &str,
         candidate: &str,
-        is_case_sensitive: bool,
+        case_sensitivity: CaseSensitivity,
     ) -> usize {
         // The candidate must start with the first character of the query.
         debug_assert!(candidate.starts_with(query.chars().next().unwrap()));
@@ -183,7 +190,7 @@ mod v1 {
         let mut query_char = query_chars.next().expect("query is not empty");
 
         for (offset, mut candidate_char) in candidate.char_indices().rev() {
-            if !is_case_sensitive {
+            if case_sensitivity.is_insensitive() {
                 candidate_char.make_ascii_lowercase();
             }
 
@@ -209,7 +216,7 @@ fn calculate_score(
     query: &str,
     candidate: &str,
     range: Range<usize>,
-    is_case_sensitive: bool,
+    case_sensitivity: CaseSensitivity,
     track_matched_ranges: bool,
 ) -> (u32, Vec<Range<usize>>) {
     // TODO: docs
@@ -241,7 +248,7 @@ fn calculate_score(
     for (offset, mut candidate_ch) in candidate[range].char_indices() {
         let ch_class = CharClass::from(candidate_ch);
 
-        if !is_case_sensitive {
+        if case_sensitivity.is_insensitive() {
             candidate_ch.make_ascii_lowercase();
         }
 
