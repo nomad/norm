@@ -248,6 +248,8 @@ fn calculate_score(
     case_sensitivity: CaseSensitivity,
     track_matched_ranges: bool,
 ) -> (Score, Vec<Range<usize>>) {
+    let scheme = scheme::DEFAULT;
+
     // TODO: docs
     let mut is_in_gap = false;
 
@@ -264,7 +266,7 @@ fn calculate_score(
         .chars()
         .next_back()
         .map(CharClass::from)
-        .unwrap_or(CharClass::WhiteSpace);
+        .unwrap_or(scheme.initial_char_class);
 
     let mut query_chars = query.chars();
 
@@ -347,14 +349,12 @@ fn calculate_score(
 fn bonus(prev_class: CharClass, next_class: CharClass) -> Score {
     use CharClass::*;
 
-    let boundary_white = bonus::default::BOUNDARY_WHITE;
-
-    let boundary_delimiter = bonus::default::BOUNDARY_DELIMITER;
+    let scheme = scheme::DEFAULT;
 
     match next_class {
         NonWord => bonus::NON_WORD,
 
-        WhiteSpace => boundary_white,
+        WhiteSpace => scheme.bonus_boundary_white,
 
         Upper if prev_class == Lower => bonus::CAMEL_123,
 
@@ -362,9 +362,9 @@ fn bonus(prev_class: CharClass, next_class: CharClass) -> Score {
 
         _ => {
             if prev_class == WhiteSpace {
-                boundary_white
+                scheme.bonus_boundary_white
             } else if prev_class == Delimiter {
-                boundary_delimiter
+                scheme.bonus_boundary_delimiter
             } else if prev_class == NonWord {
                 bonus::BOUNDARY
             } else {
@@ -402,7 +402,53 @@ enum CharClass {
 impl From<char> for CharClass {
     #[inline]
     fn from(ch: char) -> Self {
-        todo!();
+        if ch.is_ascii() {
+            ascii_char_class(ch)
+        } else {
+            non_ascii_char_class(ch)
+        }
+    }
+}
+
+/// TODO: docs
+#[inline]
+fn ascii_char_class(ch: char) -> CharClass {
+    let scheme = scheme::DEFAULT;
+
+    if ch.is_ascii_lowercase() {
+        CharClass::Lower
+    } else if ch.is_ascii_uppercase() {
+        CharClass::Upper
+    } else if ch.is_ascii_digit() {
+        CharClass::Number
+    } else if ch.is_ascii_whitespace() {
+        CharClass::WhiteSpace
+    } else if (scheme.is_delimiter)(ch) {
+        CharClass::Delimiter
+    } else {
+        CharClass::NonWord
+    }
+}
+
+/// TODO: docs
+#[inline]
+fn non_ascii_char_class(ch: char) -> CharClass {
+    let scheme = scheme::DEFAULT;
+
+    if ch.is_lowercase() {
+        CharClass::Lower
+    } else if ch.is_uppercase() {
+        CharClass::Upper
+    } else if ch.is_numeric() {
+        CharClass::Number
+    } else if ch.is_alphabetic() {
+        CharClass::Upper
+    } else if ch.is_whitespace() {
+        CharClass::Delimiter
+    } else if (scheme.is_delimiter)(ch) {
+        CharClass::Delimiter
+    } else {
+        CharClass::NonWord
     }
 }
 
@@ -428,42 +474,6 @@ pub mod bonus {
 
     /// TODO: docs
     pub const FIRST_QUERY_CHAR_MULTIPLIER: Score = 2;
-
-    pub mod default {
-        //! TODO: docs
-
-        use super::*;
-
-        /// TODO: docs
-        pub const BOUNDARY_WHITE: Score = BOUNDARY + 2;
-
-        /// TODO: docs
-        pub const BOUNDARY_DELIMITER: Score = BOUNDARY + 1;
-    }
-
-    pub mod path {
-        //! TODO: docs
-
-        use super::*;
-
-        /// TODO: docs
-        pub const BOUNDARY_WHITE: Score = BOUNDARY;
-
-        /// TODO: docs
-        pub const BOUNDARY_DELIMITER: Score = BOUNDARY + 1;
-    }
-
-    pub mod history {
-        //! TODO: docs
-
-        use super::*;
-
-        /// TODO: docs
-        pub const BOUNDARY_WHITE: Score = BOUNDARY;
-
-        /// TODO: docs
-        pub const BOUNDARY_DELIMITER: Score = BOUNDARY;
-    }
 }
 
 pub mod penalty {
@@ -476,4 +486,57 @@ pub mod penalty {
 
     /// TODO: docs
     pub const GAP_EXTENSION: Score = 1;
+}
+
+pub mod scheme {
+    use super::*;
+
+    /// TODO: docs
+    pub(super) struct Scheme {
+        pub bonus_boundary_white: Score,
+        pub bonus_boundary_delimiter: Score,
+        pub initial_char_class: CharClass,
+        pub is_delimiter: fn(char) -> bool,
+    }
+
+    /// TODO: docs
+    pub(super) const DEFAULT: Scheme = Scheme {
+        bonus_boundary_white: bonus::BOUNDARY + 2,
+        bonus_boundary_delimiter: bonus::BOUNDARY + 1,
+        initial_char_class: CharClass::WhiteSpace,
+        is_delimiter: is_delimiter_default,
+    };
+
+    #[inline]
+    fn is_delimiter_default(ch: char) -> bool {
+        matches!(ch, '/' | ',' | ':' | ';' | '|')
+    }
+
+    /// TODO: docs
+    pub(super) const PATH: Scheme = Scheme {
+        bonus_boundary_white: bonus::BOUNDARY,
+        bonus_boundary_delimiter: bonus::BOUNDARY + 1,
+        initial_char_class: CharClass::Delimiter,
+        is_delimiter: is_delimiter_path,
+    };
+
+    #[inline]
+    fn is_delimiter_path(ch: char) -> bool {
+        // Using `std::path::MAIN_SEPARATOR` would force us to depend on `std`
+        // instead of `core + alloc`, so we use a custom implementation.
+        #[cfg(windows)]
+        let os_path_separator = '\\';
+        #[cfg(not(windows))]
+        let os_path_separator = '/';
+
+        ch == '/' || ch == os_path_separator
+    }
+
+    /// TODO: docs
+    pub(super) const HISTORY: Scheme = Scheme {
+        bonus_boundary_white: bonus::BOUNDARY,
+        bonus_boundary_delimiter: bonus::BOUNDARY,
+        initial_char_class: DEFAULT.initial_char_class,
+        is_delimiter: DEFAULT.is_delimiter,
+    };
 }
