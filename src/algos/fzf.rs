@@ -264,7 +264,7 @@ fn calculate_score(
         .chars()
         .next_back()
         .map(CharClass::from)
-        .unwrap_or(CharClass::None);
+        .unwrap_or(CharClass::WhiteSpace);
 
     let mut query_chars = query.chars();
 
@@ -345,11 +345,37 @@ fn calculate_score(
 /// TODO: docs
 #[inline]
 fn bonus(prev_class: CharClass, next_class: CharClass) -> Score {
-    0
+    use CharClass::*;
+
+    let boundary_white = bonus::default::BOUNDARY_WHITE;
+
+    let boundary_delimiter = bonus::default::BOUNDARY_DELIMITER;
+
+    match next_class {
+        NonWord => bonus::NON_WORD,
+
+        WhiteSpace => boundary_white,
+
+        Upper if prev_class == Lower => bonus::CAMEL_123,
+
+        Number if prev_class != Number => bonus::CAMEL_123,
+
+        _ => {
+            if prev_class == WhiteSpace {
+                boundary_white
+            } else if prev_class == Delimiter {
+                boundary_delimiter
+            } else if prev_class == NonWord {
+                bonus::BOUNDARY
+            } else {
+                0
+            }
+        },
+    }
 }
 
 /// TODO: docs
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum CharClass {
     /// TODO: docs
     WhiteSpace,
@@ -371,9 +397,6 @@ enum CharClass {
 
     /// TODO: docs
     Number,
-
-    /// TODO: docs
-    None,
 }
 
 impl From<char> for CharClass {
@@ -405,6 +428,42 @@ pub mod bonus {
 
     /// TODO: docs
     pub const FIRST_QUERY_CHAR_MULTIPLIER: Score = 2;
+
+    pub mod default {
+        //! TODO: docs
+
+        use super::*;
+
+        /// TODO: docs
+        pub const BOUNDARY_WHITE: Score = BOUNDARY + 2;
+
+        /// TODO: docs
+        pub const BOUNDARY_DELIMITER: Score = BOUNDARY + 1;
+    }
+
+    pub mod path {
+        //! TODO: docs
+
+        use super::*;
+
+        /// TODO: docs
+        pub const BOUNDARY_WHITE: Score = BOUNDARY;
+
+        /// TODO: docs
+        pub const BOUNDARY_DELIMITER: Score = BOUNDARY + 1;
+    }
+
+    pub mod history {
+        //! TODO: docs
+
+        use super::*;
+
+        /// TODO: docs
+        pub const BOUNDARY_WHITE: Score = BOUNDARY;
+
+        /// TODO: docs
+        pub const BOUNDARY_DELIMITER: Score = BOUNDARY;
+    }
 }
 
 pub mod penalty {
