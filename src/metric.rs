@@ -1,14 +1,12 @@
-use core::fmt::Debug;
-
 use crate::Match;
 
 /// TODO: docs.
 pub trait Metric {
     /// TODO: docs.
-    type Query<'a>: Debug;
+    type Query<'a>;
 
     /// TODO: docs.
-    type Distance: Debug + Ord;
+    type Distance: Copy + Ord;
 
     /// TODO: docs.
     fn distance(

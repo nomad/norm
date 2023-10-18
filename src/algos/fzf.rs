@@ -2,6 +2,10 @@ use core::ops::Range;
 
 use crate::{CaseSensitivity, Match, Metric};
 
+type Distance = u32;
+
+type Score = Distance;
+
 /// TODO: docs.
 #[derive(Debug)]
 pub struct FzfQuery<'a> {
@@ -31,7 +35,21 @@ impl<'a> FzfQuery<'a> {
 
 /// TODO: docs
 #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
-pub struct FzfDistance(u32);
+pub struct FzfDistance(Distance);
+
+impl FzfDistance {
+    /// TODO: docs
+    fn from_score(score: Score) -> Self {
+        // The higher the score the lower the distance.
+        Self(Distance::MAX - score)
+    }
+
+    /// TODO: docs
+    fn into_score(self) -> Score {
+        // The higher the score the lower the distance.
+        Distance::MAX - self.0
+    }
+}
 
 #[cfg(feature = "fzf-v1")]
 pub use v1::FzfV1;
@@ -93,6 +111,18 @@ mod v1 {
             self.with_matched_ranges = matched_ranges;
             self
         }
+
+        /// TODO: docs
+        #[doc(hidden)]
+        pub fn score(
+            &self,
+            query: FzfQuery<'_>,
+            candidate: &str,
+        ) -> Option<Score> {
+            self.distance(query, candidate)
+                .map(|m| m.distance())
+                .map(FzfDistance::into_score)
+        }
     }
 
     impl Metric for FzfV1 {
@@ -120,8 +150,7 @@ mod v1 {
                 self.with_matched_ranges,
             );
 
-            // The higher the score the lower the distance.
-            let distance = FzfDistance(u32::MAX - score);
+            let distance = FzfDistance::from_score(score);
 
             Some(Match::new(distance, matched_ranges))
         }
@@ -218,7 +247,7 @@ fn calculate_score(
     range: Range<usize>,
     case_sensitivity: CaseSensitivity,
     track_matched_ranges: bool,
-) -> (u32, Vec<Range<usize>>) {
+) -> (Score, Vec<Range<usize>>) {
     // TODO: docs
     let mut is_in_gap = false;
 
@@ -315,7 +344,7 @@ fn calculate_score(
 
 /// TODO: docs
 #[inline]
-fn bonus(prev_class: CharClass, next_class: CharClass) -> u32 {
+fn bonus(prev_class: CharClass, next_class: CharClass) -> Score {
     0
 }
 
@@ -354,33 +383,38 @@ impl From<char> for CharClass {
     }
 }
 
-mod bonus {
-    use super::penalty;
+pub mod bonus {
+    //! TODO: docs
+
+    use super::*;
 
     /// TODO: docs
-    pub(super) const MATCH: u32 = 16;
+    pub const MATCH: Score = 16;
 
     /// TODO: docs
-    pub(super) const BOUNDARY: u32 = MATCH / 2;
+    pub const BOUNDARY: Score = MATCH / 2;
 
     /// TODO: docs
-    pub(super) const NON_WORD: u32 = MATCH / 2;
+    pub const NON_WORD: Score = MATCH / 2;
 
     /// TODO: docs
-    pub(super) const CAMEL_123: u32 = BOUNDARY - penalty::GAP_EXTENSION;
+    pub const CAMEL_123: Score = BOUNDARY - penalty::GAP_EXTENSION;
 
     /// TODO: docs
-    pub(super) const CONSECUTIVE: u32 =
-        penalty::GAP_START + penalty::GAP_EXTENSION;
+    pub const CONSECUTIVE: Score = penalty::GAP_START + penalty::GAP_EXTENSION;
 
     /// TODO: docs
-    pub(super) const FIRST_QUERY_CHAR_MULTIPLIER: u32 = 2;
+    pub const FIRST_QUERY_CHAR_MULTIPLIER: Score = 2;
 }
 
-mod penalty {
-    /// TODO: docs
-    pub(super) const GAP_START: u32 = 3;
+pub mod penalty {
+    //! TODO: docs
+
+    use super::*;
 
     /// TODO: docs
-    pub(super) const GAP_EXTENSION: u32 = 1;
+    pub const GAP_START: Score = 3;
+
+    /// TODO: docs
+    pub const GAP_EXTENSION: Score = 1;
 }

@@ -8,9 +8,12 @@ authors = ["Riccardo Mazzarini <me@noib3.dev>"]
 default = ["fzf-v1"]
 fzf-v1 = []
 
+# Private features.
+tests = ["fzf-v1"]
+
 [dependencies]
 
 [[test]]
 name = "fzf-v1"
 path = "./tests/fzf_v1.rs"
-required-features = ["fzf-v1"]
+required-features = ["tests"]
