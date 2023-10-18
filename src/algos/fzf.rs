@@ -37,6 +37,20 @@ impl<'a> FzfQuery<'a> {
 #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
 pub struct FzfDistance(Distance);
 
+/// TODO: docs
+#[derive(Debug, Default, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
+pub enum FzfScheme {
+    /// TODO: docs
+    #[default]
+    Default,
+
+    /// TODO: docs
+    Path,
+
+    /// TODO: docs
+    History,
+}
+
 impl FzfDistance {
     /// TODO: docs
     fn from_score(score: Score) -> Self {
@@ -63,6 +77,9 @@ mod v1 {
     pub struct FzfV1 {
         /// TODO: docs
         case_sensitivity: CaseSensitivity,
+
+        /// TODO: docs
+        scheme: scheme::Scheme,
 
         /// TODO: docs
         with_matched_ranges: bool,
@@ -107,6 +124,17 @@ mod v1 {
 
         /// TODO: docs
         #[inline]
+        pub fn with_scoring_scheme(mut self, scheme: FzfScheme) -> Self {
+            self.scheme = match scheme {
+                FzfScheme::Default => scheme::DEFAULT,
+                FzfScheme::Path => scheme::PATH,
+                FzfScheme::History => scheme::HISTORY,
+            };
+            self
+        }
+
+        /// TODO: docs
+        #[inline]
         pub fn with_matched_ranges(mut self, matched_ranges: bool) -> Self {
             self.with_matched_ranges = matched_ranges;
             self
@@ -146,6 +174,7 @@ mod v1 {
                 query.raw(),
                 candidate,
                 range,
+                &self.scheme,
                 self.case_sensitivity,
                 self.with_matched_ranges,
             );
@@ -245,11 +274,10 @@ fn calculate_score(
     query: &str,
     candidate: &str,
     range: Range<usize>,
+    scheme: &scheme::Scheme,
     case_sensitivity: CaseSensitivity,
     track_matched_ranges: bool,
 ) -> (Score, Vec<Range<usize>>) {
-    let scheme = scheme::DEFAULT;
-
     // TODO: docs
     let mut is_in_gap = false;
 
@@ -265,7 +293,7 @@ fn calculate_score(
     let mut prev_class = candidate[..range.start]
         .chars()
         .next_back()
-        .map(CharClass::from)
+        .map(|ch| char_class(ch, scheme))
         .unwrap_or(scheme.initial_char_class);
 
     let mut query_chars = query.chars();
@@ -277,7 +305,7 @@ fn calculate_score(
     let mut matched_ranges = Vec::new();
 
     for (offset, mut candidate_ch) in candidate[range].char_indices() {
-        let ch_class = CharClass::from(candidate_ch);
+        let ch_class = char_class(candidate_ch, scheme);
 
         if case_sensitivity.is_insensitive() {
             candidate_ch.make_ascii_lowercase();
@@ -286,7 +314,7 @@ fn calculate_score(
         if candidate_ch == query_char {
             score += bonus::MATCH;
 
-            let mut bonus = bonus(prev_class, ch_class);
+            let mut bonus = bonus(prev_class, ch_class, scheme);
 
             if consecutive == 0 {
                 first_bonus = bonus;
@@ -345,36 +373,6 @@ fn calculate_score(
 }
 
 /// TODO: docs
-#[inline]
-fn bonus(prev_class: CharClass, next_class: CharClass) -> Score {
-    use CharClass::*;
-
-    let scheme = scheme::DEFAULT;
-
-    match next_class {
-        NonWord => bonus::NON_WORD,
-
-        WhiteSpace => scheme.bonus_boundary_white,
-
-        Upper if prev_class == Lower => bonus::CAMEL_123,
-
-        Number if prev_class != Number => bonus::CAMEL_123,
-
-        _ => {
-            if prev_class == WhiteSpace {
-                scheme.bonus_boundary_white
-            } else if prev_class == Delimiter {
-                scheme.bonus_boundary_delimiter
-            } else if prev_class == NonWord {
-                bonus::BOUNDARY
-            } else {
-                0
-            }
-        },
-    }
-}
-
-/// TODO: docs
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum CharClass {
     /// TODO: docs
@@ -399,22 +397,19 @@ enum CharClass {
     Number,
 }
 
-impl From<char> for CharClass {
-    #[inline]
-    fn from(ch: char) -> Self {
-        if ch.is_ascii() {
-            ascii_char_class(ch)
-        } else {
-            non_ascii_char_class(ch)
-        }
+/// TODO: docs
+#[inline]
+fn char_class(ch: char, scheme: &scheme::Scheme) -> CharClass {
+    if ch.is_ascii() {
+        ascii_char_class(ch, scheme)
+    } else {
+        non_ascii_char_class(ch, scheme)
     }
 }
 
 /// TODO: docs
 #[inline]
-fn ascii_char_class(ch: char) -> CharClass {
-    let scheme = scheme::DEFAULT;
-
+fn ascii_char_class(ch: char, scheme: &scheme::Scheme) -> CharClass {
     if ch.is_ascii_lowercase() {
         CharClass::Lower
     } else if ch.is_ascii_uppercase() {
@@ -432,9 +427,7 @@ fn ascii_char_class(ch: char) -> CharClass {
 
 /// TODO: docs
 #[inline]
-fn non_ascii_char_class(ch: char) -> CharClass {
-    let scheme = scheme::DEFAULT;
-
+fn non_ascii_char_class(ch: char, scheme: &scheme::Scheme) -> CharClass {
     if ch.is_lowercase() {
         CharClass::Lower
     } else if ch.is_uppercase() {
@@ -449,6 +442,38 @@ fn non_ascii_char_class(ch: char) -> CharClass {
         CharClass::Delimiter
     } else {
         CharClass::NonWord
+    }
+}
+
+/// TODO: docs
+#[inline]
+fn bonus(
+    prev_class: CharClass,
+    next_class: CharClass,
+    scheme: &scheme::Scheme,
+) -> Score {
+    use CharClass::*;
+
+    match next_class {
+        NonWord => bonus::NON_WORD,
+
+        WhiteSpace => scheme.bonus_boundary_white,
+
+        Upper if prev_class == Lower => bonus::CAMEL_123,
+
+        Number if prev_class != Number => bonus::CAMEL_123,
+
+        _ => {
+            if prev_class == WhiteSpace {
+                scheme.bonus_boundary_white
+            } else if prev_class == Delimiter {
+                scheme.bonus_boundary_delimiter
+            } else if prev_class == NonWord {
+                bonus::BOUNDARY
+            } else {
+                0
+            }
+        },
     }
 }
 
@@ -497,6 +522,13 @@ pub mod scheme {
         pub bonus_boundary_delimiter: Score,
         pub initial_char_class: CharClass,
         pub is_delimiter: fn(char) -> bool,
+    }
+
+    impl Default for Scheme {
+        #[inline]
+        fn default() -> Self {
+            DEFAULT
+        }
     }
 
     /// TODO: docs

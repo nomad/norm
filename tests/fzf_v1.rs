@@ -1,11 +1,5 @@
-use norm::{
-    fzf_bonus as bonus,
-    fzf_penalty as penalty,
-    CaseSensitivity,
-    FzfQuery,
-    FzfV1,
-    Metric,
-};
+use norm::fzf::{bonus, penalty, FzfQuery, FzfV1};
+use norm::{CaseSensitivity, Metric};
 
 #[test]
 fn fzf_v1_empty_query() {
