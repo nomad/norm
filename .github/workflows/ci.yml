@@ -27,6 +27,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo bench --all-features --no-run
 
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: RUSTDOCFLAGS="--cfg docsrs" cargo doc --all-features
+
   format:
     name: format
     runs-on: ubuntu-latest
