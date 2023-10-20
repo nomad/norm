@@ -16,7 +16,7 @@ pub struct FzfQuery<'a> {
 impl<'a> FzfQuery<'a> {
     /// TODO: docs
     #[inline]
-    pub fn from_str(s: &'a str) -> Self {
+    pub fn new(s: &'a str) -> Self {
         Self { raw: s }
     }
 
@@ -37,6 +37,22 @@ impl<'a> FzfQuery<'a> {
 #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
 pub struct FzfDistance(Distance);
 
+impl FzfDistance {
+    /// TODO: docs
+    #[inline]
+    fn from_score(score: Score) -> Self {
+        // The higher the score the lower the distance.
+        Self(Distance::MAX - score)
+    }
+
+    /// TODO: docs
+    #[cfg(feature = "tests")]
+    pub fn into_score(self) -> Score {
+        // The higher the score the lower the distance.
+        Distance::MAX - self.0
+    }
+}
+
 /// TODO: docs
 #[derive(Debug, Default, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
 pub enum FzfScheme {
@@ -49,20 +65,6 @@ pub enum FzfScheme {
 
     /// TODO: docs
     History,
-}
-
-impl FzfDistance {
-    /// TODO: docs
-    fn from_score(score: Score) -> Self {
-        // The higher the score the lower the distance.
-        Self(Distance::MAX - score)
-    }
-
-    /// TODO: docs
-    fn into_score(self) -> Score {
-        // The higher the score the lower the distance.
-        Distance::MAX - self.0
-    }
 }
 
 /// TODO: docs
@@ -132,18 +134,6 @@ impl FzfV1 {
             FzfScheme::History => scheme::HISTORY,
         };
         self
-    }
-
-    /// TODO: docs
-    #[doc(hidden)]
-    pub fn score(
-        &self,
-        query: FzfQuery<'_>,
-        candidate: &str,
-    ) -> Option<Score> {
-        self.distance(query, candidate)
-            .map(|m| m.distance())
-            .map(FzfDistance::into_score)
     }
 }
 
@@ -283,6 +273,8 @@ pub(super) fn calculate_score(
     // TODO: docs
     let mut consecutive = 0u32;
 
+    let range_start = range.start;
+
     let mut prev_class = candidate[..range.start]
         .chars()
         .next_back()
@@ -324,8 +316,9 @@ pub(super) fn calculate_score(
 
             if track_matched_ranges {
                 if consecutive == 0 {
-                    let range = offset..(offset + candidate_ch.len_utf8());
-                    matched_ranges.push(range);
+                    let start = range_start + offset;
+                    let end = start + candidate_ch.len_utf8();
+                    matched_ranges.push(start..end);
                 } else if let Some(last_range) = matched_ranges.last_mut() {
                     last_range.end += candidate_ch.len_utf8();
                 } else {
@@ -429,9 +422,9 @@ fn non_ascii_char_class(ch: char, scheme: &scheme::Scheme) -> CharClass {
     } else if ch.is_numeric() {
         CharClass::Number
     } else if ch.is_alphabetic() {
-        CharClass::Upper
+        CharClass::Letter
     } else if ch.is_whitespace() {
-        CharClass::Delimiter
+        CharClass::WhiteSpace
     } else if (scheme.is_delimiter)(ch) {
         CharClass::Delimiter
     } else {
