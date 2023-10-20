@@ -65,212 +65,205 @@ impl FzfDistance {
     }
 }
 
-#[cfg(feature = "fzf-v1")]
-pub use v1::FzfV1;
-
-#[cfg(feature = "fzf-v1")]
-mod v1 {
-    use super::*;
+/// TODO: docs
+#[cfg_attr(docsrs, doc(any(cfg(feature = "fzf-v1", feature = "fzf-v2"))))]
+#[derive(Default)]
+pub struct FzfV1 {
+    /// TODO: docs
+    case_sensitivity: CaseSensitivity,
 
     /// TODO: docs
-    #[derive(Default)]
-    pub struct FzfV1 {
-        /// TODO: docs
-        case_sensitivity: CaseSensitivity,
+    scheme: scheme::Scheme,
 
-        /// TODO: docs
-        scheme: scheme::Scheme,
+    /// TODO: docs
+    with_matched_ranges: bool,
+}
 
-        /// TODO: docs
-        with_matched_ranges: bool,
-    }
-
-    impl FzfV1 {
-        /// TODO: docs
-        #[inline]
-        fn fuzzy_match(
-            &self,
-            query: &str,
-            candidate: &str,
-        ) -> Option<Range<usize>> {
-            debug_assert!(!query.is_empty());
-
-            let range_forward =
-                forward_pass(query, candidate, self.case_sensitivity)?;
-
-            let candidate = &candidate[range_forward.clone()];
-
-            let start_backward =
-                backward_pass(query, candidate, self.case_sensitivity);
-
-            Some(range_forward.start + start_backward..range_forward.end)
-        }
-
-        /// TODO: docs
-        #[inline]
-        pub fn new() -> Self {
-            Self::default()
-        }
-
-        /// TODO: docs
-        #[inline]
-        pub fn with_case_sensitivity(
-            mut self,
-            case_sensitivity: CaseSensitivity,
-        ) -> Self {
-            self.case_sensitivity = case_sensitivity;
-            self
-        }
-
-        /// TODO: docs
-        #[inline]
-        pub fn with_scoring_scheme(mut self, scheme: FzfScheme) -> Self {
-            self.scheme = match scheme {
-                FzfScheme::Default => scheme::DEFAULT,
-                FzfScheme::Path => scheme::PATH,
-                FzfScheme::History => scheme::HISTORY,
-            };
-            self
-        }
-
-        /// TODO: docs
-        #[inline]
-        pub fn with_matched_ranges(mut self, matched_ranges: bool) -> Self {
-            self.with_matched_ranges = matched_ranges;
-            self
-        }
-
-        /// TODO: docs
-        #[doc(hidden)]
-        pub fn score(
-            &self,
-            query: FzfQuery<'_>,
-            candidate: &str,
-        ) -> Option<Score> {
-            self.distance(query, candidate)
-                .map(|m| m.distance())
-                .map(FzfDistance::into_score)
-        }
-    }
-
-    impl Metric for FzfV1 {
-        type Query<'a> = FzfQuery<'a>;
-
-        type Distance = FzfDistance;
-
-        #[inline]
-        fn distance(
-            &self,
-            query: FzfQuery<'_>, // helwo
-            candidate: &str,     // Hello World!
-        ) -> Option<Match<Self::Distance>> {
-            if query.is_empty() {
-                return None;
-            }
-
-            let range = self.fuzzy_match(query.raw(), candidate)?;
-
-            let (score, matched_ranges) = calculate_score(
-                query.raw(),
-                candidate,
-                range,
-                &self.scheme,
-                self.case_sensitivity,
-                self.with_matched_ranges,
-            );
-
-            let distance = FzfDistance::from_score(score);
-
-            Some(Match::new(distance, matched_ranges))
-        }
-    }
-
+impl FzfV1 {
     /// TODO: docs
     #[inline]
-    fn forward_pass(
+    fn fuzzy_match(
+        &self,
         query: &str,
         candidate: &str,
-        case_sensitivity: CaseSensitivity,
     ) -> Option<Range<usize>> {
-        let mut start_offset = None;
+        debug_assert!(!query.is_empty());
 
-        let mut end_offset = None;
+        let range_forward =
+            forward_pass(query, candidate, self.case_sensitivity)?;
 
-        let mut query_chars = query.chars();
+        let candidate = &candidate[range_forward.clone()];
 
-        let mut query_char = query_chars.next().expect("query is not empty");
+        let start_backward =
+            backward_pass(query, candidate, self.case_sensitivity);
 
-        for (offset, mut candidate_char) in candidate.char_indices() {
-            if case_sensitivity.is_insensitive() {
-                candidate_char.make_ascii_lowercase();
-            }
-
-            if query_char != candidate_char {
-                continue;
-            }
-
-            if start_offset.is_none() {
-                start_offset = Some(offset);
-            }
-
-            let Some(next_target_char) = query_chars.next() else {
-                end_offset = Some(offset + candidate_char.len_utf8());
-                break;
-            };
-
-            query_char = next_target_char;
-        }
-
-        let (Some(start), Some(end)) = (start_offset, end_offset) else {
-            return None;
-        };
-
-        Some(start..end)
+        Some(range_forward.start + start_backward..range_forward.end)
     }
 
     /// TODO: docs
     #[inline]
-    fn backward_pass(
-        query: &str,
-        candidate: &str,
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// TODO: docs
+    #[inline]
+    pub fn with_case_sensitivity(
+        mut self,
         case_sensitivity: CaseSensitivity,
-    ) -> usize {
-        // The candidate must start with the first character of the query.
-        debug_assert!(candidate.starts_with(query.chars().next().unwrap()));
+    ) -> Self {
+        self.case_sensitivity = case_sensitivity;
+        self
+    }
 
-        // The candidate must end with the last character of the query.
-        debug_assert!(candidate.ends_with(query.chars().next_back().unwrap()));
+    /// TODO: docs
+    #[inline]
+    pub fn with_matched_ranges(mut self, matched_ranges: bool) -> Self {
+        self.with_matched_ranges = matched_ranges;
+        self
+    }
 
-        let mut start_offset = 0;
+    /// TODO: docs
+    #[inline]
+    pub fn with_scoring_scheme(mut self, scheme: FzfScheme) -> Self {
+        self.scheme = match scheme {
+            FzfScheme::Default => scheme::DEFAULT,
+            FzfScheme::Path => scheme::PATH,
+            FzfScheme::History => scheme::HISTORY,
+        };
+        self
+    }
 
-        let mut query_chars = query.chars().rev();
+    /// TODO: docs
+    #[doc(hidden)]
+    pub fn score(
+        &self,
+        query: FzfQuery<'_>,
+        candidate: &str,
+    ) -> Option<Score> {
+        self.distance(query, candidate)
+            .map(|m| m.distance())
+            .map(FzfDistance::into_score)
+    }
+}
 
-        let mut query_char = query_chars.next().expect("query is not empty");
+impl Metric for FzfV1 {
+    type Query<'a> = FzfQuery<'a>;
 
-        for (offset, mut candidate_char) in candidate.char_indices().rev() {
-            if case_sensitivity.is_insensitive() {
-                candidate_char.make_ascii_lowercase();
-            }
+    type Distance = FzfDistance;
 
-            if query_char != candidate_char {
-                continue;
-            }
-
-            let Some(next_query_char) = query_chars.next() else {
-                start_offset = offset;
-                break;
-            };
-
-            query_char = next_query_char;
+    #[inline]
+    fn distance(
+        &self,
+        query: FzfQuery<'_>, // helwo
+        candidate: &str,     // Hello World!
+    ) -> Option<Match<Self::Distance>> {
+        if query.is_empty() {
+            return None;
         }
 
-        start_offset
+        let range = self.fuzzy_match(query.raw(), candidate)?;
+
+        let (score, matched_ranges) = calculate_score(
+            query.raw(),
+            candidate,
+            range,
+            &self.scheme,
+            self.case_sensitivity,
+            self.with_matched_ranges,
+        );
+
+        let distance = FzfDistance::from_score(score);
+
+        Some(Match::new(distance, matched_ranges))
     }
 }
 
 /// TODO: docs
 #[inline]
-fn calculate_score(
+fn forward_pass(
+    query: &str,
+    candidate: &str,
+    case_sensitivity: CaseSensitivity,
+) -> Option<Range<usize>> {
+    let mut start_offset = None;
+
+    let mut end_offset = None;
+
+    let mut query_chars = query.chars();
+
+    let mut query_char = query_chars.next().expect("query is not empty");
+
+    for (offset, mut candidate_char) in candidate.char_indices() {
+        if case_sensitivity.is_insensitive() {
+            candidate_char.make_ascii_lowercase();
+        }
+
+        if query_char != candidate_char {
+            continue;
+        }
+
+        if start_offset.is_none() {
+            start_offset = Some(offset);
+        }
+
+        let Some(next_target_char) = query_chars.next() else {
+            end_offset = Some(offset + candidate_char.len_utf8());
+            break;
+        };
+
+        query_char = next_target_char;
+    }
+
+    let (Some(start), Some(end)) = (start_offset, end_offset) else {
+        return None;
+    };
+
+    Some(start..end)
+}
+
+/// TODO: docs
+#[inline]
+fn backward_pass(
+    query: &str,
+    candidate: &str,
+    case_sensitivity: CaseSensitivity,
+) -> usize {
+    // The candidate must start with the first character of the query.
+    debug_assert!(candidate.starts_with(query.chars().next().unwrap()));
+
+    // The candidate must end with the last character of the query.
+    debug_assert!(candidate.ends_with(query.chars().next_back().unwrap()));
+
+    let mut start_offset = 0;
+
+    let mut query_chars = query.chars().rev();
+
+    let mut query_char = query_chars.next().expect("query is not empty");
+
+    for (offset, mut candidate_char) in candidate.char_indices().rev() {
+        if case_sensitivity.is_insensitive() {
+            candidate_char.make_ascii_lowercase();
+        }
+
+        if query_char != candidate_char {
+            continue;
+        }
+
+        let Some(next_query_char) = query_chars.next() else {
+            start_offset = offset;
+            break;
+        };
+
+        query_char = next_query_char;
+    }
+
+    start_offset
+}
+
+/// TODO: docs
+#[inline]
+pub(super) fn calculate_score(
     query: &str,
     candidate: &str,
     range: Range<usize>,
@@ -374,7 +367,7 @@ fn calculate_score(
 
 /// TODO: docs
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum CharClass {
+pub(super) enum CharClass {
     /// TODO: docs
     WhiteSpace,
 
@@ -399,7 +392,7 @@ enum CharClass {
 
 /// TODO: docs
 #[inline]
-fn char_class(ch: char, scheme: &scheme::Scheme) -> CharClass {
+pub(super) fn char_class(ch: char, scheme: &scheme::Scheme) -> CharClass {
     if ch.is_ascii() {
         ascii_char_class(ch, scheme)
     } else {
@@ -447,7 +440,7 @@ fn non_ascii_char_class(ch: char, scheme: &scheme::Scheme) -> CharClass {
 
 /// TODO: docs
 #[inline]
-fn bonus(
+pub(super) fn bonus(
     prev_class: CharClass,
     next_class: CharClass,
     scheme: &scheme::Scheme,
@@ -477,6 +470,7 @@ fn bonus(
     }
 }
 
+#[doc(hidden)]
 pub mod bonus {
     //! TODO: docs
 
@@ -501,6 +495,7 @@ pub mod bonus {
     pub const FIRST_QUERY_CHAR_MULTIPLIER: Score = 2;
 }
 
+#[doc(hidden)]
 pub mod penalty {
     //! TODO: docs
 
@@ -513,11 +508,11 @@ pub mod penalty {
     pub const GAP_EXTENSION: Score = 1;
 }
 
-pub mod scheme {
+pub(super) mod scheme {
     use super::*;
 
     /// TODO: docs
-    pub(super) struct Scheme {
+    pub struct Scheme {
         pub bonus_boundary_white: Score,
         pub bonus_boundary_delimiter: Score,
         pub initial_char_class: CharClass,
@@ -532,7 +527,7 @@ pub mod scheme {
     }
 
     /// TODO: docs
-    pub(super) const DEFAULT: Scheme = Scheme {
+    pub const DEFAULT: Scheme = Scheme {
         bonus_boundary_white: bonus::BOUNDARY + 2,
         bonus_boundary_delimiter: bonus::BOUNDARY + 1,
         initial_char_class: CharClass::WhiteSpace,
@@ -545,7 +540,7 @@ pub mod scheme {
     }
 
     /// TODO: docs
-    pub(super) const PATH: Scheme = Scheme {
+    pub const PATH: Scheme = Scheme {
         bonus_boundary_white: bonus::BOUNDARY,
         bonus_boundary_delimiter: bonus::BOUNDARY + 1,
         initial_char_class: CharClass::Delimiter,
@@ -565,7 +560,7 @@ pub mod scheme {
     }
 
     /// TODO: docs
-    pub(super) const HISTORY: Scheme = Scheme {
+    pub const HISTORY: Scheme = Scheme {
         bonus_boundary_white: bonus::BOUNDARY,
         bonus_boundary_delimiter: bonus::BOUNDARY,
         initial_char_class: DEFAULT.initial_char_class,
