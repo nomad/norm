@@ -39,9 +39,9 @@ fn group(c: &mut Criterion) -> BenchmarkGroup<WallTime> {
     c.benchmark_group("fzf_v1")
 }
 
-fn short_case_sensitive_with_ranges(c: &mut Criterion) {
+fn short(c: &mut Criterion) {
     bench::short(FzfV1::new(), None, group(c));
 }
 
-criterion_group!(benches, short_case_sensitive_with_ranges);
+criterion_group!(benches, short);
 criterion_main!(benches);

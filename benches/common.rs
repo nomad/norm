@@ -18,33 +18,7 @@ pub trait FromStr<'a> {
     fn from_str(s: &'a str) -> Self;
 }
 
-#[inline]
-fn bench<'a, M, C>(
-    group: &mut BenchmarkGroup<WallTime>,
-    id: BenchmarkId,
-    metric: &M,
-    query: &str,
-    candidates: C,
-) where
-    M: Metric,
-    C: IntoIterator<Item = &'a str>,
-    C::IntoIter: ExactSizeIterator + Clone,
-{
-    let candidates = candidates.into_iter();
-
-    group.throughput(Throughput::Elements(candidates.len() as u64));
-
-    group.bench_function(id, |b| {
-        let query = M::Query::from_str(query);
-
-        b.iter(|| {
-            for candidate in candidates.clone() {
-                metric.dist(query, candidate);
-            }
-        })
-    });
-}
-
+// TODO: docs
 fn param(
     case: CaseSensitivity,
     with_ranges: bool,
@@ -72,32 +46,71 @@ fn param(
     s
 }
 
-#[inline]
-pub fn short<M: Metric>(
+// TODO: docs
+fn for_all_cases_and_ranges<M, F>(
     mut metric: M,
+    function: &str,
     suffix: Option<&str>,
-    mut group: BenchmarkGroup<WallTime>,
+    mut fun: F,
 ) where
     M: Metric,
+    F: FnMut(&M, BenchmarkId),
 {
     for case in [
         CaseSensitivity::Sensitive,
         CaseSensitivity::Insensitive,
         CaseSensitivity::Smart,
     ] {
-        for ranges in [true, false] {
-            let id = BenchmarkId::new("short", param(case, ranges, suffix));
+        for with_ranges in [true, false] {
+            metric = metric
+                .with_case_sensitivity(case)
+                .with_matched_ranges(with_ranges);
 
-            metric =
-                metric.with_case_sensitivity(case).with_matched_ranges(ranges);
+            let param = param(case, with_ranges, suffix);
 
-            bench(
-                &mut group,
-                id,
-                &metric,
-                "jelly",
-                core::iter::once("jellyfish"),
-            );
+            fun(&metric, BenchmarkId::new(function, param));
         }
     }
+}
+
+// TODO: docs
+fn bench<'a, M, C>(
+    group: &mut BenchmarkGroup<WallTime>,
+    id: BenchmarkId,
+    metric: &M,
+    query: &str,
+    candidates: C,
+) where
+    M: Metric,
+    C: IntoIterator<Item = &'a str>,
+    C::IntoIter: ExactSizeIterator + Clone,
+{
+    let query = M::Query::from_str(query);
+
+    let candidates = candidates.into_iter();
+
+    group.throughput(Throughput::Elements(candidates.len() as u64));
+
+    group.bench_function(id, |b| {
+        b.iter(|| {
+            for candidate in candidates.clone() {
+                metric.dist(query, candidate);
+            }
+        })
+    });
+}
+
+// TODO: docs
+pub fn short<M: Metric>(
+    metric: M,
+    suffix: Option<&str>,
+    mut group: BenchmarkGroup<WallTime>,
+) where
+    M: Metric,
+{
+    for_all_cases_and_ranges(metric, "short", suffix, |metric, id| {
+        let query = "jelly";
+        let candidates = core::iter::once("jellyfish");
+        bench(&mut group, id, metric, query, candidates);
+    })
 }
