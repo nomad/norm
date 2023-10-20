@@ -227,15 +227,19 @@ fn backward_pass(
     candidate: &str,
     case_sensitivity: CaseSensitivity,
 ) -> usize {
+    let case_matcher = case_sensitivity.matcher(query);
+
     // The candidate must start with the first character of the query.
-    debug_assert!(candidate.starts_with(query.chars().next().unwrap()));
+    debug_assert!(case_matcher
+        .eq(candidate.chars().next().unwrap(), query.chars().next().unwrap()));
 
     // The candidate must end with the last character of the query.
-    debug_assert!(candidate.ends_with(query.chars().next_back().unwrap()));
+    debug_assert!(case_matcher.eq(
+        candidate.chars().next_back().unwrap(),
+        query.chars().next_back().unwrap()
+    ));
 
     let mut start_offset = 0;
-
-    let case_matcher = case_sensitivity.matcher(query);
 
     let mut query_chars = query.chars().rev();
 
@@ -337,8 +341,11 @@ pub(super) fn calculate_score(
 
             consecutive += 1;
 
-            query_char =
-                query_chars.next().expect("query chars not exhausted");
+            if let Some(next_char) = query_chars.next() {
+                query_char = next_char;
+            } else {
+                break;
+            };
         } else {
             score -= if is_in_gap {
                 penalty::GAP_EXTENSION

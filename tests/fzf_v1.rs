@@ -18,6 +18,8 @@ fn fzf_v1_score_1() {
 
     assert_eq!(
         score,
-        bonus::MATCH * 3 - penalty::GAP_START - penalty::GAP_EXTENSION * 2
+        bonus::MATCH * 3 + bonus::CAMEL_123
+            - penalty::GAP_START
+            - penalty::GAP_EXTENSION * 3
     );
 }
