@@ -1,3 +1,10 @@
+//! TODO: docs
+
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_docs)]
+#![deny(rustdoc::broken_intra_doc_links)]
+#![deny(rustdoc::private_intra_doc_links)]
+
 mod algos;
 mod case_sensitivity;
 mod r#match;

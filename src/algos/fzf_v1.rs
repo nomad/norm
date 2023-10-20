@@ -68,7 +68,7 @@ pub enum FzfScheme {
 }
 
 /// TODO: docs
-#[cfg_attr(docsrs, doc(any(cfg(feature = "fzf-v1", feature = "fzf-v2"))))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "fzf-v1", feature = "fzf-v2"))))]
 #[derive(Default)]
 pub struct FzfV1 {
     /// TODO: docs
