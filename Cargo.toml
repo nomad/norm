@@ -9,11 +9,19 @@ default = ["fzf-v1"]
 fzf-v1 = []
 
 # Private features.
+bench = ["tests"]
 tests = ["fzf-v1"]
 
 [dependencies]
 
+[dev-dependencies]
+criterion = "0.5"
+
 [[test]]
-name = "fzf-v1"
-path = "./tests/fzf_v1.rs"
+name = "fzf_v1"
 required-features = ["tests"]
+
+[[bench]]
+name = "fzf_v1"
+harness = false
+required-features = ["bench"]

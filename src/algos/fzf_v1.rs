@@ -7,7 +7,7 @@ type Distance = u32;
 type Score = Distance;
 
 /// TODO: docs.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct FzfQuery<'a> {
     /// TODO: docs.
     raw: &'a str,
