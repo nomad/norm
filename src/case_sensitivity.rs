@@ -13,18 +13,45 @@ pub enum CaseSensitivity {
 }
 
 impl CaseSensitivity {
+    /// TODO: docs
     #[inline]
-    pub(crate) fn is_sensitive(self) -> bool {
-        matches!(self, Self::Sensitive)
-    }
+    pub(crate) fn matcher(self, query: &str) -> CaseMatcher {
+        let matcher = match self {
+            Self::Sensitive => case_sensitive_eq,
 
-    #[inline]
-    pub(crate) fn is_insensitive(self) -> bool {
-        matches!(self, Self::Insensitive)
-    }
+            Self::Insensitive => case_insensitive_eq,
 
-    #[inline]
-    pub(crate) fn is_smart(self) -> bool {
-        matches!(self, Self::Smart)
+            Self::Smart => {
+                if query.chars().any(|c| c.is_uppercase()) {
+                    case_sensitive_eq
+                } else {
+                    case_insensitive_eq
+                }
+            },
+        };
+
+        CaseMatcher { matcher }
     }
+}
+
+/// TODO: docs
+pub(crate) struct CaseMatcher {
+    matcher: fn(char, char) -> bool,
+}
+
+impl CaseMatcher {
+    /// TODO: docs
+    pub(crate) fn eq(&self, query_char: char, candidate_char: char) -> bool {
+        (self.matcher)(query_char, candidate_char)
+    }
+}
+
+#[inline]
+fn case_insensitive_eq(query: char, candidate: char) -> bool {
+    query.eq_ignore_ascii_case(&candidate)
+}
+
+#[inline]
+fn case_sensitive_eq(query: char, candidate: char) -> bool {
+    query == candidate
 }

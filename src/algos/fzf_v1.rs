@@ -190,16 +190,14 @@ fn forward_pass(
 
     let mut end_offset = None;
 
+    let case_matcher = case_sensitivity.matcher(query);
+
     let mut query_chars = query.chars();
 
     let mut query_char = query_chars.next().expect("query is not empty");
 
-    for (offset, mut candidate_char) in candidate.char_indices() {
-        if case_sensitivity.is_insensitive() {
-            candidate_char.make_ascii_lowercase();
-        }
-
-        if query_char != candidate_char {
+    for (offset, candidate_char) in candidate.char_indices() {
+        if !case_matcher.eq(query_char, candidate_char) {
             continue;
         }
 
@@ -237,16 +235,14 @@ fn backward_pass(
 
     let mut start_offset = 0;
 
+    let case_matcher = case_sensitivity.matcher(query);
+
     let mut query_chars = query.chars().rev();
 
     let mut query_char = query_chars.next().expect("query is not empty");
 
-    for (offset, mut candidate_char) in candidate.char_indices().rev() {
-        if case_sensitivity.is_insensitive() {
-            candidate_char.make_ascii_lowercase();
-        }
-
-        if query_char != candidate_char {
+    for (offset, candidate_char) in candidate.char_indices().rev() {
+        if !case_matcher.eq(query_char, candidate_char) {
             continue;
         }
 
@@ -289,6 +285,8 @@ pub(super) fn calculate_score(
         .map(|ch| char_class(ch, scheme))
         .unwrap_or(scheme.initial_char_class);
 
+    let case_matcher = case_sensitivity.matcher(query);
+
     let mut query_chars = query.chars();
 
     let mut query_char = query_chars.next().expect("query is not empty");
@@ -297,14 +295,10 @@ pub(super) fn calculate_score(
 
     let mut matched_ranges = Vec::new();
 
-    for (offset, mut candidate_ch) in candidate[range].char_indices() {
+    for (offset, candidate_ch) in candidate[range].char_indices() {
         let ch_class = char_class(candidate_ch, scheme);
 
-        if case_sensitivity.is_insensitive() {
-            candidate_ch.make_ascii_lowercase();
-        }
-
-        if candidate_ch == query_char {
+        if case_matcher.eq(query_char, candidate_ch) {
             score += bonus::MATCH;
 
             let mut bonus = bonus(prev_class, ch_class, scheme);
