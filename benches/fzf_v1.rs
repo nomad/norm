@@ -1,8 +1,10 @@
+mod common;
+
+use common as bench;
 use criterion::{
     criterion_group,
     criterion_main,
     measurement::WallTime,
-    Bencher,
     BenchmarkGroup,
     Criterion,
 };
@@ -12,27 +14,33 @@ use norm::{
     Metric,
 };
 
-fn short(fzf: &FzfV1, b: &mut Bencher) {
-    let jelly = FzfQuery::new("jelly");
-    b.iter(|| fzf.distance(jelly, "jellyfish"))
+impl<'a> bench::FromStr<'a> for FzfQuery<'a> {
+    fn from_str(s: &'a str) -> Self {
+        FzfQuery::new(s)
+    }
 }
 
-fn sensitive_with_ranges() -> FzfV1 {
-    FzfV1::new()
-        .with_case_sensitivity(CaseSensitivity::Sensitive)
-        .with_matched_ranges(true)
-}
+impl bench::Metric for FzfV1 {
+    type Query<'a> = FzfQuery<'a>;
 
-fn short_case_sensitive_with_ranges(c: &mut Criterion) {
-    let fzf = sensitive_with_ranges();
-
-    group(c).bench_function("short_case_sensitive_with_ranges", |b| {
-        short(&fzf, b)
-    });
+    #[inline]
+    fn dist(&self, query: FzfQuery, candidate: &str) {
+        self.distance(query, candidate);
+    }
+    fn with_case_sensitivity(self, case_sensitivity: CaseSensitivity) -> Self {
+        self.with_case_sensitivity(case_sensitivity)
+    }
+    fn with_matched_ranges(self, matched_ranges: bool) -> Self {
+        self.with_matched_ranges(matched_ranges)
+    }
 }
 
 fn group(c: &mut Criterion) -> BenchmarkGroup<WallTime> {
     c.benchmark_group("fzf_v1")
+}
+
+fn short_case_sensitive_with_ranges(c: &mut Criterion) {
+    bench::short(FzfV1::new(), None, group(c));
 }
 
 criterion_group!(benches, short_case_sensitive_with_ranges);
