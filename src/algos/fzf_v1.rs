@@ -2,9 +2,9 @@ use core::ops::Range;
 
 use crate::{CaseSensitivity, Match, Metric};
 
-type Distance = u32;
+pub(super) type Distance = u32;
 
-type Score = Distance;
+pub(super) type Score = Distance;
 
 /// TODO: docs.
 #[derive(Clone, Copy, Debug)]
@@ -22,13 +22,13 @@ impl<'a> FzfQuery<'a> {
 
     /// TODO: docs
     #[inline]
-    fn is_empty(&self) -> bool {
+    pub(super) fn is_empty(&self) -> bool {
         self.raw().is_empty()
     }
 
     /// TODO: docs
     #[inline]
-    fn raw(&self) -> &'a str {
+    pub(super) fn raw(&self) -> &'a str {
         self.raw
     }
 }
@@ -40,7 +40,7 @@ pub struct FzfDistance(Distance);
 impl FzfDistance {
     /// TODO: docs
     #[inline]
-    fn from_score(score: Score) -> Self {
+    pub(super) fn from_score(score: Score) -> Self {
         // The higher the score the lower the distance.
         Self(Distance::MAX - score)
     }

@@ -5,12 +5,13 @@ edition = "2021"
 authors = ["Riccardo Mazzarini <me@noib3.dev>"]
 
 [features]
-default = ["fzf-v1"]
+default = ["tests"]
 fzf-v1 = []
+fzf-v2 = ["fzf-v1"]
 
 # Private features.
 bench = ["tests"]
-tests = ["fzf-v1"]
+tests = ["fzf-v1", "fzf-v2"]
 
 [dependencies]
 
@@ -21,7 +22,16 @@ criterion = "0.5"
 name = "fzf_v1"
 required-features = ["tests"]
 
+[[test]]
+name = "fzf_v2"
+required-features = ["tests"]
+
 [[bench]]
 name = "fzf_v1"
+harness = false
+required-features = ["bench"]
+
+[[bench]]
+name = "fzf_v2"
 harness = false
 required-features = ["bench"]
