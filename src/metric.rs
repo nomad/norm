@@ -10,7 +10,7 @@ pub trait Metric {
 
     /// TODO: docs.
     fn distance(
-        &self,
+        &mut self,
         query: Self::Query<'_>,
         candidate: &str,
     ) -> Option<Match<Self::Distance>>;

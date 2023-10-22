@@ -11,6 +11,7 @@ mod r#match;
 mod metric;
 
 pub use algos::*;
+use case_sensitivity::CaseMatcher;
 pub use case_sensitivity::CaseSensitivity;
 pub use metric::Metric;
 pub use r#match::Match;

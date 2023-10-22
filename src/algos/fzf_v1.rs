@@ -144,7 +144,7 @@ impl Metric for FzfV1 {
 
     #[inline]
     fn distance(
-        &self,
+        &mut self,
         query: FzfQuery<'_>, // helwo
         candidate: &str,     // Hello World!
     ) -> Option<Match<Self::Distance>> {
@@ -253,7 +253,7 @@ fn backward_pass(
 
 /// TODO: docs
 #[inline]
-pub(super) fn calculate_score(
+fn calculate_score(
     query: &str,
     candidate: &str,
     range: Range<usize>,
@@ -506,6 +506,7 @@ pub(super) mod scheme {
     use super::*;
 
     /// TODO: docs
+    #[derive(Clone)]
     pub struct Scheme {
         pub bonus_boundary_white: Score,
         pub bonus_boundary_delimiter: Score,
