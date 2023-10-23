@@ -807,23 +807,60 @@ impl core::fmt::Debug for ScoringMatrix<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         use core::fmt::Write;
 
+        // The matrix should never be empty, but just in case.
+        if self.slice.is_empty() {
+            return f.write_str("[ ]");
+        }
+
+        fn width(score: Score) -> usize {
+            if score == 0 {
+                1
+            } else {
+                (score.ilog10() + 1) as usize
+            }
+        }
+
         let mut rows = self.rows(self.top_left_idx());
 
-        while let Some(cell) = rows.next(self) {
-            let (opening_char, closing_char) =
-                match (cell.is_first_row(self), cell.is_last_row(self)) {
-                    (true, true) => ('[', ']'),
-                    (true, false) => ('┌', '┐'),
-                    (false, true) => ('└', '┘'),
-                    (false, false) => ('│', '│'),
-                };
+        let max_score_width = {
+            let max_score = self.slice.iter().copied().max().unwrap();
+            width(max_score)
+        };
 
+        let opening_char: char;
+
+        let closing_char: char;
+
+        let printed_matrix_inner_width =
+            (self.width - 1) * (max_score_width + 1) + max_score_width;
+
+        if self.height == 1 {
+            opening_char = '[';
+            closing_char = ']';
+        } else {
+            f.write_char('┌')?;
+            f.write_str(&" ".repeat(printed_matrix_inner_width))?;
+            f.write_char('┐')?;
+            f.write_char('\n')?;
+            opening_char = '│';
+            closing_char = '│';
+        }
+
+        while let Some(cell) = rows.next(self) {
             f.write_char(opening_char)?;
 
             let mut cols = self.cols(cell);
 
             while let Some(cell) = cols.next(self) {
+                let score = self[cell];
+
                 write!(f, "{score}", score = self[cell])?;
+
+                let score_width = width(score);
+
+                for _ in score_width..max_score_width {
+                    f.write_char(' ')?;
+                }
 
                 if !cell.is_last_col(self) {
                     f.write_char(' ')?;
@@ -833,6 +870,12 @@ impl core::fmt::Debug for ScoringMatrix<'_> {
             f.write_char(closing_char)?;
 
             f.write_char('\n')?;
+        }
+
+        if self.height > 1 {
+            f.write_char('└')?;
+            f.write_str(&" ".repeat(printed_matrix_inner_width))?;
+            f.write_char('┘')?;
         }
 
         Ok(())
