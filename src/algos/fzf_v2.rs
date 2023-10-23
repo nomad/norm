@@ -822,17 +822,50 @@ impl core::fmt::Debug for ScoringMatrix<'_> {
 
         let mut rows = self.rows(self.top_left_idx());
 
+        // The character width of the biggest score in the whole matrix.
         let max_score_width = {
             let max_score = self.slice.iter().copied().max().unwrap();
             width(max_score)
         };
 
+        // The character width of the biggest score in the last column.
+        let last_col_max_score_width = {
+            let last_col_max_score = {
+                // The cell in the last column of the first row.
+                let first_row_last_col = {
+                    let mut cell = self.top_left_idx();
+                    let mut first_row_cols = self.cols(cell);
+                    while let Some(right) = first_row_cols.next(self) {
+                        cell = right;
+                    }
+                    cell
+                };
+
+                let mut max_score = 0;
+
+                let mut last_col_rows = self.rows(first_row_last_col);
+
+                while let Some(cell) = last_col_rows.next(self) {
+                    let score = self[cell];
+
+                    if score > max_score {
+                        max_score = score;
+                    }
+                }
+
+                max_score
+            };
+
+            width(last_col_max_score)
+        };
+
+        let printed_matrix_inner_width = (self.width - 1)
+            * (max_score_width + 1)
+            + last_col_max_score_width;
+
         let opening_char: char;
 
         let closing_char: char;
-
-        let printed_matrix_inner_width =
-            (self.width - 1) * (max_score_width + 1) + max_score_width;
 
         if self.height == 1 {
             opening_char = '[';
@@ -856,15 +889,13 @@ impl core::fmt::Debug for ScoringMatrix<'_> {
 
                 write!(f, "{score}", score = self[cell])?;
 
-                let score_width = width(score);
+                let num_spaces = if cell.is_last_col(self) {
+                    last_col_max_score_width - width(score)
+                } else {
+                    max_score_width - width(score) + 1
+                };
 
-                for _ in score_width..max_score_width {
-                    f.write_char(' ')?;
-                }
-
-                if !cell.is_last_col(self) {
-                    f.write_char(' ')?;
-                }
+                f.write_str(&" ".repeat(num_spaces))?;
             }
 
             f.write_char(closing_char)?;
