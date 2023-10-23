@@ -307,7 +307,81 @@ fn score<'scoring>(
     case_matcher: &CaseMatcher,
     scheme: &scheme::Scheme,
 ) -> (ScoringMatrix<'scoring>, Score) {
-    todo!();
+    let mut matrix = matrix_slab.alloc(query, candidate);
+
+    let mut max_score = score_first_row(
+        &mut matrix,
+        query,
+        candidate,
+        bonus_vector,
+        case_matcher,
+    );
+
+    println!("{matrix:?}");
+
+    panic!();
+
+    (matrix, max_score)
+}
+
+/// TODO: docs
+#[inline]
+fn score_first_row(
+    matrix: &mut ScoringMatrix,
+    query: &str,
+    candidate: Candidate,
+    bonus_vector: &BonusVector,
+    case_matcher: &CaseMatcher,
+) -> Score {
+    let mut max_score: Score = 0;
+
+    let mut cols = matrix.cols(matrix.top_left_idx());
+
+    let first_query_char = query.chars().next().expect("query is not empty");
+
+    let mut prev_score: Score = 0;
+
+    let mut is_in_gap = false;
+
+    let mut candidate_chars = candidate.char_idxs();
+
+    while let Some(cell) = cols.next(matrix) {
+        let (char_idx, candidate_char) = candidate_chars.next().expect(
+            "the scoring matrix's width is equal to the candidate's char \
+             length",
+        );
+
+        let bonus = bonus_vector[char_idx];
+
+        let score = if case_matcher.eq(first_query_char, candidate_char) {
+            is_in_gap = false;
+
+            let score =
+                bonus::MATCH + (bonus * bonus::FIRST_QUERY_CHAR_MULTIPLIER);
+
+            if score > max_score {
+                max_score = score;
+            }
+
+            score
+        } else {
+            let penalty = if is_in_gap {
+                penalty::GAP_EXTENSION
+            } else {
+                penalty::GAP_START
+            };
+
+            is_in_gap = true;
+
+            prev_score.saturating_sub(penalty)
+        };
+
+        matrix[cell] = score;
+
+        prev_score = score;
+    }
+
+    max_score
 }
 
 fn phase_3(
@@ -699,12 +773,197 @@ impl ScoringMatrixSlab {
         query: &str,
         candidate: Candidate,
     ) -> ScoringMatrix<'a> {
-        todo!();
+        let height = query.chars().count();
+
+        let width = candidate.char_len();
+
+        debug_assert!(height * width > 0);
+
+        if height * width > self.vec.len() {
+            self.vec.resize(height * width, 0);
+        }
+
+        let slice = &mut self.vec[..height * width];
+
+        slice.fill(0);
+
+        ScoringMatrix { slice, height, width }
     }
 }
 
 /// TODO: docs
 #[derive(Default)]
 struct ScoringMatrix<'a> {
-    vec: &'a [Score],
+    /// TODO: docs
+    ///
+    /// <width><width>...<width>
+    /// \---- height times ----/
+    slice: &'a mut [Score],
+    height: usize,
+    width: usize,
+}
+
+impl core::fmt::Debug for ScoringMatrix<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        use core::fmt::Write;
+
+        let mut rows = self.rows(self.top_left_idx());
+
+        while let Some(cell) = rows.next(self) {
+            let (opening_char, closing_char) =
+                match (cell.is_first_row(self), cell.is_last_row(self)) {
+                    (true, true) => ('[', ']'),
+                    (true, false) => ('┌', '┐'),
+                    (false, true) => ('└', '┘'),
+                    (false, false) => ('│', '│'),
+                };
+
+            f.write_char(opening_char)?;
+
+            let mut cols = self.cols(cell);
+
+            while let Some(cell) = cols.next(self) {
+                write!(f, "{score}", score = self[cell])?;
+
+                if !cell.is_last_col(self) {
+                    f.write_char(' ')?;
+                }
+            }
+
+            f.write_char(closing_char)?;
+
+            f.write_char('\n')?;
+        }
+
+        Ok(())
+    }
+}
+
+impl<'a> ScoringMatrix<'a> {
+    /// TODO: docs
+    #[inline]
+    fn top_left_idx(&self) -> MatrixCell {
+        MatrixCell(0)
+    }
+
+    #[inline]
+    fn cols(&self, starting_from: MatrixCell) -> Cols {
+        Cols { next: Some(starting_from) }
+    }
+
+    #[inline]
+    fn rows(&self, starting_from: MatrixCell) -> Rows {
+        Rows { next: Some(starting_from) }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct MatrixCell(usize);
+
+impl Index<MatrixCell> for ScoringMatrix<'_> {
+    type Output = Score;
+
+    #[inline]
+    fn index(&self, index: MatrixCell) -> &Self::Output {
+        &self.slice[index.0]
+    }
+}
+
+impl IndexMut<MatrixCell> for ScoringMatrix<'_> {
+    #[inline]
+    fn index_mut(&mut self, index: MatrixCell) -> &mut Self::Output {
+        &mut self.slice[index.0]
+    }
+}
+
+impl MatrixCell {
+    /// TODO: docs
+    #[inline]
+    fn is_first_row(&self, matrix: &ScoringMatrix) -> bool {
+        self.up(matrix).is_none()
+    }
+
+    /// TODO: docs
+    #[inline]
+    fn is_last_row(&self, matrix: &ScoringMatrix) -> bool {
+        self.down(matrix).is_none()
+    }
+
+    /// TODO: docs
+    #[inline]
+    fn is_last_col(&self, matrix: &ScoringMatrix) -> bool {
+        self.right(matrix).is_none()
+    }
+
+    /// TODO: docs
+    #[inline]
+    fn up(&self, matrix: &ScoringMatrix) -> Option<Self> {
+        if self.0 < matrix.width {
+            None
+        } else {
+            Some(Self(self.0 - matrix.width))
+        }
+    }
+
+    /// TODO: docs
+    #[inline]
+    fn down(&self, matrix: &ScoringMatrix) -> Option<Self> {
+        if self.0 + matrix.width >= matrix.height * matrix.width {
+            None
+        } else {
+            Some(Self(self.0 + matrix.width))
+        }
+    }
+
+    /// TODO: docs
+    #[inline]
+    fn right(&self, matrix: &ScoringMatrix) -> Option<Self> {
+        let out = if (self.0 + 1) % matrix.width == 0 {
+            None
+        } else {
+            Some(Self(self.0 + 1))
+        };
+
+        out
+    }
+
+    /// TODO: docs
+    #[inline]
+    fn left(&self, matrix: &ScoringMatrix) -> Option<Self> {
+        if self.0 % matrix.width == 0 {
+            None
+        } else {
+            Some(Self(self.0 - 1))
+        }
+    }
+}
+
+/// TODO: docs
+struct Cols {
+    next: Option<MatrixCell>,
+}
+
+impl Cols {
+    #[inline]
+    fn next(&mut self, matrix: &ScoringMatrix) -> Option<MatrixCell> {
+        let this = self.next.take();
+        let next = this.and_then(|cell| cell.right(&matrix));
+        self.next = next;
+        this
+    }
+}
+
+/// TODO: docs
+struct Rows {
+    next: Option<MatrixCell>,
+}
+
+impl Rows {
+    #[inline]
+    fn next(&mut self, matrix: &ScoringMatrix) -> Option<MatrixCell> {
+        let this = self.next.take();
+        let next = this.and_then(|cell| cell.down(&matrix));
+        self.next = next;
+        this
+    }
 }
