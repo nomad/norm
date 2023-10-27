@@ -7,15 +7,17 @@ use criterion::{
 use norm::CaseSensitivity;
 
 pub trait Metric {
-    type Query<'a>: Copy + FromStr<'a>;
+    type Query<'a>: Copy;
+
+    type Parser: Parser<Self>;
 
     fn dist(&mut self, query: Self::Query<'_>, candidate: &str);
     fn with_case_sensitivity(self, case_sensitivity: CaseSensitivity) -> Self;
     fn with_matched_ranges(self, matched_ranges: bool) -> Self;
 }
 
-pub trait FromStr<'a> {
-    fn from_str(s: &'a str) -> Self;
+pub trait Parser<M: Metric + ?Sized>: Default {
+    fn parse<'a>(&'a mut self, s: &str) -> M::Query<'a>;
 }
 
 // TODO: docs
@@ -85,7 +87,9 @@ fn bench<'a, M, C>(
     C: IntoIterator<Item = &'a str>,
     C::IntoIter: ExactSizeIterator + Clone,
 {
-    let query = M::Query::from_str(query);
+    let mut parser = M::Parser::default();
+
+    let query = parser.parse(query);
 
     let candidates = candidates.into_iter();
 

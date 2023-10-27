@@ -1,3 +1,5 @@
+use crate::fzf::FzfQuery;
+
 /// TODO: docs
 #[derive(Copy, Clone, Debug, Default)]
 pub enum CaseSensitivity {
@@ -15,7 +17,7 @@ pub enum CaseSensitivity {
 impl CaseSensitivity {
     /// TODO: docs
     #[inline]
-    pub(crate) fn matcher(self, query: &str) -> CaseMatcher {
+    pub(crate) fn matcher(self, query: FzfQuery) -> CaseMatcher {
         let matcher = match self {
             Self::Sensitive => case_sensitive_eq,
 

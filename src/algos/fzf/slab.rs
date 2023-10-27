@@ -1,6 +1,6 @@
 use core::ops::{Index, IndexMut, Range};
 
-use super::Score;
+use super::{FzfQuery, Score};
 
 /// TODO: docs
 #[derive(Clone, Default)]
@@ -167,8 +167,8 @@ impl Default for MatchedIndicesSlab {
 impl MatchedIndicesSlab {
     #[inline]
     /// TODO: docs
-    pub fn alloc<'a>(&'a mut self, query: &str) -> MatchedIndices<'a> {
-        let char_len = query.chars().count();
+    pub fn alloc<'a>(&'a mut self, query: FzfQuery) -> MatchedIndices<'a> {
+        let char_len = query.char_len();
 
         if char_len > self.vec.len() {
             self.vec.resize(char_len, CandidateCharIdx(0));
@@ -325,10 +325,10 @@ impl ConsecutiveMatrixSlab {
     #[inline]
     pub fn alloc<'a>(
         &'a mut self,
-        query: &str,
+        query: FzfQuery,
         candidate: Candidate,
     ) -> Matrix<'a, usize> {
-        let height = query.chars().count();
+        let height = query.char_len();
         let width = candidate.char_len();
         self.slab.alloc(width, height)
     }
@@ -345,10 +345,10 @@ impl ScoringMatrixSlab {
     #[inline]
     pub fn alloc<'a>(
         &'a mut self,
-        query: &str,
+        query: FzfQuery,
         candidate: Candidate,
     ) -> Matrix<'a, Score> {
-        let height = query.chars().count();
+        let height = query.char_len();
         let width = candidate.char_len();
         self.slab.alloc(width, height)
     }

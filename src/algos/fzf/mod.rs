@@ -1,6 +1,7 @@
 //! TODO: docs
 
 mod distance;
+mod parser;
 mod query;
 mod scheme;
 mod scoring;
@@ -11,6 +12,7 @@ mod v1;
 mod v2;
 
 pub use distance::FzfDistance;
+pub use parser::FzfParser;
 pub use query::FzfQuery;
 pub use scheme::FzfScheme;
 use scheme::Scheme;

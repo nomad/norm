@@ -61,8 +61,6 @@ impl Metric for FzfV2 {
         query: FzfQuery<'_>,
         candidate: &str,
     ) -> Option<Match<Self::Distance>> {
-        let query = query.raw();
-
         if query.is_empty() {
             return None;
         }
@@ -105,8 +103,8 @@ impl Metric for FzfV2 {
 fn matched_indices<'idx, 'bonus>(
     indices_slab: &'idx mut MatchedIndicesSlab,
     bonuses_slab: &'bonus mut BonusVectorSlab,
-    query: &str,
-    candidate: Candidate<'_>,
+    query: FzfQuery,
+    candidate: Candidate,
     case_matcher: &CaseMatcher,
     scheme: &Scheme,
 ) -> Option<(MatchedIndices<'idx>, BonusVector<'bonus>)> {
@@ -136,8 +134,7 @@ fn matched_indices<'idx, 'bonus>(
         }
     }
 
-    // TODO: use query.char_len()
-    if matched_idxs.len() == query.chars().count() {
+    if matched_idxs.len() == query.char_len() {
         Some((matched_idxs, bonuses))
     } else {
         None
@@ -149,7 +146,7 @@ fn matched_indices<'idx, 'bonus>(
 fn score<'scoring>(
     scoring_slab: &'scoring mut ScoringMatrixSlab,
     consecutive_slab: &mut ConsecutiveMatrixSlab,
-    query: &str,
+    query: FzfQuery,
     candidate: Candidate,
     matched_indices: MatchedIndices,
     bonus_vector: BonusVector,

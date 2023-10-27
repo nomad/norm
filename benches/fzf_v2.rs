@@ -9,19 +9,21 @@ use criterion::{
     Criterion,
 };
 use norm::{
-    fzf::{FzfQuery, FzfV2},
+    fzf::{FzfParser, FzfQuery, FzfV2},
     CaseSensitivity,
     Metric,
 };
 
-impl<'a> bench::FromStr<'a> for FzfQuery<'a> {
-    fn from_str(s: &'a str) -> Self {
-        FzfQuery::new(s)
+impl bench::Parser<FzfV2> for FzfParser {
+    fn parse<'a>(&'a mut self, s: &str) -> FzfQuery<'a> {
+        self.parse(s)
     }
 }
 
 impl bench::Metric for FzfV2 {
     type Query<'a> = FzfQuery<'a>;
+
+    type Parser = FzfParser;
 
     #[inline]
     fn dist(&mut self, query: FzfQuery, candidate: &str) {

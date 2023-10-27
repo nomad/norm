@@ -57,11 +57,9 @@ impl Metric for FzfV1 {
     #[inline]
     fn distance(
         &mut self,
-        query: FzfQuery<'_>, // helwo
-        candidate: &str,     // Hello World!
+        query: FzfQuery<'_>,
+        candidate: &str,
     ) -> Option<Match<Self::Distance>> {
-        let query = query.raw();
-
         if query.is_empty() {
             return None;
         }
@@ -96,7 +94,7 @@ impl Metric for FzfV1 {
 /// TODO: docs
 #[inline]
 fn forward_pass(
-    query: &str,
+    query: FzfQuery,
     candidate: &str,
     case_matcher: &CaseMatcher,
 ) -> Option<Range<usize>> {
@@ -135,7 +133,7 @@ fn forward_pass(
 /// TODO: docs
 #[inline]
 fn backward_pass(
-    query: &str,
+    query: FzfQuery,
     candidate: &str,
     case_matcher: &CaseMatcher,
 ) -> usize {
@@ -174,7 +172,7 @@ fn backward_pass(
 /// TODO: docs
 #[inline]
 fn calculate_score(
-    query: &str,
+    query: FzfQuery,
     candidate: &str,
     range: Range<usize>,
     scheme: &Scheme,
