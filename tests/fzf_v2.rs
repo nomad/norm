@@ -18,6 +18,11 @@ fn fzf_v2_upstream_1() {
 }
 
 #[test]
+fn fzf_v1_upstream_2() {
+    common::upstream_2::<FzfV2>();
+}
+
+#[test]
 fn fzf_v2_score_1() {
     let mut fzf = FzfV2::new()
         .with_case_sensitivity(CaseSensitivity::Sensitive)

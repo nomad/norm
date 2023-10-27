@@ -5,20 +5,41 @@ use norm::CaseSensitivity;
 use CaseSensitivity::*;
 
 pub fn empty_query<F: Fzf>() {
-    assert!(fzf::<F>(Insensitive, "", "foo").is_none());
+    let (_, m) = fzf::<F>(Insensitive, "", "foo");
+    assert!(m.is_none());
 }
 
 pub fn upstream_1<F: Fzf>() {
-    let m = fzf::<F>(Insensitive, "oBZ", "fooBarbaz").unwrap();
+    let (_, m) = fzf::<F>(Insensitive, "oBZ", "fooBarbaz1");
+
+    let m = m.unwrap();
 
     assert_eq!(
         m.distance().into_score(),
-        bonus::MATCH * 3 + bonus::CAMEL_123
+        3 * bonus::MATCH + bonus::CAMEL_123
             - penalty::GAP_START
-            - penalty::GAP_EXTENSION * 3
+            - 3 * penalty::GAP_EXTENSION
     );
 
     assert_eq!(m.matched_ranges().sorted(), [2..4, 8..9]);
+}
+
+pub fn upstream_2<F: Fzf>() {
+    let (fzf, m) = fzf::<F>(Insensitive, "fbb", "foo bar baz");
+
+    let m = m.unwrap();
+
+    assert_eq!(
+        m.distance().into_score(),
+        3 * bonus::MATCH
+            + bonus::FIRST_QUERY_CHAR_MULTIPLIER
+                * fzf.scheme().bonus_boundary_white
+            + 2 * fzf.scheme().bonus_boundary_white
+            - 2 * penalty::GAP_START * 2
+            - 4 * penalty::GAP_EXTENSION
+    );
+
+    assert_eq!(m.matched_ranges().sorted(), [0..1, 4..5, 8..9]);
 }
 
 pub use utils::*;
@@ -41,6 +62,7 @@ mod utils {
             sorted
         }
     }
+
     pub trait Fzf:
         Default
         + for<'a> Metric<Query<'a> = FzfQuery<'a>, Distance = FzfDistance>
@@ -51,6 +73,8 @@ mod utils {
         ) -> Self;
 
         fn with_matched_ranges(self, matched_ranges: bool) -> Self;
+
+        fn scheme(&self) -> &norm::fzf::Scheme;
     }
 
     impl Fzf for FzfV1 {
@@ -63,6 +87,18 @@ mod utils {
 
         fn with_matched_ranges(self, matched_ranges: bool) -> Self {
             self.with_matched_ranges(matched_ranges)
+        }
+
+        fn scheme(&self) -> &norm::fzf::Scheme {
+            #[cfg(feature = "tests")]
+            {
+                self.scheme()
+            }
+
+            #[cfg(not(feature = "tests"))]
+            {
+                unreachable!()
+            }
         }
     }
 
@@ -77,19 +113,33 @@ mod utils {
         fn with_matched_ranges(self, matched_ranges: bool) -> Self {
             self.with_matched_ranges(matched_ranges)
         }
+
+        fn scheme(&self) -> &norm::fzf::Scheme {
+            #[cfg(feature = "tests")]
+            {
+                self.scheme()
+            }
+
+            #[cfg(not(feature = "tests"))]
+            {
+                unreachable!()
+            }
+        }
     }
 
     pub(super) fn fzf<F: Fzf>(
         case_sensitivity: CaseSensitivity,
         query: &str,
         candidate: &str,
-    ) -> Option<Match<FzfDistance>> {
+    ) -> (F, Option<Match<FzfDistance>>) {
         let mut fzf = F::default()
             .with_case_sensitivity(case_sensitivity)
             .with_matched_ranges(true);
 
         let mut parser = FzfParser::new();
 
-        fzf.distance(parser.parse(query), candidate)
+        let m = fzf.distance(parser.parse(query), candidate);
+
+        (fzf, m)
     }
 }

@@ -15,7 +15,8 @@ pub use distance::FzfDistance;
 pub use parser::FzfParser;
 pub use query::FzfQuery;
 pub use scheme::FzfScheme;
-use scheme::Scheme;
+#[doc(hidden)]
+pub use scheme::Scheme;
 use scoring::*;
 #[cfg(feature = "fzf-v1")]
 pub use v1::FzfV1;
