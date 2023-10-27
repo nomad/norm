@@ -27,6 +27,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo bench --all-features --no-run
 
+  clippy:
+    name: clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy
+      - run: cargo clippy --all-features --all-targets -- -D warnings
+
   docs:
     name: docs
     runs-on: ubuntu-latest
