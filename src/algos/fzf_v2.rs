@@ -17,6 +17,9 @@ pub struct FzfV2 {
     case_sensitivity: CaseSensitivity,
 
     /// TODO: docs
+    consecutive_matrix_slab: ConsecutiveMatrixSlab,
+
+    /// TODO: docs
     matched_indices_slab: MatchedIndicesSlab,
 
     /// TODO: docs
@@ -237,11 +240,12 @@ impl Metric for FzfV2 {
 
         let (scoring_matrix, score, score_cell) = score(
             &mut self.scoring_matrix_slab,
+            &mut self.consecutive_matrix_slab,
             query,
             candidate,
             matched_indices,
             bonus_vector,
-            &case_matcher,
+            case_matcher,
             &self.scheme,
         );
 
@@ -300,15 +304,16 @@ fn matched_indices<'idx, 'bonus>(
 /// TODO: docs
 #[inline]
 fn score<'scoring>(
-    matrix_slab: &'scoring mut ScoringMatrixSlab,
+    scoring_slab: &'scoring mut ScoringMatrixSlab,
+    consecutive_slab: &mut ConsecutiveMatrixSlab,
     query: &str,
     candidate: Candidate,
     matched_indices: MatchedIndices,
     bonus_vector: BonusVector,
-    case_matcher: &CaseMatcher,
+    case_matcher: CaseMatcher,
     scheme: &scheme::Scheme,
-) -> (ScoringMatrix<'scoring>, Score, MatrixCell) {
-    let mut matrix = matrix_slab.alloc(query, candidate);
+) -> (Matrix<'scoring, Score>, Score, MatrixCell) {
+    let mut matrix = scoring_slab.alloc(query, candidate);
 
     // The char index in the candidate string of the character that matched the
     // last character in the query string.
@@ -332,7 +337,7 @@ fn score<'scoring>(
         last_matched_idx,
         candidate,
         &bonus_vector,
-        case_matcher,
+        &case_matcher,
     );
 
     let (max_score, max_score_cell) = score_remaining_rows(
@@ -352,7 +357,7 @@ fn score<'scoring>(
 /// TODO: docs
 #[inline]
 fn score_first_row(
-    matrix: &mut ScoringMatrix,
+    matrix: &mut Matrix<'_, Score>,
     first_query_char: char,
     first_matched_idx: CandidateCharIdx,
     last_matched_idx: CandidateCharIdx,
@@ -419,14 +424,14 @@ fn score_first_row(
 /// TODO: docs
 #[inline]
 fn score_remaining_rows<I>(
-    matrix: &mut ScoringMatrix,
+    matrix: &mut Matrix<'_, Score>,
     chars_idxs_rows: I,
     last_matched_idx: CandidateCharIdx,
     mut max_score: Score,
     mut max_score_cell: MatrixCell,
     candidate: Candidate,
     bonus_vector: BonusVector,
-    case_matcher: &CaseMatcher,
+    case_matcher: CaseMatcher,
 ) -> (Score, MatrixCell)
 where
     I: Iterator<Item = (char, CandidateCharIdx, MatrixCell)>,
@@ -897,10 +902,68 @@ impl IndexMut<CandidateCharIdx> for BonusVector<'_> {
     }
 }
 
+trait MatrixItem: Copy + Ord + core::fmt::Display {
+    /// TODO: docs
+    fn fill() -> Self;
+
+    /// TODO: docs
+    fn printed_width(&self) -> usize;
+}
+
+impl MatrixItem for Score {
+    #[inline]
+    fn fill() -> Self {
+        0
+    }
+
+    fn printed_width(&self) -> usize {
+        if *self == 0 {
+            1
+        } else {
+            (self.ilog10() + 1) as usize
+        }
+    }
+}
+
+impl MatrixItem for usize {
+    #[inline]
+    fn fill() -> Self {
+        0
+    }
+
+    fn printed_width(&self) -> usize {
+        if *self == 0 {
+            1
+        } else {
+            (self.ilog10() + 1) as usize
+        }
+    }
+}
+
+/// TODO: docs
+#[derive(Default, Clone)]
+struct ConsecutiveMatrixSlab {
+    slab: MatrixSlab<usize>,
+}
+
+impl ConsecutiveMatrixSlab {
+    /// TODO: docs
+    #[inline]
+    fn alloc<'a>(
+        &'a mut self,
+        query: &str,
+        candidate: Candidate,
+    ) -> Matrix<'a, usize> {
+        let height = query.chars().count();
+        let width = candidate.char_len();
+        self.slab.alloc(width, height)
+    }
+}
+
 /// TODO: docs
 #[derive(Default, Clone)]
 struct ScoringMatrixSlab {
-    vec: Vec<Score>,
+    slab: MatrixSlab<Score>,
 }
 
 impl ScoringMatrixSlab {
@@ -910,38 +973,58 @@ impl ScoringMatrixSlab {
         &'a mut self,
         query: &str,
         candidate: Candidate,
-    ) -> ScoringMatrix<'a> {
+    ) -> Matrix<'a, Score> {
         let height = query.chars().count();
-
         let width = candidate.char_len();
-
-        debug_assert!(height * width > 0);
-
-        if height * width > self.vec.len() {
-            self.vec.resize(height * width, 0);
-        }
-
-        let slice = &mut self.vec[..height * width];
-
-        slice.fill(0);
-
-        ScoringMatrix { slice, height, width }
+        self.slab.alloc(width, height)
     }
 }
 
 /// TODO: docs
-#[derive(Default)]
-struct ScoringMatrix<'a> {
+#[derive(Default, Clone)]
+struct MatrixSlab<T: MatrixItem> {
+    vec: Vec<T>,
+}
+
+impl<T: MatrixItem> MatrixSlab<T> {
+    /// TODO: docs
+    #[inline]
+    fn alloc<'a>(&'a mut self, width: usize, height: usize) -> Matrix<'a, T> {
+        debug_assert!(height * width > 0);
+
+        if height * width > self.vec.len() {
+            self.vec.resize(height * width, T::fill());
+        }
+
+        let slice = &mut self.vec[..height * width];
+
+        slice.fill(T::fill());
+
+        Matrix { slice, height, width }
+    }
+}
+
+/// TODO: docs
+struct Matrix<'a, T: MatrixItem> {
     /// TODO: docs
     ///
     /// <width><width>...<width>
     /// \---- height times ----/
-    slice: &'a mut [Score],
+    slice: &'a mut [T],
     height: usize,
     width: usize,
 }
 
-impl core::fmt::Debug for ScoringMatrix<'_> {
+/// Prints the matrix like this:
+///
+/// ```text
+///   ┌                         ┐
+///   │0  16 16 13 12 11 10 9  8│
+///   │0  0  0  0  0  0  0  0  0│
+///   │0  0  0  0  0  0  0  0  0│
+///   └                         ┘
+/// ```
+impl<T: MatrixItem> core::fmt::Debug for Matrix<'_, T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         use core::fmt::Write;
 
@@ -950,18 +1033,10 @@ impl core::fmt::Debug for ScoringMatrix<'_> {
             return f.write_str("[ ]");
         }
 
-        fn printed_width(score: Score) -> usize {
-            if score == 0 {
-                1
-            } else {
-                (score.ilog10() + 1) as usize
-            }
-        }
-
         // The character width of the biggest score in the whole matrix.
         let max_score_width = {
             let max_score = self.slice.iter().copied().max().unwrap();
-            printed_width(max_score)
+            max_score.printed_width()
         };
 
         // The character width of the biggest score in the last column.
@@ -976,7 +1051,7 @@ impl core::fmt::Debug for ScoringMatrix<'_> {
                 .max()
                 .unwrap();
 
-            printed_width(last_col_max_score)
+            last_col_max_score.printed_width()
         };
 
         let printed_matrix_inner_width = (self.width - 1)
@@ -1003,14 +1078,14 @@ impl core::fmt::Debug for ScoringMatrix<'_> {
             f.write_char(opening_char)?;
 
             for cell in self.cols(cell) {
-                let score = self[cell];
+                let item = self[cell];
 
-                write!(f, "{score}", score = self[cell])?;
+                write!(f, "{item}")?;
 
                 let num_spaces = if self.is_in_last_col(cell) {
-                    last_col_max_score_width - printed_width(score)
+                    last_col_max_score_width - item.printed_width()
                 } else {
-                    max_score_width - printed_width(score) + 1
+                    max_score_width - item.printed_width() + 1
                 };
 
                 f.write_str(&" ".repeat(num_spaces))?;
@@ -1031,7 +1106,7 @@ impl core::fmt::Debug for ScoringMatrix<'_> {
     }
 }
 
-impl<'a> ScoringMatrix<'a> {
+impl<'a, T: MatrixItem> Matrix<'a, T> {
     #[inline]
     fn cols(&self, starting_from: MatrixCell) -> Cols {
         Cols { next: Some(starting_from), matrix_width: self.width }
@@ -1103,8 +1178,8 @@ impl<'a> ScoringMatrix<'a> {
 #[derive(Debug, Clone, Copy)]
 struct MatrixCell(usize);
 
-impl Index<MatrixCell> for ScoringMatrix<'_> {
-    type Output = Score;
+impl<T: MatrixItem> Index<MatrixCell> for Matrix<'_, T> {
+    type Output = T;
 
     #[inline]
     fn index(&self, index: MatrixCell) -> &Self::Output {
@@ -1112,7 +1187,7 @@ impl Index<MatrixCell> for ScoringMatrix<'_> {
     }
 }
 
-impl IndexMut<MatrixCell> for ScoringMatrix<'_> {
+impl<T: MatrixItem> IndexMut<MatrixCell> for Matrix<'_, T> {
     #[inline]
     fn index_mut(&mut self, index: MatrixCell) -> &mut Self::Output {
         &mut self.slice[index.0]
