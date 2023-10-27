@@ -9,7 +9,7 @@ use norm::CaseSensitivity;
 pub trait Metric {
     type Query<'a>: Copy + FromStr<'a>;
 
-    fn dist(&self, query: Self::Query<'_>, candidate: &str);
+    fn dist(&mut self, query: Self::Query<'_>, candidate: &str);
     fn with_case_sensitivity(self, case_sensitivity: CaseSensitivity) -> Self;
     fn with_matched_ranges(self, matched_ranges: bool) -> Self;
 }
@@ -54,7 +54,7 @@ fn for_all_cases_and_ranges<M, F>(
     mut fun: F,
 ) where
     M: Metric,
-    F: FnMut(&M, BenchmarkId),
+    F: FnMut(&mut M, BenchmarkId),
 {
     for case in [
         CaseSensitivity::Sensitive,
@@ -68,7 +68,7 @@ fn for_all_cases_and_ranges<M, F>(
 
             let param = param(case, with_ranges, suffix);
 
-            fun(&metric, BenchmarkId::new(function, param));
+            fun(&mut metric, BenchmarkId::new(function, param));
         }
     }
 }
@@ -77,7 +77,7 @@ fn for_all_cases_and_ranges<M, F>(
 fn bench<'a, M, C>(
     group: &mut BenchmarkGroup<WallTime>,
     id: BenchmarkId,
-    metric: &M,
+    metric: &mut M,
     query: &str,
     candidates: C,
 ) where

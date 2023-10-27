@@ -12,7 +12,7 @@ pub struct FzfV2 {
     scheme: Scheme,
 
     /// TODO: docs
-    slab: FzfSlab,
+    slab: V2Slab,
 
     /// TODO: docs
     with_matched_ranges: bool,

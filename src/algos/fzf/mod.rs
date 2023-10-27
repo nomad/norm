@@ -15,7 +15,6 @@ pub use query::FzfQuery;
 pub use scheme::FzfScheme;
 use scheme::Scheme;
 use scoring::*;
-pub use slab::FzfSlab;
 #[cfg(feature = "fzf-v1")]
 pub use v1::FzfV1;
 #[cfg(feature = "fzf-v1")]

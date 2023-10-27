@@ -24,7 +24,7 @@ impl bench::Metric for FzfV1 {
     type Query<'a> = FzfQuery<'a>;
 
     #[inline]
-    fn dist(&self, query: FzfQuery, candidate: &str) {
+    fn dist(&mut self, query: FzfQuery, candidate: &str) {
         self.distance(query, candidate);
     }
     fn with_case_sensitivity(self, case_sensitivity: CaseSensitivity) -> Self {

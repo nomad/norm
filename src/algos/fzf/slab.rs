@@ -4,7 +4,7 @@ use super::Score;
 
 /// TODO: docs
 #[derive(Clone, Default)]
-pub struct FzfSlab {
+pub(super) struct V2Slab {
     /// TODO: docs
     pub(super) bonus_vector: BonusVectorSlab,
 
