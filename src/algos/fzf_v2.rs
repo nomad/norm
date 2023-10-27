@@ -494,7 +494,7 @@ where
                     }
                 }
 
-                if (score + bonus) as i64 > score_left {
+                if ((score + bonus) as i64) < score_left {
                     consecutive = 0;
                     score + bonus_vector[char_idx]
                 } else {
