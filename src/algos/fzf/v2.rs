@@ -1,3 +1,5 @@
+use core::ops::Range;
+
 use super::{slab::*, *};
 use crate::{CaseMatcher, CaseSensitivity, Match, Metric};
 
@@ -78,7 +80,7 @@ impl Metric for FzfV2 {
             &self.scheme,
         )?;
 
-        let (scoring_matrix, score, score_cell) = score(
+        let (scores, consecutive, score, score_cell) = score(
             &mut self.slab.scoring_matrix,
             &mut self.slab.consecutive_matrix,
             query,
@@ -88,13 +90,15 @@ impl Metric for FzfV2 {
             case_matcher,
         );
 
-        println!("\n{score:?}");
-
-        println!("\n{scoring_matrix:?}");
+        let matched_ranges = if self.with_matched_ranges {
+            matched_ranges(scores, consecutive, score_cell, candidate)
+        } else {
+            Vec::new()
+        };
 
         let distance = FzfDistance::from_score(score);
 
-        Some(Match::new(distance, Vec::new()))
+        Some(Match::new(distance, matched_ranges))
     }
 }
 
@@ -143,15 +147,16 @@ fn matched_indices<'idx, 'bonus>(
 
 /// TODO: docs
 #[inline]
-fn score<'scoring>(
+fn score<'scoring, 'consecutive>(
     scoring_slab: &'scoring mut ScoringMatrixSlab,
-    consecutive_slab: &mut ConsecutiveMatrixSlab,
+    consecutive_slab: &'consecutive mut ConsecutiveMatrixSlab,
     query: FzfQuery,
     candidate: Candidate,
     matched_indices: MatchedIndices,
     bonus_vector: BonusVector,
     case_matcher: CaseMatcher,
-) -> (Matrix<'scoring, Score>, Score, MatrixCell) {
+) -> (Matrix<'scoring, Score>, Matrix<'consecutive, usize>, Score, MatrixCell)
+{
     let mut scoring_matrix = scoring_slab.alloc(query, candidate);
 
     let mut consecutive_matrix = consecutive_slab.alloc(query, candidate);
@@ -194,9 +199,7 @@ fn score<'scoring>(
         case_matcher,
     );
 
-    println!("{consecutive_matrix:?}");
-
-    (scoring_matrix, max_score, max_score_cell)
+    (scoring_matrix, consecutive_matrix, max_score, max_score_cell)
 }
 
 /// TODO: docs
@@ -369,4 +372,74 @@ where
     }
 
     (max_score, max_score_cell)
+}
+
+/// TODO: docs
+#[inline]
+fn matched_ranges(
+    scores: Matrix<Score>,
+    consecutives: Matrix<usize>,
+    max_score_cell: MatrixCell,
+    candidate: Candidate,
+) -> Vec<Range<usize>> {
+    let mut ranges = Vec::<Range<usize>>::new();
+
+    let mut prefer_match = true;
+
+    let mut cell = max_score_cell;
+
+    loop {
+        let score = scores[cell];
+
+        let cell_left = scores.left(cell);
+
+        let cell_up_left = cell_left.and_then(|left| scores.up(left));
+
+        let score_left = cell_left.map(|c| scores[c]).unwrap_or(0);
+
+        let score_up_left = cell_up_left.map(|c| scores[c]).unwrap_or(0);
+
+        let this_prefer_match = prefer_match;
+
+        prefer_match = consecutives[cell] > 1
+            || consecutives
+                .right(cell)
+                .and_then(|right| consecutives.down(right))
+                .map(|down_right| consecutives[down_right] > 0)
+                .unwrap_or(false);
+
+        if score > score_up_left
+            && (score > score_left || score == score_left && this_prefer_match)
+        {
+            let char_idx = CandidateCharIdx(scores.col_of(cell));
+
+            let char = candidate.char(char_idx);
+            let offset = candidate.char_offset(char_idx);
+
+            let char_len_utf8 = char.len_utf8();
+
+            match ranges.last_mut() {
+                Some(last) if last.start == offset + char_len_utf8 => {
+                    last.start = offset;
+                },
+                _ => {
+                    ranges.push(offset..offset + char_len_utf8);
+                },
+            }
+
+            if let Some(up_left) = cell_up_left {
+                cell = up_left;
+            } else {
+                break;
+            }
+        } else {
+            if let Some(left) = scores.left(cell) {
+                cell = left;
+            } else {
+                break;
+            }
+        }
+    }
+
+    ranges
 }

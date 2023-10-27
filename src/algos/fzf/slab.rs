@@ -63,7 +63,6 @@ impl CandidateSlab {
         Candidate {
             chars: &self.chars[..len],
             char_offsets: &self.char_indices[..len],
-            byte_offset: 0,
             char_offset: 0,
         }
     }
@@ -74,7 +73,6 @@ impl CandidateSlab {
 pub(super) struct Candidate<'a> {
     chars: &'a [char],
     char_offsets: &'a [usize],
-    byte_offset: usize,
     char_offset: usize,
 }
 
@@ -96,6 +94,12 @@ impl CandidateCharIdx {
 }
 
 impl<'a> Candidate<'a> {
+    /// TODO: docs
+    #[inline]
+    pub fn char(&self, idx: CandidateCharIdx) -> char {
+        self.chars[idx.0 - self.char_offset]
+    }
+
     /// TODO: docs
     #[inline]
     pub fn chars(&self) -> impl Iterator<Item = char> + '_ {
@@ -120,23 +124,17 @@ impl<'a> Candidate<'a> {
 
     /// TODO: docs
     #[inline]
+    pub fn char_offset(&self, idx: CandidateCharIdx) -> usize {
+        self.char_offsets[idx.0 - self.char_offset]
+    }
+
+    /// TODO: docs
+    #[inline]
     pub fn char_offsets(&self) -> impl Iterator<Item = (usize, char)> + '_ {
         self.char_offsets
             .iter()
             .zip(self.chars)
-            .map(|(&offset, &char)| (offset + self.byte_offset, char))
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn nth_char(&self, idx: usize) -> char {
-        self.chars[idx]
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn nth_char_offset(&self, idx: usize) -> usize {
-        self.char_offsets[idx] + self.byte_offset
+            .map(|(&offset, &char)| (offset, char))
     }
 
     /// TODO: docs
@@ -146,8 +144,7 @@ impl<'a> Candidate<'a> {
         let chars = &self.chars[range.clone()];
         let char_offsets = &self.char_offsets[range.clone()];
         let char_offset = self.char_offset + range.start;
-        let byte_offset = self.byte_offset + self.char_offsets[range.start];
-        Self { chars, char_offsets, char_offset, byte_offset }
+        Self { chars, char_offsets, char_offset }
     }
 }
 
@@ -483,7 +480,12 @@ impl<T: MatrixItem> core::fmt::Debug for Matrix<'_, T> {
 impl<'a, T: MatrixItem> Matrix<'a, T> {
     #[inline]
     pub fn cols(&self, starting_from: MatrixCell) -> Cols {
-        Cols { next: Some(starting_from), matrix_width: self.width }
+        Cols::new(starting_from, self.width)
+    }
+
+    #[inline]
+    pub fn col_of(&self, cell: MatrixCell) -> usize {
+        cell.0 % self.width
     }
 
     #[inline]
@@ -530,11 +532,7 @@ impl<'a, T: MatrixItem> Matrix<'a, T> {
 
     #[inline]
     pub fn rows(&self, starting_from: MatrixCell) -> Rows {
-        Rows {
-            next: Some(starting_from),
-            matrix_width: self.width,
-            matrix_height: self.height,
-        }
+        Rows::new(starting_from, self.width, self.height)
     }
 
     /// TODO: docs
@@ -614,8 +612,31 @@ impl MatrixCell {
 
 /// TODO: docs
 pub(super) struct Cols {
+    /// TODO: docs
     next: Option<MatrixCell>,
+
+    /// TODO: docs
     matrix_width: usize,
+
+    /// TODO: docs
+    next_col: ColNext,
+}
+
+impl Cols {
+    #[inline]
+    fn new(start_from: MatrixCell, matrix_width: usize) -> Self {
+        Self {
+            next: Some(start_from),
+            matrix_width,
+            next_col: ColNext::default(),
+        }
+    }
+
+    #[inline]
+    pub fn reverse(mut self) -> Self {
+        self.next_col.switch();
+        self
+    }
 }
 
 impl Iterator for Cols {
@@ -624,7 +645,8 @@ impl Iterator for Cols {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let this = self.next.take();
-        let next = this.and_then(|cell| cell.right(self.matrix_width));
+        let next =
+            this.and_then(|cell| self.next_col.call(cell, self.matrix_width));
         self.next = next;
         this
     }
@@ -635,6 +657,29 @@ pub(super) struct Rows {
     next: Option<MatrixCell>,
     matrix_height: usize,
     matrix_width: usize,
+    next_row: RowNext,
+}
+
+impl Rows {
+    #[inline]
+    fn new(
+        start_from: MatrixCell,
+        matrix_width: usize,
+        matrix_height: usize,
+    ) -> Self {
+        Self {
+            next: Some(start_from),
+            matrix_width,
+            matrix_height,
+            next_row: RowNext::default(),
+        }
+    }
+
+    #[inline]
+    pub fn reverse(mut self) -> Self {
+        self.next_row.switch();
+        self
+    }
 }
 
 impl Iterator for Rows {
@@ -643,9 +688,88 @@ impl Iterator for Rows {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let this = self.next.take();
-        let next = this
-            .and_then(|cell| cell.down(self.matrix_width, self.matrix_height));
+
+        let next = this.and_then(|cell| {
+            self.next_row.call(cell, self.matrix_width, self.matrix_height)
+        });
+
         self.next = next;
+
         this
     }
+}
+
+struct RowNext {
+    fun: fn(MatrixCell, usize, usize) -> Option<MatrixCell>,
+    is_down: bool,
+}
+
+impl Default for RowNext {
+    #[inline]
+    fn default() -> Self {
+        Self { fun: down, is_down: true }
+    }
+}
+
+impl RowNext {
+    fn call(
+        &self,
+        cell: MatrixCell,
+        matrix_width: usize,
+        matrix_height: usize,
+    ) -> Option<MatrixCell> {
+        (self.fun)(cell, matrix_width, matrix_height)
+    }
+
+    fn switch(&mut self) {
+        self.fun = if self.is_down { up } else { down };
+        self.is_down = !self.is_down;
+    }
+}
+
+struct ColNext {
+    fun: fn(MatrixCell, usize) -> Option<MatrixCell>,
+    is_right: bool,
+}
+
+impl Default for ColNext {
+    #[inline]
+    fn default() -> Self {
+        Self { fun: right, is_right: true }
+    }
+}
+
+impl ColNext {
+    fn call(
+        &self,
+        cell: MatrixCell,
+        matrix_width: usize,
+    ) -> Option<MatrixCell> {
+        (self.fun)(cell, matrix_width)
+    }
+
+    fn switch(&mut self) {
+        self.fun = if self.is_right { left } else { right };
+        self.is_right = !self.is_right;
+    }
+}
+
+#[inline]
+fn up(cell: MatrixCell, width: usize, _height: usize) -> Option<MatrixCell> {
+    cell.up(width)
+}
+
+#[inline]
+fn down(cell: MatrixCell, width: usize, height: usize) -> Option<MatrixCell> {
+    cell.down(width, height)
+}
+
+#[inline]
+fn left(cell: MatrixCell, width: usize) -> Option<MatrixCell> {
+    cell.left(width)
+}
+
+#[inline]
+fn right(cell: MatrixCell, width: usize) -> Option<MatrixCell> {
+    cell.right(width)
 }

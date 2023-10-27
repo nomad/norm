@@ -1,3 +1,6 @@
+mod common;
+
+use common::SortedRanges;
 use norm::fzf::{bonus, penalty, FzfParser, FzfV1};
 use norm::{CaseSensitivity, Metric};
 
@@ -25,5 +28,5 @@ fn fzf_v1_score_1() {
             - penalty::GAP_EXTENSION * 3
     );
 
-    assert_eq!(mach.matched_ranges(), [2..4, 8..9]);
+    assert_eq!(mach.matched_ranges().sorted(), [2..4, 8..9]);
 }
