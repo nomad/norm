@@ -67,9 +67,9 @@ impl Metric for FzfV2 {
             return None;
         }
 
-        let case_matcher = self.case_sensitivity.matcher(query);
-
         let candidate = self.slab.candidate.alloc(candidate);
+
+        let case_matcher = self.case_sensitivity.matcher(query);
 
         let (matched_indices, bonus_vector) = matched_indices(
             &mut self.slab.matched_indices,

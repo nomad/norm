@@ -1,7 +1,7 @@
 use core::ops::Range;
 
 use super::*;
-use crate::{CaseSensitivity, Match, Metric};
+use crate::{CaseMatcher, CaseSensitivity, Match, Metric};
 
 /// TODO: docs
 #[cfg_attr(docsrs, doc(cfg(any(feature = "fzf-v1", feature = "fzf-v2"))))]
@@ -66,13 +66,15 @@ impl Metric for FzfV1 {
             return None;
         }
 
-        let range_forward =
-            forward_pass(query, candidate, self.case_sensitivity)?;
+        let case_matcher = self.case_sensitivity.matcher(query);
 
-        let candidate = &candidate[range_forward.clone()];
+        let range_forward = forward_pass(query, candidate, &case_matcher)?;
 
-        let start_backward =
-            backward_pass(query, candidate, self.case_sensitivity);
+        let start_backward = backward_pass(
+            query,
+            &candidate[range_forward.clone()],
+            &case_matcher,
+        );
 
         let range = range_forward.start + start_backward..range_forward.end;
 
@@ -81,7 +83,7 @@ impl Metric for FzfV1 {
             candidate,
             range,
             &self.scheme,
-            self.case_sensitivity,
+            case_matcher,
             self.with_matched_ranges,
         );
 
@@ -96,13 +98,11 @@ impl Metric for FzfV1 {
 fn forward_pass(
     query: &str,
     candidate: &str,
-    case_sensitivity: CaseSensitivity,
+    case_matcher: &CaseMatcher,
 ) -> Option<Range<usize>> {
     let mut start_offset = None;
 
     let mut end_offset = None;
-
-    let case_matcher = case_sensitivity.matcher(query);
 
     let mut query_chars = query.chars();
 
@@ -137,10 +137,8 @@ fn forward_pass(
 fn backward_pass(
     query: &str,
     candidate: &str,
-    case_sensitivity: CaseSensitivity,
+    case_matcher: &CaseMatcher,
 ) -> usize {
-    let case_matcher = case_sensitivity.matcher(query);
-
     // The candidate must start with the first character of the query.
     debug_assert!(case_matcher
         .eq(candidate.chars().next().unwrap(), query.chars().next().unwrap()));
@@ -180,7 +178,7 @@ fn calculate_score(
     candidate: &str,
     range: Range<usize>,
     scheme: &Scheme,
-    case_sensitivity: CaseSensitivity,
+    case_matcher: CaseMatcher,
     track_matched_ranges: bool,
 ) -> (Score, Vec<Range<usize>>) {
     // TODO: docs
@@ -202,8 +200,6 @@ fn calculate_score(
         .next_back()
         .map(|ch| char_class(ch, scheme))
         .unwrap_or(scheme.initial_char_class);
-
-    let case_matcher = case_sensitivity.matcher(query);
 
     let mut query_chars = query.chars();
 
