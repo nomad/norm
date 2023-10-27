@@ -18,8 +18,33 @@ fn fzf_v2_upstream_1() {
 }
 
 #[test]
-fn fzf_v1_upstream_2() {
+fn fzf_v2_upstream_2() {
     common::upstream_2::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_3() {
+    common::upstream_3::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_4() {
+    common::upstream_4::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_5() {
+    common::upstream_5::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_6() {
+    common::upstream_6::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_7() {
+    common::upstream_7::<FzfV2>();
 }
 
 #[test]

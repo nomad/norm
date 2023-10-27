@@ -42,6 +42,82 @@ pub fn upstream_2<F: Fzf>() {
     assert_eq!(m.matched_ranges().sorted(), [0..1, 4..5, 8..9]);
 }
 
+pub fn upstream_3<F: Fzf>() {
+    let (_, m) = fzf::<F>(Insensitive, "rdoc", "/AutomatorDocument.icns");
+
+    let m = m.unwrap();
+
+    assert_eq!(
+        m.distance().into_score(),
+        4 * bonus::MATCH + 2 * bonus::CONSECUTIVE + bonus::CAMEL_123
+    );
+
+    assert_eq!(m.matched_ranges().sorted(), [9..13]);
+}
+
+pub fn upstream_4<F: Fzf>() {
+    let (fzf, m) = fzf::<F>(Insensitive, "zhsc", "/man1/zshcompctl.1");
+
+    let m = m.unwrap();
+
+    assert_eq!(
+        m.distance().into_score(),
+        4 * bonus::MATCH
+            + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 3)
+                * fzf.scheme().bonus_boundary_delimiter
+    );
+
+    assert_eq!(m.matched_ranges().sorted(), [6..10]);
+}
+
+pub fn upstream_5<F: Fzf>() {
+    let (fzf, m) = fzf::<F>(Insensitive, "zhsc", "/.oh-my-zsh/cache");
+
+    let m = m.unwrap();
+
+    assert_eq!(
+        m.distance().into_score(),
+        4 * bonus::MATCH
+            + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 2) * bonus::BOUNDARY
+            + fzf.scheme().bonus_boundary_delimiter
+            - penalty::GAP_START
+    );
+
+    assert_eq!(m.matched_ranges().sorted(), [8..11, 12..13]);
+}
+
+pub fn upstream_6<F: Fzf>() {
+    let (_, m) = fzf::<F>(Insensitive, "12356", "ab0123 456");
+
+    let m = m.unwrap();
+
+    assert_eq!(
+        m.distance().into_score(),
+        5 * bonus::MATCH + 3 * bonus::CONSECUTIVE
+            - penalty::GAP_START
+            - penalty::GAP_EXTENSION
+    );
+
+    assert_eq!(m.matched_ranges().sorted(), [3..6, 8..10]);
+}
+
+pub fn upstream_7<F: Fzf>() {
+    let (_, m) = fzf::<F>(Insensitive, "12356", "abc123 456");
+
+    let m = m.unwrap();
+
+    assert_eq!(
+        m.distance().into_score(),
+        5 * bonus::MATCH
+            + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 2) * bonus::CAMEL_123
+            + bonus::CONSECUTIVE
+            - penalty::GAP_START
+            - penalty::GAP_EXTENSION
+    );
+
+    assert_eq!(m.matched_ranges().sorted(), [3..6, 8..10]);
+}
+
 pub use utils::*;
 
 mod utils {
