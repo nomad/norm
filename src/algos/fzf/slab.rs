@@ -1,399 +1,29 @@
 use core::ops::{Index, IndexMut, Range};
 
-use super::fzf_v1::*;
-use crate::{CaseMatcher, CaseSensitivity, Match, Metric};
+use super::Score;
 
 /// TODO: docs
-#[cfg_attr(docsrs, doc(cfg(feature = "fzf-v2")))]
 #[derive(Clone, Default)]
-pub struct FzfV2 {
+pub struct FzfSlab {
     /// TODO: docs
-    bonus_vector_slab: BonusVectorSlab,
-
-    /// TODO: docs
-    candidate_slab: CandidateSlab,
+    pub(super) bonus_vector: BonusVectorSlab,
 
     /// TODO: docs
-    case_sensitivity: CaseSensitivity,
+    pub(super) candidate: CandidateSlab,
 
     /// TODO: docs
-    consecutive_matrix_slab: ConsecutiveMatrixSlab,
+    pub(super) consecutive_matrix: ConsecutiveMatrixSlab,
 
     /// TODO: docs
-    matched_indices_slab: MatchedIndicesSlab,
+    pub(super) matched_indices: MatchedIndicesSlab,
 
     /// TODO: docs
-    scoring_matrix_slab: ScoringMatrixSlab,
-
-    /// TODO: docs
-    scheme: scheme::Scheme,
-
-    /// TODO: docs
-    with_matched_ranges: bool,
-}
-
-impl FzfV2 {
-    /// TODO: docs
-    #[inline]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn with_case_sensitivity(
-        mut self,
-        case_sensitivity: CaseSensitivity,
-    ) -> Self {
-        self.case_sensitivity = case_sensitivity;
-        self
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn with_matched_ranges(mut self, matched_ranges: bool) -> Self {
-        self.with_matched_ranges = matched_ranges;
-        self
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn with_scoring_scheme(mut self, scheme: FzfScheme) -> Self {
-        self.scheme = match scheme {
-            FzfScheme::Default => scheme::DEFAULT,
-            FzfScheme::Path => scheme::PATH,
-            FzfScheme::History => scheme::HISTORY,
-        };
-        self
-    }
-}
-
-impl Metric for FzfV2 {
-    type Query<'a> = FzfQuery<'a>;
-
-    type Distance = FzfDistance;
-
-    #[inline]
-    fn distance(
-        &mut self,
-        query: FzfQuery<'_>,
-        candidate: &str,
-    ) -> Option<Match<Self::Distance>> {
-        if query.is_empty() {
-            return None;
-        }
-
-        let query = query.raw();
-
-        let case_matcher = self.case_sensitivity.matcher(query);
-
-        let candidate = self.candidate_slab.alloc(candidate);
-
-        let (matched_indices, bonus_vector) = matched_indices(
-            &mut self.matched_indices_slab,
-            &mut self.bonus_vector_slab,
-            query,
-            candidate,
-            &case_matcher,
-            &self.scheme,
-        )?;
-
-        let (scoring_matrix, score, score_cell) = score(
-            &mut self.scoring_matrix_slab,
-            &mut self.consecutive_matrix_slab,
-            query,
-            candidate,
-            matched_indices,
-            bonus_vector,
-            case_matcher,
-        );
-
-        println!("\n{score:?}");
-
-        println!("\n{scoring_matrix:?}");
-
-        let distance = FzfDistance::from_score(score);
-
-        Some(Match::new(distance, Vec::new()))
-    }
-}
-
-/// TODO: docs
-#[inline]
-fn matched_indices<'idx, 'bonus>(
-    indices_slab: &'idx mut MatchedIndicesSlab,
-    bonuses_slab: &'bonus mut BonusVectorSlab,
-    query: &str,
-    candidate: Candidate<'_>,
-    case_matcher: &CaseMatcher,
-    scheme: &scheme::Scheme,
-) -> Option<(MatchedIndices<'idx>, BonusVector<'bonus>)> {
-    let mut query_chars = query.chars();
-
-    let mut query_char = query_chars.next().expect("query is not empty");
-
-    let mut prev_class = scheme.initial_char_class;
-
-    let mut bonuses = bonuses_slab.alloc(candidate);
-
-    let mut matched_idxs = indices_slab.alloc(query);
-
-    for (char_idx, candidate_char) in candidate.char_idxs() {
-        let char_class = char_class(candidate_char, scheme);
-        let bonus = bonus(prev_class, char_class, scheme);
-        prev_class = char_class;
-
-        bonuses[char_idx] = bonus;
-
-        if case_matcher.eq(query_char, candidate_char) {
-            matched_idxs.push(char_idx);
-
-            if let Some(next_char) = query_chars.next() {
-                query_char = next_char;
-            }
-        }
-    }
-
-    // TODO: use query.char_len()
-    if matched_idxs.len() == query.chars().count() {
-        Some((matched_idxs, bonuses))
-    } else {
-        None
-    }
-}
-
-/// TODO: docs
-#[inline]
-fn score<'scoring>(
-    scoring_slab: &'scoring mut ScoringMatrixSlab,
-    consecutive_slab: &mut ConsecutiveMatrixSlab,
-    query: &str,
-    candidate: Candidate,
-    matched_indices: MatchedIndices,
-    bonus_vector: BonusVector,
-    case_matcher: CaseMatcher,
-) -> (Matrix<'scoring, Score>, Score, MatrixCell) {
-    let mut scoring_matrix = scoring_slab.alloc(query, candidate);
-
-    let mut consecutive_matrix = consecutive_slab.alloc(query, candidate);
-
-    // The char index in the candidate string of the character that matched the
-    // last character in the query string.
-    let last_matched_idx = matched_indices.last();
-
-    let mut chars_idxs_rows = query
-        .chars()
-        .zip(matched_indices.into_iter())
-        .zip(scoring_matrix.rows(scoring_matrix.top_left()))
-        .map(|((query_char, matched_idx), row)| {
-            (query_char, matched_idx, row)
-        });
-
-    let (first_query_char, first_matched_idx, _) =
-        chars_idxs_rows.next().expect("the query is not empty");
-
-    let (max_score, max_score_cell) = score_first_row(
-        &mut scoring_matrix,
-        &mut consecutive_matrix,
-        first_query_char,
-        first_matched_idx,
-        last_matched_idx,
-        candidate,
-        &bonus_vector,
-        &case_matcher,
-    );
-
-    let (max_score, max_score_cell) = score_remaining_rows(
-        &mut scoring_matrix,
-        &mut consecutive_matrix,
-        chars_idxs_rows,
-        last_matched_idx,
-        max_score,
-        max_score_cell,
-        candidate,
-        bonus_vector,
-        case_matcher,
-    );
-
-    println!("{consecutive_matrix:?}");
-
-    (scoring_matrix, max_score, max_score_cell)
-}
-
-/// TODO: docs
-#[inline]
-fn score_first_row(
-    scoring_matrix: &mut Matrix<'_, Score>,
-    consecutive_matrix: &mut Matrix<'_, usize>,
-    first_query_char: char,
-    first_matched_idx: CandidateCharIdx,
-    last_matched_idx: CandidateCharIdx,
-    candidate: Candidate,
-    bonus_vector: &BonusVector,
-    case_matcher: &CaseMatcher,
-) -> (Score, MatrixCell) {
-    let mut max_score: Score = 0;
-
-    let mut max_score_cell = scoring_matrix.top_left();
-
-    let mut prev_score: Score = 0;
-
-    let mut is_in_gap = false;
-
-    let candidate = candidate.slice(first_matched_idx..last_matched_idx);
-
-    let mut candidate_chars = candidate.char_idxs();
-
-    let starting_col = scoring_matrix
-        .right_n(scoring_matrix.top_left(), first_matched_idx.into_usize())
-        .expect("TODO");
-
-    for cell in scoring_matrix.cols(starting_col) {
-        let (char_idx, candidate_char) = candidate_chars.next().expect(
-            "the scoring matrix's width is equal to the candidate's char \
-             length",
-        );
-
-        let bonus = bonus_vector[char_idx];
-
-        let chars_match = case_matcher.eq(first_query_char, candidate_char);
-
-        consecutive_matrix[cell] = chars_match as usize;
-
-        let score = if chars_match {
-            is_in_gap = false;
-
-            let score =
-                bonus::MATCH + (bonus * bonus::FIRST_QUERY_CHAR_MULTIPLIER);
-
-            if score > max_score {
-                max_score = score;
-                max_score_cell = cell;
-            }
-
-            score
-        } else {
-            let penalty = if is_in_gap {
-                penalty::GAP_EXTENSION
-            } else {
-                penalty::GAP_START
-            };
-
-            is_in_gap = true;
-
-            prev_score.saturating_sub(penalty)
-        };
-
-        scoring_matrix[cell] = score;
-
-        prev_score = score;
-    }
-
-    (max_score, max_score_cell)
-}
-
-/// TODO: docs
-#[inline]
-fn score_remaining_rows<I>(
-    scoring_matrix: &mut Matrix<'_, Score>,
-    consecutive_matrix: &mut Matrix<'_, usize>,
-    chars_idxs_rows: I,
-    last_matched_idx: CandidateCharIdx,
-    mut max_score: Score,
-    mut max_score_cell: MatrixCell,
-    candidate: Candidate,
-    bonus_vector: BonusVector,
-    case_matcher: CaseMatcher,
-) -> (Score, MatrixCell)
-where
-    I: Iterator<Item = (char, CandidateCharIdx, MatrixCell)>,
-{
-    for (query_char, matched_idx, first_col_cell) in chars_idxs_rows {
-        // TODO: docs
-        let starting_col = {
-            let skipped_cols = matched_idx.into_usize();
-            scoring_matrix.right_n(first_col_cell, skipped_cols).unwrap()
-        };
-
-        // TODO: docs
-        let left_of_starting_col = scoring_matrix.left(starting_col).unwrap();
-
-        // TODO: docs
-        let up_left_of_starting_col =
-            scoring_matrix.up(left_of_starting_col).unwrap();
-
-        // TODO: docs
-        let mut cols = scoring_matrix
-            .cols(starting_col)
-            .zip(scoring_matrix.cols(left_of_starting_col))
-            .zip(scoring_matrix.cols(up_left_of_starting_col));
-
-        let candidate = candidate.slice(matched_idx..last_matched_idx);
-
-        let mut is_in_gap = false;
-
-        for (char_idx, candidate_char) in candidate.char_idxs() {
-            let ((cell, left_cell), up_left_cell) = cols.next().unwrap();
-
-            let score_left =
-                scoring_matrix[left_cell].saturating_sub(if is_in_gap {
-                    penalty::GAP_EXTENSION
-                } else {
-                    penalty::GAP_START
-                });
-
-            let mut consecutive = 0;
-
-            let score_up_left = if case_matcher.eq(query_char, candidate_char)
-            {
-                let score = scoring_matrix[up_left_cell] + bonus::MATCH;
-
-                let mut bonus = bonus_vector[char_idx];
-
-                consecutive = consecutive_matrix[up_left_cell] + 1;
-
-                if consecutive > 1 {
-                    let fb = bonus_vector
-                        [CandidateCharIdx(char_idx.0 - consecutive + 1)];
-
-                    if bonus >= bonus::BOUNDARY && bonus > fb {
-                        consecutive = 1;
-                    } else {
-                        bonus = bonus::CONSECUTIVE.max(fb).max(bonus);
-                    }
-                }
-
-                if score + bonus < score_left {
-                    consecutive = 0;
-                    score + bonus_vector[char_idx]
-                } else {
-                    score + bonus
-                }
-            } else {
-                0
-            };
-
-            is_in_gap = score_up_left < score_left;
-
-            let score = score_up_left.max(score_left).max(0);
-
-            if score > max_score {
-                max_score = score;
-                max_score_cell = cell;
-            }
-
-            consecutive_matrix[cell] = consecutive;
-
-            scoring_matrix[cell] = score;
-        }
-    }
-
-    (max_score, max_score_cell)
+    pub(super) scoring_matrix: ScoringMatrixSlab,
 }
 
 /// TODO: docs
 #[derive(Clone)]
-struct CandidateSlab {
+pub(super) struct CandidateSlab {
     chars: Vec<char>,
     char_indices: Vec<usize>,
 }
@@ -410,7 +40,7 @@ impl Default for CandidateSlab {
 impl CandidateSlab {
     /// TODO: docs
     #[inline]
-    fn alloc<'a>(&'a mut self, candidate: &str) -> Candidate<'a> {
+    pub fn alloc<'a>(&'a mut self, candidate: &str) -> Candidate<'a> {
         // Here we compare the byte length of the candidate string with the
         // current char length of the slab. This is fine since the byte length
         // is always greater than or equal to the char length.
@@ -441,7 +71,7 @@ impl CandidateSlab {
 
 /// TODO: docs
 #[derive(Clone, Copy)]
-struct Candidate<'a> {
+pub(super) struct Candidate<'a> {
     chars: &'a [char],
     char_offsets: &'a [usize],
     byte_offset: usize,
@@ -456,11 +86,11 @@ impl core::fmt::Debug for Candidate<'_> {
 
 /// TODO: docs
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct CandidateCharIdx(usize);
+pub(super) struct CandidateCharIdx(pub usize);
 
 impl CandidateCharIdx {
     #[inline]
-    fn into_usize(self) -> usize {
+    pub fn into_usize(self) -> usize {
         self.0
     }
 }
@@ -468,13 +98,13 @@ impl CandidateCharIdx {
 impl<'a> Candidate<'a> {
     /// TODO: docs
     #[inline]
-    fn chars(&self) -> impl Iterator<Item = char> + '_ {
+    pub fn chars(&self) -> impl Iterator<Item = char> + '_ {
         self.chars.iter().copied()
     }
 
     /// TODO: docs
     #[inline]
-    fn char_idxs(
+    pub fn char_idxs(
         &self,
     ) -> impl Iterator<Item = (CandidateCharIdx, char)> + '_ {
         self.chars.iter().enumerate().map(|(idx, &char)| {
@@ -484,13 +114,13 @@ impl<'a> Candidate<'a> {
 
     /// TODO: docs
     #[inline]
-    fn char_len(&self) -> usize {
+    pub fn char_len(&self) -> usize {
         self.chars.len()
     }
 
     /// TODO: docs
     #[inline]
-    fn char_offsets(&self) -> impl Iterator<Item = (usize, char)> + '_ {
+    pub fn char_offsets(&self) -> impl Iterator<Item = (usize, char)> + '_ {
         self.char_offsets
             .iter()
             .zip(self.chars)
@@ -499,19 +129,19 @@ impl<'a> Candidate<'a> {
 
     /// TODO: docs
     #[inline]
-    fn nth_char(&self, idx: usize) -> char {
+    pub fn nth_char(&self, idx: usize) -> char {
         self.chars[idx]
     }
 
     /// TODO: docs
     #[inline]
-    fn nth_char_offset(&self, idx: usize) -> usize {
+    pub fn nth_char_offset(&self, idx: usize) -> usize {
         self.char_offsets[idx] + self.byte_offset
     }
 
     /// TODO: docs
     #[inline]
-    fn slice(self, range: Range<CandidateCharIdx>) -> Self {
+    pub fn slice(self, range: Range<CandidateCharIdx>) -> Self {
         let range = range.start.0..range.end.0 + 1;
         let chars = &self.chars[range.clone()];
         let char_offsets = &self.char_offsets[range.clone()];
@@ -523,7 +153,7 @@ impl<'a> Candidate<'a> {
 
 /// TODO: docs
 #[derive(Clone)]
-struct MatchedIndicesSlab {
+pub(super) struct MatchedIndicesSlab {
     vec: Vec<CandidateCharIdx>,
 }
 
@@ -537,7 +167,7 @@ impl Default for MatchedIndicesSlab {
 impl MatchedIndicesSlab {
     #[inline]
     /// TODO: docs
-    fn alloc<'a>(&'a mut self, query: &str) -> MatchedIndices<'a> {
+    pub fn alloc<'a>(&'a mut self, query: &str) -> MatchedIndices<'a> {
         let char_len = query.chars().count();
 
         if char_len > self.vec.len() {
@@ -549,7 +179,7 @@ impl MatchedIndicesSlab {
 }
 
 /// TODO: docs
-struct MatchedIndices<'a> {
+pub(super) struct MatchedIndices<'a> {
     indices: &'a mut [CandidateCharIdx],
     len: usize,
 }
@@ -557,30 +187,30 @@ struct MatchedIndices<'a> {
 impl<'a> MatchedIndices<'a> {
     /// TODO: docs
     #[inline]
-    fn into_iter(self) -> impl Iterator<Item = CandidateCharIdx> + 'a {
+    pub fn into_iter(self) -> impl Iterator<Item = CandidateCharIdx> + 'a {
         self.indices[..self.len].into_iter().copied()
     }
 
     /// TODO: docs
     #[inline]
-    fn last(&self) -> CandidateCharIdx {
+    pub fn last(&self) -> CandidateCharIdx {
         self.indices[self.len - 1]
     }
 
     /// TODO: docs
     #[inline]
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.len
     }
 
     #[inline]
-    fn new(indices: &'a mut [CandidateCharIdx]) -> Self {
+    pub fn new(indices: &'a mut [CandidateCharIdx]) -> Self {
         Self { indices, len: 0 }
     }
 
     /// TODO: docs
     #[inline]
-    fn push(&mut self, idx: CandidateCharIdx) {
+    pub fn push(&mut self, idx: CandidateCharIdx) {
         self.indices[self.len] = idx;
         self.len += 1;
     }
@@ -594,7 +224,7 @@ impl core::fmt::Debug for MatchedIndices<'_> {
 
 /// TODO: docs
 #[derive(Clone)]
-struct BonusVectorSlab {
+pub(super) struct BonusVectorSlab {
     vec: Vec<Score>,
 }
 
@@ -608,7 +238,7 @@ impl Default for BonusVectorSlab {
 impl BonusVectorSlab {
     /// TODO: docs
     #[inline]
-    fn alloc<'a>(&'a mut self, candidate: Candidate) -> BonusVector<'a> {
+    pub fn alloc<'a>(&'a mut self, candidate: Candidate) -> BonusVector<'a> {
         let char_len = candidate.char_len();
 
         if char_len > self.vec.len() {
@@ -620,7 +250,7 @@ impl BonusVectorSlab {
 }
 
 /// TODO: docs
-struct BonusVector<'a> {
+pub(super) struct BonusVector<'a> {
     indices: &'a mut [Score],
 }
 
@@ -686,14 +316,14 @@ impl MatrixItem for usize {
 
 /// TODO: docs
 #[derive(Default, Clone)]
-struct ConsecutiveMatrixSlab {
+pub(super) struct ConsecutiveMatrixSlab {
     slab: MatrixSlab<usize>,
 }
 
 impl ConsecutiveMatrixSlab {
     /// TODO: docs
     #[inline]
-    fn alloc<'a>(
+    pub fn alloc<'a>(
         &'a mut self,
         query: &str,
         candidate: Candidate,
@@ -706,14 +336,14 @@ impl ConsecutiveMatrixSlab {
 
 /// TODO: docs
 #[derive(Default, Clone)]
-struct ScoringMatrixSlab {
+pub(super) struct ScoringMatrixSlab {
     slab: MatrixSlab<Score>,
 }
 
 impl ScoringMatrixSlab {
     /// TODO: docs
     #[inline]
-    fn alloc<'a>(
+    pub fn alloc<'a>(
         &'a mut self,
         query: &str,
         candidate: Candidate,
@@ -726,7 +356,7 @@ impl ScoringMatrixSlab {
 
 /// TODO: docs
 #[derive(Default, Clone)]
-struct MatrixSlab<T: MatrixItem> {
+pub(super) struct MatrixSlab<T: MatrixItem> {
     vec: Vec<T>,
 }
 
@@ -749,7 +379,7 @@ impl<T: MatrixItem> MatrixSlab<T> {
 }
 
 /// TODO: docs
-struct Matrix<'a, T: MatrixItem> {
+pub(super) struct Matrix<'a, T: MatrixItem> {
     /// TODO: docs
     ///
     /// <width><width>...<width>
@@ -852,45 +482,45 @@ impl<T: MatrixItem> core::fmt::Debug for Matrix<'_, T> {
 
 impl<'a, T: MatrixItem> Matrix<'a, T> {
     #[inline]
-    fn cols(&self, starting_from: MatrixCell) -> Cols {
+    pub fn cols(&self, starting_from: MatrixCell) -> Cols {
         Cols { next: Some(starting_from), matrix_width: self.width }
     }
 
     #[inline]
-    fn down(&self, cell: MatrixCell) -> Option<MatrixCell> {
+    pub fn down(&self, cell: MatrixCell) -> Option<MatrixCell> {
         cell.down(self.width, self.height)
     }
 
     /// TODO: docs
     #[inline]
-    fn is_first_row(&self, cell: MatrixCell) -> bool {
+    pub fn is_first_row(&self, cell: MatrixCell) -> bool {
         self.up(cell).is_none()
     }
 
     /// TODO: docs
     #[inline]
-    fn is_in_last_col(&self, cell: MatrixCell) -> bool {
+    pub fn is_in_last_col(&self, cell: MatrixCell) -> bool {
         self.right(cell).is_none()
     }
 
     /// TODO: docs
     #[inline]
-    fn is_last_row(&self, cell: MatrixCell) -> bool {
+    pub fn is_last_row(&self, cell: MatrixCell) -> bool {
         self.down(cell).is_none()
     }
 
     #[inline]
-    fn left(&self, cell: MatrixCell) -> Option<MatrixCell> {
+    pub fn left(&self, cell: MatrixCell) -> Option<MatrixCell> {
         cell.left(self.width)
     }
 
     #[inline]
-    fn right(&self, cell: MatrixCell) -> Option<MatrixCell> {
+    pub fn right(&self, cell: MatrixCell) -> Option<MatrixCell> {
         cell.right(self.width)
     }
 
     #[inline]
-    fn right_n(&self, cell: MatrixCell, n: usize) -> Option<MatrixCell> {
+    pub fn right_n(&self, cell: MatrixCell, n: usize) -> Option<MatrixCell> {
         if n == 0 {
             Some(cell)
         } else {
@@ -899,7 +529,7 @@ impl<'a, T: MatrixItem> Matrix<'a, T> {
     }
 
     #[inline]
-    fn rows(&self, starting_from: MatrixCell) -> Rows {
+    pub fn rows(&self, starting_from: MatrixCell) -> Rows {
         Rows {
             next: Some(starting_from),
             matrix_width: self.width,
@@ -909,18 +539,18 @@ impl<'a, T: MatrixItem> Matrix<'a, T> {
 
     /// TODO: docs
     #[inline]
-    fn top_left(&self) -> MatrixCell {
+    pub fn top_left(&self) -> MatrixCell {
         MatrixCell(0)
     }
 
     #[inline]
-    fn up(&self, cell: MatrixCell) -> Option<MatrixCell> {
+    pub fn up(&self, cell: MatrixCell) -> Option<MatrixCell> {
         cell.up(self.width)
     }
 }
 
 #[derive(Debug, Clone, Copy)]
-struct MatrixCell(usize);
+pub(super) struct MatrixCell(usize);
 
 impl<T: MatrixItem> Index<MatrixCell> for Matrix<'_, T> {
     type Output = T;
@@ -983,7 +613,7 @@ impl MatrixCell {
 }
 
 /// TODO: docs
-struct Cols {
+pub(super) struct Cols {
     next: Option<MatrixCell>,
     matrix_width: usize,
 }
@@ -1001,7 +631,7 @@ impl Iterator for Cols {
 }
 
 /// TODO: docs
-struct Rows {
+pub(super) struct Rows {
     next: Option<MatrixCell>,
     matrix_height: usize,
     matrix_width: usize,
