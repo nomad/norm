@@ -36,7 +36,7 @@ impl bench::Metric for FzfV2 {
 }
 
 fn group(c: &mut Criterion) -> BenchmarkGroup<WallTime> {
-    c.benchmark_group("fzf_v1")
+    c.benchmark_group("fzf_v2")
 }
 
 fn short(c: &mut Criterion) {
