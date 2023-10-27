@@ -142,15 +142,6 @@ impl FzfV2 {
             return Some(max_score);
         }
 
-        println!("f: {f:?}");
-        println!("t: {t:?}");
-        println!("b: {b:?}");
-        println!("h0: {h0:?}");
-        println!("c0: {c0:?}");
-        println!("last_idx: {last_idx:?}");
-
-        panic!();
-
         // Phase 3.
         //
         // Fill in score matrix H.
@@ -236,10 +227,6 @@ impl Metric for FzfV2 {
             &self.scheme,
         )?;
 
-        println!("matched_indices: {:?}", matched_indices);
-
-        println!("bonus_vector: {:?}", bonus_vector);
-
         let (scoring_matrix, score, score_cell) = score(
             &mut self.scoring_matrix_slab,
             &mut self.consecutive_matrix_slab,
@@ -251,11 +238,13 @@ impl Metric for FzfV2 {
             &self.scheme,
         );
 
-        todo!()
+        println!("\n{score:?}");
 
-        // let distance = FzfDistance::from_score(score);
+        println!("\n{scoring_matrix:?}");
 
-        // Some(Match::new(distance, Vec::new()))
+        let distance = FzfDistance::from_score(score);
+
+        Some(Match::new(distance, Vec::new()))
     }
 }
 
@@ -356,6 +345,8 @@ fn score<'scoring>(
         bonus_vector,
         case_matcher,
     );
+
+    println!("{consecutive_matrix:?}");
 
     (scoring_matrix, max_score, max_score_cell)
 }
@@ -475,30 +466,54 @@ where
         for (char_idx, candidate_char) in candidate.char_idxs() {
             let ((cell, left_cell), up_left_cell) = cols.next().unwrap();
 
-            let score_left = scoring_matrix[left_cell] as i32
+            let score_left = scoring_matrix[left_cell] as i64
                 - if is_in_gap {
                     penalty::GAP_EXTENSION
                 } else {
                     penalty::GAP_START
-                } as i32;
+                } as i64;
+
+            let mut consecutive = 0;
 
             let score_up_left = if case_matcher.eq(query_char, candidate_char)
             {
                 let score = scoring_matrix[up_left_cell] + bonus::MATCH;
 
-                let bonus = bonus_vector[char_idx];
+                let mut bonus = bonus_vector[char_idx];
 
-                score
+                consecutive = consecutive_matrix[up_left_cell] + 1;
+
+                if consecutive > 1 {
+                    let fb = bonus_vector
+                        [CandidateCharIdx(char_idx.0 - consecutive + 1)];
+
+                    if bonus >= bonus::BOUNDARY && bonus > fb {
+                        consecutive = 1;
+                    } else {
+                        bonus = bonus::CONSECUTIVE.max(fb).max(bonus);
+                    }
+                }
+
+                if (score + bonus) as i64 > score_left {
+                    consecutive = 0;
+                    score + bonus_vector[char_idx]
+                } else {
+                    score + bonus
+                }
             } else {
                 0
             };
 
-            let score = score_up_left.max(score_left as Score).max(0);
+            is_in_gap = (score_up_left as i64) < score_left;
+
+            let score = (score_up_left as i64).max(score_left).max(0) as Score;
 
             if score > max_score {
                 max_score = score;
                 max_score_cell = cell;
             }
+
+            consecutive_matrix[cell] = consecutive;
 
             scoring_matrix[cell] = score;
         }
@@ -647,6 +662,10 @@ fn phase_3(
             h_sub[offset] = score;
         }
     }
+
+    println!("{c:?}");
+    println!("\n{max_score:?}");
+    println!("\n{h:?}");
 
     // println!("f0: {:?}", f0);
     // println!("width: {:?}", width);
