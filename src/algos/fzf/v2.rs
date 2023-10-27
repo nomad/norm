@@ -225,15 +225,18 @@ fn score_first_row(
 
     let candidate = candidate.slice(first_matched_idx..last_matched_idx);
 
-    let mut candidate_chars = candidate.char_idxs();
-
     let starting_col = scoring_matrix
         .right_n(scoring_matrix.top_left(), first_matched_idx.into_usize())
-        .expect("TODO");
+        .expect(
+            "the index of the first matched character is within the scoring \
+             matrix's width",
+        );
 
-    for cell in scoring_matrix.cols(starting_col) {
-        let (char_idx, candidate_char) = candidate_chars.next().expect(
-            "the scoring matrix's width is equal to the candidate's char \
+    let mut cols = scoring_matrix.cols(starting_col);
+
+    for (char_idx, candidate_char) in candidate.char_idxs() {
+        let cell = cols.next().expect(
+            "the scoring matrix's width >= than the sliced candidate's char \
              length",
         );
 

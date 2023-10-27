@@ -12,7 +12,7 @@ fn fzf_v1_empty_query() {
 }
 
 #[test]
-fn fzf_v1_score_1() {
+fn fzf_v1_upstream_1() {
     let mut fzf = FzfV1::new()
         .with_case_sensitivity(CaseSensitivity::Insensitive)
         .with_matched_ranges(true);
