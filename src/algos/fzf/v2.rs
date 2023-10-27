@@ -28,6 +28,12 @@ impl FzfV2 {
     }
 
     /// TODO: docs
+    #[cfg(feature = "tests")]
+    pub fn scheme(&self) -> &Scheme {
+        &self.scheme
+    }
+
+    /// TODO: docs
     #[inline]
     pub fn with_case_sensitivity(
         mut self,
@@ -315,11 +321,11 @@ where
             .zip(scoring_matrix.cols(left_of_starting_col))
             .zip(scoring_matrix.cols(up_left_of_starting_col));
 
-        let candidate = candidate.slice(matched_idx..last_matched_idx);
-
         let mut is_in_gap = false;
 
-        for (char_idx, candidate_char) in candidate.char_idxs() {
+        for (char_idx, candidate_char) in
+            candidate.slice(matched_idx..last_matched_idx).char_idxs()
+        {
             let ((cell, left_cell), up_left_cell) = cols.next().unwrap();
 
             let score_left =
@@ -341,7 +347,7 @@ where
 
                 if consecutive > 1 {
                     let fb = bonus_vector[CandidateCharIdx(
-                        char_idx.into_usize() - consecutive + 1,
+                        char_idx.into_usize() + 1 - consecutive,
                     )];
 
                     if bonus >= bonus::BOUNDARY && bonus > fb {

@@ -1,3 +1,5 @@
+#![allow(clippy::single_range_in_vec_init)]
+
 mod common;
 
 use common::SortedRanges;
@@ -23,9 +25,10 @@ fn fzf_v2_score_1() {
 
     assert_eq!(
         mach.distance().into_score(),
-        bonus::MATCH * 5 + bonus::CAMEL_123
-            - penalty::GAP_START
-            - penalty::GAP_EXTENSION * 3
+        bonus::MATCH * 5
+            + fzf.scheme().bonus_boundary_white
+                * bonus::FIRST_QUERY_CHAR_MULTIPLIER
+            + fzf.scheme().bonus_boundary_white * 4
     );
 
     assert_eq!(mach.matched_ranges().sorted(), [0..5]);

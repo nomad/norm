@@ -27,12 +27,13 @@ impl FzfScheme {
 }
 
 /// TODO: docs
+#[doc(hidden)]
 #[derive(Clone)]
-pub(super) struct Scheme {
+pub struct Scheme {
     pub bonus_boundary_white: Score,
     pub bonus_boundary_delimiter: Score,
-    pub initial_char_class: CharClass,
-    pub is_delimiter: fn(char) -> bool,
+    pub(super) initial_char_class: CharClass,
+    pub(super) is_delimiter: fn(char) -> bool,
 }
 
 impl Default for Scheme {
