@@ -203,6 +203,7 @@ fn score<'scoring, 'consecutive>(
 }
 
 /// TODO: docs
+#[allow(clippy::too_many_arguments)]
 #[inline]
 fn score_first_row(
     scoring_matrix: &mut Matrix<'_, Score>,
@@ -275,6 +276,7 @@ fn score_first_row(
 }
 
 /// TODO: docs
+#[allow(clippy::too_many_arguments)]
 #[inline]
 fn score_remaining_rows<I>(
     scoring_matrix: &mut Matrix<'_, Score>,
@@ -432,12 +434,10 @@ fn matched_ranges(
             } else {
                 break;
             }
+        } else if let Some(left) = scores.left(cell) {
+            cell = left;
         } else {
-            if let Some(left) = scores.left(cell) {
-                cell = left;
-            } else {
-                break;
-            }
+            break;
         }
     }
 

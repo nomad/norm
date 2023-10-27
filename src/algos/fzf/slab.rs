@@ -102,8 +102,8 @@ impl<'a> Candidate<'a> {
 
     /// TODO: docs
     #[inline]
-    pub fn chars(&self) -> impl Iterator<Item = char> + '_ {
-        self.chars.iter().copied()
+    pub fn char_offset(&self, idx: CandidateCharIdx) -> usize {
+        self.char_offsets[idx.0 - self.char_offset]
     }
 
     /// TODO: docs
@@ -120,21 +120,6 @@ impl<'a> Candidate<'a> {
     #[inline]
     pub fn char_len(&self) -> usize {
         self.chars.len()
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn char_offset(&self, idx: CandidateCharIdx) -> usize {
-        self.char_offsets[idx.0 - self.char_offset]
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn char_offsets(&self) -> impl Iterator<Item = (usize, char)> + '_ {
-        self.char_offsets
-            .iter()
-            .zip(self.chars)
-            .map(|(&offset, &char)| (offset, char))
     }
 
     /// TODO: docs
@@ -185,7 +170,7 @@ impl<'a> MatchedIndices<'a> {
     /// TODO: docs
     #[inline]
     pub fn into_iter(self) -> impl Iterator<Item = CandidateCharIdx> + 'a {
-        self.indices[..self.len].into_iter().copied()
+        self.indices[..self.len].iter().copied()
     }
 
     /// TODO: docs
@@ -273,7 +258,7 @@ impl IndexMut<CandidateCharIdx> for BonusVector<'_> {
     }
 }
 
-trait MatrixItem: Copy + Ord + core::fmt::Display {
+pub(super) trait MatrixItem: Copy + Ord + core::fmt::Display {
     /// TODO: docs
     fn fill() -> Self;
 
@@ -340,11 +325,11 @@ pub(super) struct ScoringMatrixSlab {
 impl ScoringMatrixSlab {
     /// TODO: docs
     #[inline]
-    pub fn alloc<'a>(
-        &'a mut self,
+    pub fn alloc(
+        &mut self,
         query: FzfQuery,
         candidate: Candidate,
-    ) -> Matrix<'a, Score> {
+    ) -> Matrix<'_, Score> {
         let height = query.char_len();
         let width = candidate.char_len();
         self.slab.alloc(width, height)
@@ -360,7 +345,7 @@ pub(super) struct MatrixSlab<T: MatrixItem> {
 impl<T: MatrixItem> MatrixSlab<T> {
     /// TODO: docs
     #[inline]
-    fn alloc<'a>(&'a mut self, width: usize, height: usize) -> Matrix<'a, T> {
+    fn alloc(&mut self, width: usize, height: usize) -> Matrix<'_, T> {
         debug_assert!(height * width > 0);
 
         if height * width > self.vec.len() {
@@ -479,13 +464,13 @@ impl<T: MatrixItem> core::fmt::Debug for Matrix<'_, T> {
 
 impl<'a, T: MatrixItem> Matrix<'a, T> {
     #[inline]
-    pub fn cols(&self, starting_from: MatrixCell) -> Cols {
-        Cols::new(starting_from, self.width)
+    pub fn col_of(&self, cell: MatrixCell) -> usize {
+        cell.0 % self.width
     }
 
     #[inline]
-    pub fn col_of(&self, cell: MatrixCell) -> usize {
-        cell.0 % self.width
+    pub fn cols(&self, starting_from: MatrixCell) -> Cols {
+        Cols { next: Some(starting_from), matrix_width: self.width }
     }
 
     #[inline]
@@ -495,20 +480,8 @@ impl<'a, T: MatrixItem> Matrix<'a, T> {
 
     /// TODO: docs
     #[inline]
-    pub fn is_first_row(&self, cell: MatrixCell) -> bool {
-        self.up(cell).is_none()
-    }
-
-    /// TODO: docs
-    #[inline]
     pub fn is_in_last_col(&self, cell: MatrixCell) -> bool {
         self.right(cell).is_none()
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn is_last_row(&self, cell: MatrixCell) -> bool {
-        self.down(cell).is_none()
     }
 
     #[inline]
@@ -532,7 +505,11 @@ impl<'a, T: MatrixItem> Matrix<'a, T> {
 
     #[inline]
     pub fn rows(&self, starting_from: MatrixCell) -> Rows {
-        Rows::new(starting_from, self.width, self.height)
+        Rows {
+            next: Some(starting_from),
+            matrix_width: self.width,
+            matrix_height: self.height,
+        }
     }
 
     /// TODO: docs
@@ -590,13 +567,11 @@ impl MatrixCell {
     /// TODO: docs
     #[inline]
     fn right(&self, matrix_width: usize) -> Option<Self> {
-        let out = if (self.0 + 1) % matrix_width == 0 {
+        if (self.0 + 1) % matrix_width == 0 {
             None
         } else {
             Some(Self(self.0 + 1))
-        };
-
-        out
+        }
     }
 
     /// TODO: docs
@@ -612,31 +587,8 @@ impl MatrixCell {
 
 /// TODO: docs
 pub(super) struct Cols {
-    /// TODO: docs
     next: Option<MatrixCell>,
-
-    /// TODO: docs
     matrix_width: usize,
-
-    /// TODO: docs
-    next_col: ColNext,
-}
-
-impl Cols {
-    #[inline]
-    fn new(start_from: MatrixCell, matrix_width: usize) -> Self {
-        Self {
-            next: Some(start_from),
-            matrix_width,
-            next_col: ColNext::default(),
-        }
-    }
-
-    #[inline]
-    pub fn reverse(mut self) -> Self {
-        self.next_col.switch();
-        self
-    }
 }
 
 impl Iterator for Cols {
@@ -645,8 +597,7 @@ impl Iterator for Cols {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let this = self.next.take();
-        let next =
-            this.and_then(|cell| self.next_col.call(cell, self.matrix_width));
+        let next = this.and_then(|cell| cell.right(self.matrix_width));
         self.next = next;
         this
     }
@@ -657,29 +608,6 @@ pub(super) struct Rows {
     next: Option<MatrixCell>,
     matrix_height: usize,
     matrix_width: usize,
-    next_row: RowNext,
-}
-
-impl Rows {
-    #[inline]
-    fn new(
-        start_from: MatrixCell,
-        matrix_width: usize,
-        matrix_height: usize,
-    ) -> Self {
-        Self {
-            next: Some(start_from),
-            matrix_width,
-            matrix_height,
-            next_row: RowNext::default(),
-        }
-    }
-
-    #[inline]
-    pub fn reverse(mut self) -> Self {
-        self.next_row.switch();
-        self
-    }
 }
 
 impl Iterator for Rows {
@@ -688,88 +616,9 @@ impl Iterator for Rows {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let this = self.next.take();
-
-        let next = this.and_then(|cell| {
-            self.next_row.call(cell, self.matrix_width, self.matrix_height)
-        });
-
+        let next = this
+            .and_then(|cell| cell.down(self.matrix_width, self.matrix_height));
         self.next = next;
-
         this
     }
-}
-
-struct RowNext {
-    fun: fn(MatrixCell, usize, usize) -> Option<MatrixCell>,
-    is_down: bool,
-}
-
-impl Default for RowNext {
-    #[inline]
-    fn default() -> Self {
-        Self { fun: down, is_down: true }
-    }
-}
-
-impl RowNext {
-    fn call(
-        &self,
-        cell: MatrixCell,
-        matrix_width: usize,
-        matrix_height: usize,
-    ) -> Option<MatrixCell> {
-        (self.fun)(cell, matrix_width, matrix_height)
-    }
-
-    fn switch(&mut self) {
-        self.fun = if self.is_down { up } else { down };
-        self.is_down = !self.is_down;
-    }
-}
-
-struct ColNext {
-    fun: fn(MatrixCell, usize) -> Option<MatrixCell>,
-    is_right: bool,
-}
-
-impl Default for ColNext {
-    #[inline]
-    fn default() -> Self {
-        Self { fun: right, is_right: true }
-    }
-}
-
-impl ColNext {
-    fn call(
-        &self,
-        cell: MatrixCell,
-        matrix_width: usize,
-    ) -> Option<MatrixCell> {
-        (self.fun)(cell, matrix_width)
-    }
-
-    fn switch(&mut self) {
-        self.fun = if self.is_right { left } else { right };
-        self.is_right = !self.is_right;
-    }
-}
-
-#[inline]
-fn up(cell: MatrixCell, width: usize, _height: usize) -> Option<MatrixCell> {
-    cell.up(width)
-}
-
-#[inline]
-fn down(cell: MatrixCell, width: usize, height: usize) -> Option<MatrixCell> {
-    cell.down(width, height)
-}
-
-#[inline]
-fn left(cell: MatrixCell, width: usize) -> Option<MatrixCell> {
-    cell.left(width)
-}
-
-#[inline]
-fn right(cell: MatrixCell, width: usize) -> Option<MatrixCell> {
-    cell.right(width)
 }
