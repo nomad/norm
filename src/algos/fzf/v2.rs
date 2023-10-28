@@ -236,11 +236,7 @@ fn score_first_row(
     let candidate = candidate.slice(first_matched_idx..last_matched_idx);
 
     let starting_col = scoring_matrix
-        .right_n(scoring_matrix.top_left(), first_matched_idx.into_usize())
-        .expect(
-            "the index of the first matched character is within the scoring \
-             matrix's width",
-        );
+        .right_n(scoring_matrix.top_left(), first_matched_idx.into_usize());
 
     let mut cols = scoring_matrix.cols(starting_col);
 
@@ -308,15 +304,14 @@ where
         // TODO: docs
         let starting_col = {
             let skipped_cols = matched_idx.into_usize();
-            scoring_matrix.right_n(first_col_cell, skipped_cols).unwrap()
+            scoring_matrix.right_n(first_col_cell, skipped_cols)
         };
 
         // TODO: docs
-        let left_of_starting_col = scoring_matrix.left(starting_col).unwrap();
+        let left_of_starting_col = scoring_matrix.left(starting_col);
 
         // TODO: docs
-        let up_left_of_starting_col =
-            scoring_matrix.up(left_of_starting_col).unwrap();
+        let up_left_of_starting_col = scoring_matrix.up(left_of_starting_col);
 
         // TODO: docs
         let mut cols = scoring_matrix
@@ -389,7 +384,6 @@ where
 }
 
 /// TODO: docs
-#[inline]
 fn matched_ranges(
     scores: Matrix<Score>,
     consecutives: Matrix<usize>,
@@ -405,22 +399,34 @@ fn matched_ranges(
     loop {
         let score = scores[cell];
 
-        let cell_left = scores.left(cell);
+        let cell_left = if scores.is_in_first_col(cell) {
+            None
+        } else {
+            Some(scores.left(cell))
+        };
 
-        let cell_up_left = cell_left.and_then(|left| scores.up(left));
+        let cell_up_left =
+            if scores.is_in_first_col(cell) || scores.is_in_first_row(cell) {
+                None
+            } else {
+                Some(scores.up(scores.left(cell)))
+            };
 
-        let score_left = cell_left.map(|c| scores[c]).unwrap_or(0);
+        let score_left = cell_left.map_or(0, |cell_left| scores[cell_left]);
 
-        let score_up_left = cell_up_left.map(|c| scores[c]).unwrap_or(0);
+        let score_up_left =
+            cell_up_left.map_or(0, |cell_up_left| scores[cell_up_left]);
 
         let prefer_this_match = prefer_match;
 
         prefer_match = consecutives[cell] > 1
-            || consecutives
-                .right(cell)
-                .and_then(|right| consecutives.down(right))
-                .map(|down_right| consecutives[down_right] > 0)
-                .unwrap_or(false);
+            || (!consecutives.is_in_last_col(cell)
+                && !consecutives.is_in_last_row(cell)
+                && {
+                    let down_right =
+                        consecutives.down(consecutives.right(cell));
+                    consecutives[down_right] > 0
+                });
 
         if score > score_up_left
             && (score > score_left || score == score_left && prefer_this_match)
@@ -446,7 +452,7 @@ fn matched_ranges(
             } else {
                 break;
             }
-        } else if let Some(left) = scores.left(cell) {
+        } else if let Some(left) = cell_left {
             cell = left;
         } else {
             break;

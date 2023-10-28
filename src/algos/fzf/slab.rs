@@ -478,52 +478,81 @@ impl<T: MatrixItem> core::fmt::Debug for Matrix<'_, T> {
 }
 
 impl<'a, T: MatrixItem> Matrix<'a, T> {
+    /// TODO: docs
     #[inline]
     pub fn col_of(&self, cell: MatrixCell) -> usize {
         cell.0 % self.width
     }
 
+    /// TODO: docs
     #[inline]
     pub fn cols(&self, starting_from: MatrixCell) -> Cols {
-        Cols { next: Some(starting_from), matrix_width: self.width }
+        Cols {
+            next: starting_from,
+            remaining: self.width - self.col_of(starting_from),
+        }
     }
 
+    /// TODO: docs
     #[inline]
-    pub fn down(&self, cell: MatrixCell) -> Option<MatrixCell> {
-        cell.down(self.width, self.height)
+    pub fn down(&self, cell: MatrixCell) -> MatrixCell {
+        MatrixCell(cell.0 + self.width)
+    }
+
+    /// TODO: docs
+    #[inline]
+    pub fn is_in_first_col(&self, cell: MatrixCell) -> bool {
+        self.col_of(cell) == 0
+    }
+
+    /// TODO: docs
+    #[inline]
+    pub fn is_in_first_row(&self, cell: MatrixCell) -> bool {
+        self.row_of(cell) == 0
     }
 
     /// TODO: docs
     #[inline]
     pub fn is_in_last_col(&self, cell: MatrixCell) -> bool {
-        self.right(cell).is_none()
+        self.col_of(cell) == self.width - 1
     }
 
+    /// TODO: docs
     #[inline]
-    pub fn left(&self, cell: MatrixCell) -> Option<MatrixCell> {
-        cell.left(self.width)
+    pub fn is_in_last_row(&self, cell: MatrixCell) -> bool {
+        self.row_of(cell) == self.height - 1
     }
 
+    /// TODO: docs
     #[inline]
-    pub fn right(&self, cell: MatrixCell) -> Option<MatrixCell> {
-        cell.right(self.width)
+    pub fn left(&self, cell: MatrixCell) -> MatrixCell {
+        MatrixCell(cell.0 - 1)
     }
 
+    /// TODO: docs
     #[inline]
-    pub fn right_n(&self, cell: MatrixCell, n: usize) -> Option<MatrixCell> {
-        if n == 0 {
-            Some(cell)
-        } else {
-            (MatrixCell(cell.0 + n - 1)).right(self.width)
-        }
+    pub fn right(&self, cell: MatrixCell) -> MatrixCell {
+        MatrixCell(cell.0 + 1)
+    }
+
+    /// TODO: docs
+    #[inline]
+    pub fn right_n(&self, cell: MatrixCell, n: usize) -> MatrixCell {
+        MatrixCell(cell.0 + n)
+    }
+
+    /// TODO: docs
+    #[inline]
+    pub fn row_of(&self, cell: MatrixCell) -> usize {
+        cell.0 / self.width
     }
 
     #[inline]
     pub fn rows(&self, starting_from: MatrixCell) -> Rows {
         Rows {
-            next: Some(starting_from),
+            next: starting_from,
             matrix_width: self.width,
-            matrix_height: self.height,
+            remaining: self.height - self.row_of(starting_from),
         }
     }
 
@@ -534,8 +563,8 @@ impl<'a, T: MatrixItem> Matrix<'a, T> {
     }
 
     #[inline]
-    pub fn up(&self, cell: MatrixCell) -> Option<MatrixCell> {
-        cell.up(self.width)
+    pub fn up(&self, cell: MatrixCell) -> MatrixCell {
+        MatrixCell(cell.0 - self.width)
     }
 }
 
@@ -558,52 +587,10 @@ impl<T: MatrixItem> IndexMut<MatrixCell> for Matrix<'_, T> {
     }
 }
 
-impl MatrixCell {
-    /// TODO: docs
-    #[inline]
-    fn up(&self, matrix_width: usize) -> Option<Self> {
-        if self.0 < matrix_width {
-            None
-        } else {
-            Some(Self(self.0 - matrix_width))
-        }
-    }
-
-    /// TODO: docs
-    #[inline]
-    fn down(&self, matrix_width: usize, matrix_height: usize) -> Option<Self> {
-        if self.0 + matrix_width >= matrix_height * matrix_width {
-            None
-        } else {
-            Some(Self(self.0 + matrix_width))
-        }
-    }
-
-    /// TODO: docs
-    #[inline]
-    fn right(&self, matrix_width: usize) -> Option<Self> {
-        if (self.0 + 1) % matrix_width == 0 {
-            None
-        } else {
-            Some(Self(self.0 + 1))
-        }
-    }
-
-    /// TODO: docs
-    #[inline]
-    fn left(&self, matrix_width: usize) -> Option<Self> {
-        if self.0 % matrix_width == 0 {
-            None
-        } else {
-            Some(Self(self.0 - 1))
-        }
-    }
-}
-
 /// TODO: docs
 pub(super) struct Cols {
-    next: Option<MatrixCell>,
-    matrix_width: usize,
+    next: MatrixCell,
+    remaining: usize,
 }
 
 impl Iterator for Cols {
@@ -611,18 +598,21 @@ impl Iterator for Cols {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let this = self.next.take();
-        let next = this.and_then(|cell| cell.right(self.matrix_width));
-        self.next = next;
-        this
+        if self.remaining == 0 {
+            return None;
+        }
+        let this = self.next;
+        self.next.0 += 1;
+        self.remaining -= 1;
+        Some(this)
     }
 }
 
 /// TODO: docs
 pub(super) struct Rows {
-    next: Option<MatrixCell>,
-    matrix_height: usize,
+    next: MatrixCell,
     matrix_width: usize,
+    remaining: usize,
 }
 
 impl Iterator for Rows {
@@ -630,10 +620,12 @@ impl Iterator for Rows {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let this = self.next.take();
-        let next = this
-            .and_then(|cell| cell.down(self.matrix_width, self.matrix_height));
-        self.next = next;
-        this
+        if self.remaining == 0 {
+            return None;
+        }
+        let this = self.next;
+        self.next.0 += self.matrix_width;
+        self.remaining -= 1;
+        Some(this)
     }
 }
