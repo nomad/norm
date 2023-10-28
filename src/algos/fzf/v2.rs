@@ -77,15 +77,24 @@ impl Metric for FzfV2 {
 
         let case_matcher = self.case_sensitivity.matcher(query);
 
-        let (matched_indices, last_matched_idx, bonus_vector) =
-            matched_indices(
-                &mut self.slab.matched_indices,
-                &mut self.slab.bonus_vector,
-                query,
-                candidate,
-                &case_matcher,
-                &self.scheme,
-            )?;
+        let (matched_indices, last_matched_idx) = matched_indices(
+            &mut self.slab.matched_indices,
+            query,
+            candidate,
+            &case_matcher,
+        )?;
+
+        let bonus_vector = {
+            let scheme = &self.scheme;
+            let mut prev_class = scheme.initial_char_class;
+            let mut bonuses = self.slab.bonus_vector.alloc(candidate);
+            for (char_idx, candidate_char) in candidate.char_idxs() {
+                let char_class = char_class(candidate_char, scheme);
+                bonuses[char_idx] = bonus(prev_class, char_class, scheme);
+                prev_class = char_class;
+            }
+            bonuses
+        };
 
         let first_matched_idx = matched_indices.first();
 
@@ -115,33 +124,21 @@ impl Metric for FzfV2 {
 
 /// TODO: docs
 #[inline]
-fn matched_indices<'idx, 'bonus>(
+fn matched_indices<'idx>(
     indices_slab: &'idx mut MatchedIndicesSlab,
-    bonuses_slab: &'bonus mut BonusVectorSlab,
     query: FzfQuery,
     candidate: Candidate,
     case_matcher: &CaseMatcher,
-    scheme: &Scheme,
-) -> Option<(MatchedIndices<'idx>, CandidateCharIdx, BonusVector<'bonus>)> {
+) -> Option<(MatchedIndices<'idx>, CandidateCharIdx)> {
     let mut query_chars = query.chars();
 
     let mut query_char = query_chars.next()?;
-
-    let mut prev_class = scheme.initial_char_class;
 
     let mut matched_idxs = indices_slab.alloc(query);
 
     let mut last_matched_idx = CandidateCharIdx(0);
 
-    let mut bonuses = bonuses_slab.alloc(candidate);
-
     for (char_idx, candidate_char) in candidate.char_idxs() {
-        let char_class = char_class(candidate_char, scheme);
-        let bonus = bonus(prev_class, char_class, scheme);
-        prev_class = char_class;
-
-        bonuses[char_idx] = bonus;
-
         if case_matcher.eq(query_char, candidate_char) {
             if !matched_idxs.is_full() {
                 matched_idxs.push(char_idx);
@@ -156,7 +153,7 @@ fn matched_indices<'idx, 'bonus>(
     }
 
     if matched_idxs.is_full() {
-        Some((matched_idxs, last_matched_idx, bonuses))
+        Some((matched_idxs, last_matched_idx))
     } else {
         None
     }

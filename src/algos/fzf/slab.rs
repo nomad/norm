@@ -25,15 +25,15 @@ pub(super) struct V2Slab {
 #[derive(Clone)]
 pub(super) struct CandidateSlab {
     chars: Vec<char>,
-    char_indices: Vec<usize>,
+    char_offsets: Vec<usize>,
 }
 
 impl Default for CandidateSlab {
     #[inline]
     fn default() -> Self {
-        let chars = vec!['\0'; 16];
-        let char_indices = vec![0; 16];
-        Self { chars, char_indices }
+        let chars = vec!['\0'; 64];
+        let char_indices = vec![0; 64];
+        Self { chars, char_offsets: char_indices }
     }
 }
 
@@ -49,20 +49,20 @@ impl CandidateSlab {
         // to, but that's fine since we'll reuse the space later.
         if candidate.len() > self.chars.len() {
             self.chars.resize(candidate.len(), '\0');
-            self.char_indices.resize(candidate.len(), 0);
+            self.char_offsets.resize(candidate.len(), 0);
         }
 
         let mut len = 0;
 
         for (offset, char) in candidate.char_indices() {
             self.chars[len] = char;
-            self.char_indices[len] = offset;
+            self.char_offsets[len] = offset;
             len += 1;
         }
 
         Candidate {
             chars: &self.chars[..len],
-            char_offsets: &self.char_indices[..len],
+            char_offsets: &self.char_offsets[..len],
             char_offset: 0,
         }
     }
