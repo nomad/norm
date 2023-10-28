@@ -108,12 +108,11 @@ impl<'a> Candidate<'a> {
 
     /// TODO: docs
     #[inline]
-    pub fn char_idxs(
-        &self,
-    ) -> impl Iterator<Item = (CandidateCharIdx, char)> + '_ {
-        self.chars.iter().enumerate().map(|(idx, &char)| {
-            (CandidateCharIdx(idx + self.char_offset), char)
-        })
+    pub fn char_idxs(&self) -> CandidateCharIdxs<'_> {
+        CandidateCharIdxs {
+            chars: self.chars,
+            next_idx: CandidateCharIdx(self.char_offset),
+        }
     }
 
     /// TODO: docs
@@ -130,6 +129,28 @@ impl<'a> Candidate<'a> {
         let char_offsets = &self.char_offsets[range.clone()];
         let char_offset = self.char_offset + range.start;
         Self { chars, char_offsets, char_offset }
+    }
+}
+
+/// TODO: docs
+pub(super) struct CandidateCharIdxs<'a> {
+    chars: &'a [char],
+    next_idx: CandidateCharIdx,
+}
+
+impl Iterator for CandidateCharIdxs<'_> {
+    type Item = (CandidateCharIdx, char);
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.chars.is_empty() {
+            return None;
+        }
+        let char = self.chars[0];
+        let idx = self.next_idx;
+        self.chars = &self.chars[1..];
+        self.next_idx.0 += 1;
+        Some((idx, char))
     }
 }
 
