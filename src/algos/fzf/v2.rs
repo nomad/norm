@@ -122,7 +122,7 @@ fn matched_indices<'idx, 'bonus>(
 ) -> Option<(MatchedIndices<'idx>, CandidateCharIdx, BonusVector<'bonus>)> {
     let mut query_chars = query.chars();
 
-    let mut query_char = query_chars.next().expect("query is not empty");
+    let mut query_char = query_chars.next()?;
 
     let mut prev_class = scheme.initial_char_class;
 
