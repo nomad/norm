@@ -13,38 +13,103 @@ fn fzf_v2_empty_query() {
 }
 
 #[test]
-fn fzf_v2_upstream_1() {
-    common::upstream_1::<FzfV2>();
+fn fzf_v2_upstream_fuzzy_1() {
+    common::upstream_fuzzy_1::<FzfV2>();
 }
 
 #[test]
-fn fzf_v2_upstream_2() {
-    common::upstream_2::<FzfV2>();
+fn fzf_v2_upstream_fuzzy_2() {
+    common::upstream_fuzzy_2::<FzfV2>();
 }
 
 #[test]
-fn fzf_v2_upstream_3() {
-    common::upstream_3::<FzfV2>();
+fn fzf_v2_upstream_fuzzy_3() {
+    common::upstream_fuzzy_3::<FzfV2>();
 }
 
 #[test]
-fn fzf_v2_upstream_4() {
-    common::upstream_4::<FzfV2>();
+fn fzf_v2_upstream_fuzzy_4() {
+    common::upstream_fuzzy_4::<FzfV2>();
 }
 
 #[test]
-fn fzf_v2_upstream_5() {
-    common::upstream_5::<FzfV2>();
+fn fzf_v2_upstream_fuzzy_5() {
+    common::upstream_fuzzy_5::<FzfV2>();
 }
 
 #[test]
-fn fzf_v2_upstream_6() {
-    common::upstream_6::<FzfV2>();
+fn fzf_v2_upstream_fuzzy_6() {
+    common::upstream_fuzzy_6::<FzfV2>();
 }
 
 #[test]
-fn fzf_v2_upstream_7() {
-    common::upstream_7::<FzfV2>();
+fn fzf_v2_upstream_fuzzy_7() {
+    common::upstream_fuzzy_7::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_fuzzy_8() {
+    common::upstream_fuzzy_8::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_fuzzy_9() {
+    common::upstream_fuzzy_9::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_fuzzy_10() {
+    common::upstream_fuzzy_10::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_fuzzy_11() {
+    common::upstream_fuzzy_11::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_fuzzy_12() {
+    common::upstream_fuzzy_12::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_fuzzy_13() {
+    common::upstream_fuzzy_13::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_fuzzy_14() {
+    common::upstream_fuzzy_14::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_fuzzy_15() {
+    common::upstream_fuzzy_15::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_fuzzy_16() {
+    common::upstream_fuzzy_16::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_fuzzy_17() {
+    common::upstream_fuzzy_17::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_fuzzy_18() {
+    common::upstream_fuzzy_18::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_fuzzy_19() {
+    common::upstream_fuzzy_19::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_fuzzy_20() {
+    common::upstream_fuzzy_20::<FzfV2>();
 }
 
 #[test]
