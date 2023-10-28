@@ -18,7 +18,7 @@ impl CaseSensitivity {
     /// TODO: docs
     #[inline]
     pub(crate) fn matcher(self, query: FzfQuery) -> CaseMatcher {
-        let matcher = match self {
+        match self {
             Self::Sensitive => case_sensitive_eq,
 
             Self::Insensitive => case_insensitive_eq,
@@ -30,23 +30,12 @@ impl CaseSensitivity {
                     case_insensitive_eq
                 }
             },
-        };
-
-        CaseMatcher { matcher }
+        }
     }
 }
 
 /// TODO: docs
-pub(crate) struct CaseMatcher {
-    matcher: fn(char, char) -> bool,
-}
-
-impl CaseMatcher {
-    /// TODO: docs
-    pub(crate) fn eq(&self, query_char: char, candidate_char: char) -> bool {
-        (self.matcher)(query_char, candidate_char)
-    }
-}
+pub(crate) type CaseMatcher = fn(char, char) -> bool;
 
 #[inline]
 fn case_insensitive_eq(query: char, candidate: char) -> bool {

@@ -79,7 +79,7 @@ impl Metric for FzfV2 {
             &mut self.slab.matched_indices,
             query,
             candidate,
-            &case_matcher,
+            case_matcher,
         )?;
 
         // We wait to allocate the `Candidate` until we know that the candidate
@@ -124,7 +124,7 @@ fn matched_indices<'idx>(
     indices_slab: &'idx mut MatchedIndicesSlab,
     query: FzfQuery,
     candidate: &str,
-    case_matcher: &CaseMatcher,
+    case_matcher: CaseMatcher,
 ) -> Option<(MatchedIndices<'idx>, CandidateCharIdx)> {
     let mut query_chars = query.chars();
 
@@ -135,7 +135,7 @@ fn matched_indices<'idx>(
     let mut last_matched_idx = CandidateCharIdx(0);
 
     for (idx, candidate_char) in candidate.chars().enumerate() {
-        if case_matcher.eq(query_char, candidate_char) {
+        if case_matcher(query_char, candidate_char) {
             let char_idx = CandidateCharIdx(idx);
 
             if !matched_idxs.is_full() {
@@ -210,7 +210,7 @@ fn score<'scoring, 'consecutive>(
         first_query_char,
         candidate,
         &bonus_vector,
-        &case_matcher,
+        case_matcher,
     );
 
     let (max_score, max_score_cell) = score_remaining_rows(
@@ -235,7 +235,7 @@ fn score_first_row(
     first_query_char: char,
     candidate: Candidate,
     bonus_vector: &BonusVector,
-    case_matcher: &CaseMatcher,
+    case_matcher: CaseMatcher,
 ) -> (Score, MatrixCell) {
     let mut max_score: Score = 0;
 
@@ -255,7 +255,7 @@ fn score_first_row(
 
         let bonus = bonus_vector[char_idx];
 
-        let chars_match = case_matcher.eq(first_query_char, candidate_char);
+        let chars_match = case_matcher(first_query_char, candidate_char);
 
         consecutives[cell] = chars_match as usize;
 
@@ -341,8 +341,7 @@ where
 
             let mut consecutive = 0;
 
-            let score_up_left = if case_matcher.eq(query_char, candidate_char)
-            {
+            let score_up_left = if case_matcher(query_char, candidate_char) {
                 let score = scores[up_left_cell] + bonus::MATCH;
 
                 let mut bonus = bonus_vector[char_idx];

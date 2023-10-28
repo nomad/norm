@@ -72,12 +72,12 @@ impl Metric for FzfV1 {
 
         let case_matcher = self.case_sensitivity.matcher(query);
 
-        let range_forward = forward_pass(query, candidate, &case_matcher)?;
+        let range_forward = forward_pass(query, candidate, case_matcher)?;
 
         let start_backward = backward_pass(
             query,
             &candidate[range_forward.clone()],
-            &case_matcher,
+            case_matcher,
         );
 
         let range = range_forward.start + start_backward..range_forward.end;
@@ -102,7 +102,7 @@ impl Metric for FzfV1 {
 fn forward_pass(
     query: FzfQuery,
     candidate: &str,
-    case_matcher: &CaseMatcher,
+    case_matcher: CaseMatcher,
 ) -> Option<Range<usize>> {
     let mut start_offset = None;
 
@@ -113,7 +113,7 @@ fn forward_pass(
     let mut query_char = query_chars.next().expect("query is not empty");
 
     for (offset, candidate_char) in candidate.char_indices() {
-        if !case_matcher.eq(query_char, candidate_char) {
+        if !case_matcher(query_char, candidate_char) {
             continue;
         }
 
@@ -141,14 +141,16 @@ fn forward_pass(
 fn backward_pass(
     query: FzfQuery,
     candidate: &str,
-    case_matcher: &CaseMatcher,
+    case_matcher: CaseMatcher,
 ) -> usize {
     // The candidate must start with the first character of the query.
-    debug_assert!(case_matcher
-        .eq(candidate.chars().next().unwrap(), query.chars().next().unwrap()));
+    debug_assert!(case_matcher(
+        candidate.chars().next().unwrap(),
+        query.chars().next().unwrap()
+    ));
 
     // The candidate must end with the last character of the query.
-    debug_assert!(case_matcher.eq(
+    debug_assert!(case_matcher(
         candidate.chars().next_back().unwrap(),
         query.chars().next_back().unwrap()
     ));
@@ -160,7 +162,7 @@ fn backward_pass(
     let mut query_char = query_chars.next().expect("query is not empty");
 
     for (offset, candidate_char) in candidate.char_indices().rev() {
-        if !case_matcher.eq(query_char, candidate_char) {
+        if !case_matcher(query_char, candidate_char) {
             continue;
         }
 
@@ -216,7 +218,7 @@ fn calculate_score(
     for (offset, candidate_ch) in candidate[range].char_indices() {
         let ch_class = char_class(candidate_ch, scheme);
 
-        if case_matcher.eq(query_char, candidate_ch) {
+        if case_matcher(query_char, candidate_ch) {
             score += bonus::MATCH;
 
             let mut bonus = bonus(prev_class, ch_class, scheme);
