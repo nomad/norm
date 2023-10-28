@@ -87,13 +87,16 @@ impl Metric for FzfV2 {
                 &self.scheme,
             )?;
 
+        let first_matched_idx = matched_indices.first();
+
+        let candidate = candidate.slice(first_matched_idx..last_matched_idx);
+
         let (scores, consecutive, score, score_cell) = score(
             &mut self.slab.scoring_matrix,
             &mut self.slab.consecutive_matrix,
             query,
             candidate,
             matched_indices,
-            last_matched_idx,
             bonus_vector,
             case_matcher,
         );
@@ -167,7 +170,6 @@ fn score<'scoring, 'consecutive>(
     query: FzfQuery,
     candidate: Candidate,
     matched_indices: MatchedIndices,
-    last_matched_idx: CandidateCharIdx,
     bonus_vector: BonusVector,
     case_matcher: CaseMatcher,
 ) -> (Matrix<'scoring, Score>, Matrix<'consecutive, usize>, Score, MatrixCell)
@@ -184,15 +186,13 @@ fn score<'scoring, 'consecutive>(
             (query_char, matched_idx, row)
         });
 
-    let (first_query_char, first_matched_idx, _) =
+    let (first_query_char, _, _) =
         chars_idxs_rows.next().expect("the query is not empty");
 
     let (max_score, max_score_cell) = score_first_row(
         &mut scoring_matrix,
         &mut consecutive_matrix,
         first_query_char,
-        first_matched_idx,
-        last_matched_idx,
         candidate,
         &bonus_vector,
         &case_matcher,
@@ -202,7 +202,6 @@ fn score<'scoring, 'consecutive>(
         &mut scoring_matrix,
         &mut consecutive_matrix,
         chars_idxs_rows,
-        last_matched_idx,
         max_score,
         max_score_cell,
         candidate,
@@ -216,29 +215,22 @@ fn score<'scoring, 'consecutive>(
 /// TODO: docs
 #[inline]
 fn score_first_row(
-    scoring_matrix: &mut Matrix<'_, Score>,
-    consecutive_matrix: &mut Matrix<'_, usize>,
+    scores: &mut Matrix<'_, Score>,
+    consecutives: &mut Matrix<'_, usize>,
     first_query_char: char,
-    first_matched_idx: CandidateCharIdx,
-    last_matched_idx: CandidateCharIdx,
     candidate: Candidate,
     bonus_vector: &BonusVector,
     case_matcher: &CaseMatcher,
 ) -> (Score, MatrixCell) {
     let mut max_score: Score = 0;
 
-    let mut max_score_cell = scoring_matrix.top_left();
+    let mut max_score_cell = scores.top_left();
 
     let mut prev_score: Score = 0;
 
     let mut is_in_gap = false;
 
-    let candidate = candidate.slice(first_matched_idx..last_matched_idx);
-
-    let starting_col = scoring_matrix
-        .right_n(scoring_matrix.top_left(), first_matched_idx.into_usize());
-
-    let mut cols = scoring_matrix.cols(starting_col);
+    let mut cols = scores.cols(scores.top_left());
 
     for (char_idx, candidate_char) in candidate.char_idxs() {
         let cell = cols.next().expect(
@@ -250,7 +242,7 @@ fn score_first_row(
 
         let chars_match = case_matcher.eq(first_query_char, candidate_char);
 
-        consecutive_matrix[cell] = chars_match as usize;
+        consecutives[cell] = chars_match as usize;
 
         let score = if chars_match {
             is_in_gap = false;
@@ -276,7 +268,7 @@ fn score_first_row(
             prev_score.saturating_sub(penalty)
         };
 
-        scoring_matrix[cell] = score;
+        scores[cell] = score;
 
         prev_score = score;
     }
@@ -287,10 +279,9 @@ fn score_first_row(
 /// TODO: docs
 #[inline]
 fn score_remaining_rows<I>(
-    scoring_matrix: &mut Matrix<'_, Score>,
-    consecutive_matrix: &mut Matrix<'_, usize>,
+    scores: &mut Matrix<'_, Score>,
+    consecutives: &mut Matrix<'_, usize>,
     chars_idxs_rows: I,
-    last_matched_idx: CandidateCharIdx,
     mut max_score: Score,
     mut max_score_cell: MatrixCell,
     candidate: Candidate,
@@ -303,45 +294,45 @@ where
     for (query_char, matched_idx, first_col_cell) in chars_idxs_rows {
         // TODO: docs
         let starting_col = {
-            let skipped_cols = matched_idx.into_usize();
-            scoring_matrix.right_n(first_col_cell, skipped_cols)
+            let skipped_cols =
+                matched_idx.into_usize() - candidate.first_idx().into_usize();
+            scores.right_n(first_col_cell, skipped_cols)
         };
 
         // TODO: docs
-        let left_of_starting_col = scoring_matrix.left(starting_col);
+        let left_of_starting_col = scores.left(starting_col);
 
         // TODO: docs
-        let up_left_of_starting_col = scoring_matrix.up(left_of_starting_col);
+        let up_left_of_starting_col = scores.up(left_of_starting_col);
 
         // TODO: docs
-        let mut cols = scoring_matrix
+        let mut cols = scores
             .cols(starting_col)
-            .zip(scoring_matrix.cols(left_of_starting_col))
-            .zip(scoring_matrix.cols(up_left_of_starting_col));
+            .zip(scores.cols(left_of_starting_col))
+            .zip(scores.cols(up_left_of_starting_col));
 
         let mut is_in_gap = false;
 
         for (char_idx, candidate_char) in
-            candidate.slice(matched_idx..last_matched_idx).char_idxs()
+            candidate.slice_from(matched_idx).char_idxs()
         {
             let ((cell, left_cell), up_left_cell) = cols.next().unwrap();
 
-            let score_left =
-                scoring_matrix[left_cell].saturating_sub(if is_in_gap {
-                    penalty::GAP_EXTENSION
-                } else {
-                    penalty::GAP_START
-                });
+            let score_left = scores[left_cell].saturating_sub(if is_in_gap {
+                penalty::GAP_EXTENSION
+            } else {
+                penalty::GAP_START
+            });
 
             let mut consecutive = 0;
 
             let score_up_left = if case_matcher.eq(query_char, candidate_char)
             {
-                let score = scoring_matrix[up_left_cell] + bonus::MATCH;
+                let score = scores[up_left_cell] + bonus::MATCH;
 
                 let mut bonus = bonus_vector[char_idx];
 
-                consecutive = consecutive_matrix[up_left_cell] + 1;
+                consecutive = consecutives[up_left_cell] + 1;
 
                 if consecutive > 1 {
                     let fb = bonus_vector[CandidateCharIdx(
@@ -374,9 +365,9 @@ where
                 max_score_cell = cell;
             }
 
-            consecutive_matrix[cell] = consecutive;
+            consecutives[cell] = consecutive;
 
-            scoring_matrix[cell] = score;
+            scores[cell] = score;
         }
     }
 
@@ -431,10 +422,9 @@ fn matched_ranges(
         if score > score_up_left
             && (score > score_left || score == score_left && prefer_this_match)
         {
-            let char_idx = CandidateCharIdx(scores.col_of(cell));
-
-            let char = candidate.char(char_idx);
-            let offset = candidate.char_offset(char_idx);
+            let col = scores.col_of(cell);
+            let char = candidate.nth_char(col);
+            let offset = candidate.nth_char_offset(col);
 
             let char_len_utf8 = char.len_utf8();
 

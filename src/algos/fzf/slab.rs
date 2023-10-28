@@ -96,18 +96,6 @@ impl CandidateCharIdx {
 impl<'a> Candidate<'a> {
     /// TODO: docs
     #[inline]
-    pub fn char(&self, idx: CandidateCharIdx) -> char {
-        self.chars[idx.0 - self.char_offset]
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn char_offset(&self, idx: CandidateCharIdx) -> usize {
-        self.char_offsets[idx.0 - self.char_offset]
-    }
-
-    /// TODO: docs
-    #[inline]
     pub fn char_idxs(&self) -> CandidateCharIdxs<'_> {
         CandidateCharIdxs {
             chars: self.chars,
@@ -123,12 +111,39 @@ impl<'a> Candidate<'a> {
 
     /// TODO: docs
     #[inline]
-    pub fn slice(self, range: Range<CandidateCharIdx>) -> Self {
-        let range = range.start.0..range.end.0 + 1;
+    pub fn first_idx(&self) -> CandidateCharIdx {
+        CandidateCharIdx(self.char_offset)
+    }
+
+    /// TODO: docs
+    #[inline]
+    pub fn nth_char(&self, n: usize) -> char {
+        self.chars[n]
+    }
+
+    /// TODO: docs
+    #[inline]
+    pub fn nth_char_offset(&self, n: usize) -> usize {
+        self.char_offsets[n]
+    }
+
+    /// TODO: docs
+    #[inline]
+    pub fn slice_from(self, start: CandidateCharIdx) -> Self {
+        let range = (start.0 - self.char_offset)..;
         let chars = &self.chars[range.clone()];
         let char_offsets = &self.char_offsets[range.clone()];
-        let char_offset = self.char_offset + range.start;
-        Self { chars, char_offsets, char_offset }
+        Self { chars, char_offsets, char_offset: start.0 }
+    }
+
+    /// TODO: docs
+    #[inline]
+    pub fn slice(self, range: Range<CandidateCharIdx>) -> Self {
+        let start = range.start.0 - self.char_offset;
+        let end = range.end.0 - self.char_offset + 1;
+        let chars = &self.chars[start..end];
+        let char_offsets = &self.char_offsets[start..end];
+        Self { chars, char_offsets, char_offset: range.start.0 }
     }
 }
 
@@ -194,6 +209,12 @@ pub(super) struct MatchedIndices<'a> {
 }
 
 impl<'a> MatchedIndices<'a> {
+    /// TODO: docs
+    #[inline]
+    pub fn first(&self) -> CandidateCharIdx {
+        self.indices[0]
+    }
+
     /// TODO: docs
     #[inline]
     pub fn into_iter(self) -> impl Iterator<Item = CandidateCharIdx> + 'a {
