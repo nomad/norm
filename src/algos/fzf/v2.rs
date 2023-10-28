@@ -413,7 +413,7 @@ fn matched_ranges(
 
         let score_up_left = cell_up_left.map(|c| scores[c]).unwrap_or(0);
 
-        let this_prefer_match = prefer_match;
+        let prefer_this_match = prefer_match;
 
         prefer_match = consecutives[cell] > 1
             || consecutives
@@ -423,7 +423,7 @@ fn matched_ranges(
                 .unwrap_or(false);
 
         if score > score_up_left
-            && (score > score_left || score == score_left && this_prefer_match)
+            && (score > score_left || score == score_left && prefer_this_match)
         {
             let char_idx = CandidateCharIdx(scores.col_of(cell));
 
