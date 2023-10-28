@@ -73,8 +73,6 @@ impl Metric for FzfV2 {
             return None;
         }
 
-        let candidate = self.slab.candidate.alloc(candidate);
-
         let case_matcher = self.case_sensitivity.matcher(query);
 
         let (matched_indices, last_matched_idx) = matched_indices(
@@ -83,6 +81,10 @@ impl Metric for FzfV2 {
             candidate,
             &case_matcher,
         )?;
+
+        // We wait to allocate the `Candidate` until we know that the candidate
+        // string is a match.
+        let candidate = self.slab.candidate.alloc(candidate);
 
         let bonus_vector = compute_bonuses(
             &mut self.slab.bonus_vector,
@@ -121,7 +123,7 @@ impl Metric for FzfV2 {
 fn matched_indices<'idx>(
     indices_slab: &'idx mut MatchedIndicesSlab,
     query: FzfQuery,
-    candidate: Candidate,
+    candidate: &str,
     case_matcher: &CaseMatcher,
 ) -> Option<(MatchedIndices<'idx>, CandidateCharIdx)> {
     let mut query_chars = query.chars();
@@ -132,8 +134,10 @@ fn matched_indices<'idx>(
 
     let mut last_matched_idx = CandidateCharIdx(0);
 
-    for (char_idx, candidate_char) in candidate.char_idxs() {
+    for (idx, candidate_char) in candidate.chars().enumerate() {
         if case_matcher.eq(query_char, candidate_char) {
+            let char_idx = CandidateCharIdx(idx);
+
             if !matched_idxs.is_full() {
                 matched_idxs.push(char_idx);
             }
