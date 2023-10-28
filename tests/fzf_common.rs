@@ -32,10 +32,9 @@ pub fn upstream_fuzzy_2<F: Fzf>() {
     assert_eq!(
         m.distance().into_score(),
         3 * bonus::MATCH
-            + bonus::FIRST_QUERY_CHAR_MULTIPLIER
+            + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 2)
                 * fzf.scheme().bonus_boundary_white
-            + 2 * fzf.scheme().bonus_boundary_white
-            - 2 * penalty::GAP_START * 2
+            - 2 * penalty::GAP_START
             - 4 * penalty::GAP_EXTENSION
     );
 
@@ -56,7 +55,7 @@ pub fn upstream_fuzzy_3<F: Fzf>() {
 }
 
 pub fn upstream_fuzzy_4<F: Fzf>() {
-    let (fzf, m) = fzf::<F>(Insensitive, "zhsc", "/man1/zshcompctl.1");
+    let (fzf, m) = fzf::<F>(Insensitive, "zshc", "/man1/zshcompctl.1");
 
     let m = m.unwrap();
 
@@ -71,7 +70,7 @@ pub fn upstream_fuzzy_4<F: Fzf>() {
 }
 
 pub fn upstream_fuzzy_5<F: Fzf>() {
-    let (fzf, m) = fzf::<F>(Insensitive, "zhsc", "/.oh-my-zsh/cache");
+    let (fzf, m) = fzf::<F>(Insensitive, "zshc", "/.oh-my-zsh/cache");
 
     let m = m.unwrap();
 
@@ -148,10 +147,10 @@ pub fn upstream_fuzzy_9<F: Fzf>() {
                 * fzf.scheme().bonus_boundary_white
             + 2 * bonus::CAMEL_123
             - 2 * penalty::GAP_START
-            - 4 * penalty::GAP_EXTENSION
+            - 2 * penalty::GAP_EXTENSION
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [0..1, 4..5, 8..9]);
+    assert_eq!(m.matched_ranges().sorted(), [0..1, 3..4, 6..7]);
 }
 
 pub fn upstream_fuzzy_10<F: Fzf>() {
