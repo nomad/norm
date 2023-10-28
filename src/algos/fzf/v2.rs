@@ -84,17 +84,11 @@ impl Metric for FzfV2 {
             &case_matcher,
         )?;
 
-        let bonus_vector = {
-            let scheme = &self.scheme;
-            let mut prev_class = scheme.initial_char_class;
-            let mut bonuses = self.slab.bonus_vector.alloc(candidate);
-            for (char_idx, candidate_char) in candidate.char_idxs() {
-                let char_class = char_class(candidate_char, scheme);
-                bonuses[char_idx] = bonus(prev_class, char_class, scheme);
-                prev_class = char_class;
-            }
-            bonuses
-        };
+        let bonus_vector = compute_bonuses(
+            &mut self.slab.bonus_vector,
+            candidate,
+            &self.scheme,
+        );
 
         let first_matched_idx = matched_indices.first();
 
@@ -157,6 +151,26 @@ fn matched_indices<'idx>(
     } else {
         None
     }
+}
+
+/// TODO: docs
+#[inline]
+fn compute_bonuses<'bonus>(
+    bonus_slab: &'bonus mut BonusVectorSlab,
+    candidate: Candidate,
+    scheme: &Scheme,
+) -> BonusVector<'bonus> {
+    let mut prev_class = scheme.initial_char_class;
+
+    let mut bonuses = bonus_slab.alloc(candidate);
+
+    for (char_idx, candidate_char) in candidate.char_idxs() {
+        let char_class = char_class(candidate_char, scheme);
+        bonuses[char_idx] = bonus(prev_class, char_class, scheme);
+        prev_class = char_class;
+    }
+
+    bonuses
 }
 
 /// TODO: docs
