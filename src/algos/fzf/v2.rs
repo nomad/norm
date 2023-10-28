@@ -77,14 +77,15 @@ impl Metric for FzfV2 {
 
         let case_matcher = self.case_sensitivity.matcher(query);
 
-        let (matched_indices, bonus_vector) = matched_indices(
-            &mut self.slab.matched_indices,
-            &mut self.slab.bonus_vector,
-            query,
-            candidate,
-            &case_matcher,
-            &self.scheme,
-        )?;
+        let (matched_indices, last_matched_idx, bonus_vector) =
+            matched_indices(
+                &mut self.slab.matched_indices,
+                &mut self.slab.bonus_vector,
+                query,
+                candidate,
+                &case_matcher,
+                &self.scheme,
+            )?;
 
         let (scores, consecutive, score, score_cell) = score(
             &mut self.slab.scoring_matrix,
@@ -92,6 +93,7 @@ impl Metric for FzfV2 {
             query,
             candidate,
             matched_indices,
+            last_matched_idx,
             bonus_vector,
             case_matcher,
         );
@@ -117,16 +119,18 @@ fn matched_indices<'idx, 'bonus>(
     candidate: Candidate,
     case_matcher: &CaseMatcher,
     scheme: &Scheme,
-) -> Option<(MatchedIndices<'idx>, BonusVector<'bonus>)> {
+) -> Option<(MatchedIndices<'idx>, CandidateCharIdx, BonusVector<'bonus>)> {
     let mut query_chars = query.chars();
 
     let mut query_char = query_chars.next().expect("query is not empty");
 
     let mut prev_class = scheme.initial_char_class;
 
-    let mut bonuses = bonuses_slab.alloc(candidate);
-
     let mut matched_idxs = indices_slab.alloc(query);
+
+    let mut last_matched_idx = CandidateCharIdx(0);
+
+    let mut bonuses = bonuses_slab.alloc(candidate);
 
     for (char_idx, candidate_char) in candidate.char_idxs() {
         let char_class = char_class(candidate_char, scheme);
@@ -136,7 +140,11 @@ fn matched_indices<'idx, 'bonus>(
         bonuses[char_idx] = bonus;
 
         if case_matcher.eq(query_char, candidate_char) {
-            matched_idxs.push(char_idx);
+            if !matched_idxs.is_full() {
+                matched_idxs.push(char_idx);
+            }
+
+            last_matched_idx = char_idx;
 
             if let Some(next_char) = query_chars.next() {
                 query_char = next_char;
@@ -144,14 +152,15 @@ fn matched_indices<'idx, 'bonus>(
         }
     }
 
-    if matched_idxs.len() == query.char_len() {
-        Some((matched_idxs, bonuses))
+    if matched_idxs.is_full() {
+        Some((matched_idxs, last_matched_idx, bonuses))
     } else {
         None
     }
 }
 
 /// TODO: docs
+#[allow(clippy::too_many_arguments)]
 #[inline]
 fn score<'scoring, 'consecutive>(
     scoring_slab: &'scoring mut ScoringMatrixSlab,
@@ -159,6 +168,7 @@ fn score<'scoring, 'consecutive>(
     query: FzfQuery,
     candidate: Candidate,
     matched_indices: MatchedIndices,
+    last_matched_idx: CandidateCharIdx,
     bonus_vector: BonusVector,
     case_matcher: CaseMatcher,
 ) -> (Matrix<'scoring, Score>, Matrix<'consecutive, usize>, Score, MatrixCell)
@@ -166,10 +176,6 @@ fn score<'scoring, 'consecutive>(
     let mut scoring_matrix = scoring_slab.alloc(query, candidate);
 
     let mut consecutive_matrix = consecutive_slab.alloc(query, candidate);
-
-    // The char index in the candidate string of the character that matched the
-    // last character in the query string.
-    let last_matched_idx = matched_indices.last();
 
     let mut chars_idxs_rows = query
         .chars()

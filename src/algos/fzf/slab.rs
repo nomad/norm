@@ -161,8 +161,14 @@ impl MatchedIndicesSlab {
 }
 
 /// TODO: docs
+#[derive(Debug)]
 pub(super) struct MatchedIndices<'a> {
     indices: &'a mut [CandidateCharIdx],
+
+    /// The number of indices in [`Self::indices`] that have been pushed so far.
+    ///
+    /// The remaining indices are uninitialized (i.e. set to zero) and should
+    /// not be read from.
     len: usize,
 }
 
@@ -175,14 +181,8 @@ impl<'a> MatchedIndices<'a> {
 
     /// TODO: docs
     #[inline]
-    pub fn last(&self) -> CandidateCharIdx {
-        self.indices[self.len - 1]
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.len
+    pub fn is_full(&self) -> bool {
+        self.len == self.indices.len()
     }
 
     #[inline]
@@ -195,12 +195,6 @@ impl<'a> MatchedIndices<'a> {
     pub fn push(&mut self, idx: CandidateCharIdx) {
         self.indices[self.len] = idx;
         self.len += 1;
-    }
-}
-
-impl core::fmt::Debug for MatchedIndices<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.indices[..self.len].fmt(f)
     }
 }
 
