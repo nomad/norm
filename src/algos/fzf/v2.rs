@@ -160,7 +160,6 @@ fn matched_indices<'idx, 'bonus>(
 }
 
 /// TODO: docs
-#[allow(clippy::too_many_arguments)]
 #[inline]
 fn score<'scoring, 'consecutive>(
     scoring_slab: &'scoring mut ScoringMatrixSlab,
@@ -215,7 +214,6 @@ fn score<'scoring, 'consecutive>(
 }
 
 /// TODO: docs
-#[allow(clippy::too_many_arguments)]
 #[inline]
 fn score_first_row(
     scoring_matrix: &mut Matrix<'_, Score>,
@@ -291,7 +289,6 @@ fn score_first_row(
 }
 
 /// TODO: docs
-#[allow(clippy::too_many_arguments)]
 #[inline]
 fn score_remaining_rows<I>(
     scoring_matrix: &mut Matrix<'_, Score>,
