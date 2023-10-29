@@ -1,4 +1,5 @@
 use crate::fzf::FzfQuery;
+use crate::*;
 
 /// TODO: docs
 #[derive(Copy, Clone, Debug, Default)]
@@ -19,15 +20,15 @@ impl CaseSensitivity {
     #[inline]
     pub(crate) fn matcher(self, query: FzfQuery) -> CaseMatcher {
         match self {
-            Self::Sensitive => case_sensitive_eq,
+            Self::Sensitive => utils::case_sensitive_eq,
 
-            Self::Insensitive => case_insensitive_eq,
+            Self::Insensitive => utils::case_insensitive_eq,
 
             Self::Smart => {
                 if query.has_uppercase() {
-                    case_sensitive_eq
+                    utils::case_sensitive_eq
                 } else {
-                    case_insensitive_eq
+                    utils::case_insensitive_eq
                 }
             },
         }
@@ -36,13 +37,3 @@ impl CaseSensitivity {
 
 /// TODO: docs
 pub(crate) type CaseMatcher = fn(char, char) -> bool;
-
-#[inline]
-fn case_insensitive_eq(query: char, candidate: char) -> bool {
-    query.eq_ignore_ascii_case(&candidate)
-}
-
-#[inline]
-fn case_sensitive_eq(query: char, candidate: char) -> bool {
-    query == candidate
-}

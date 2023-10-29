@@ -1,4 +1,4 @@
-use core::ops::{Index, IndexMut, Range};
+use core::ops::{AddAssign, Index, IndexMut, Range};
 
 use super::{FzfQuery, Score};
 
@@ -85,6 +85,13 @@ impl core::fmt::Debug for Candidate<'_> {
 /// TODO: docs
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct CandidateCharIdx(pub usize);
+
+impl AddAssign<Self> for CandidateCharIdx {
+    #[inline]
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
 
 impl CandidateCharIdx {
     #[inline]
@@ -219,18 +226,6 @@ impl<'a> MatchedIndices<'a> {
     #[inline]
     pub fn into_iter(self) -> impl Iterator<Item = CandidateCharIdx> + 'a {
         self.indices[..self.len].iter().copied()
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn is_full(&self) -> bool {
-        self.len == self.indices.len()
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn last(&self) -> CandidateCharIdx {
-        self.indices[self.len - 1]
     }
 
     #[inline]

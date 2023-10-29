@@ -10,6 +10,7 @@ mod algos;
 mod case_sensitivity;
 mod r#match;
 mod metric;
+mod utils;
 
 pub use algos::*;
 use case_sensitivity::CaseMatcher;

@@ -4,10 +4,7 @@ pub struct FzfQuery<'a> {
     /// TODO: docs.
     chars: &'a [char],
 
-    /// TODO: docs.
-    is_ascii: bool,
-
-    /// TODO: docs.
+    /// Whether any of the characters in `chars` are uppercase.
     has_uppercase: bool,
 }
 
@@ -22,12 +19,6 @@ impl core::fmt::Debug for FzfQuery<'_> {
 impl<'a> FzfQuery<'a> {
     /// TODO: docs
     #[inline]
-    pub(crate) fn bytes(&self) -> impl Iterator<Item = u8> + '_ {
-        self.chars.iter().map(|&c| c as u8)
-    }
-
-    /// TODO: docs
-    #[inline]
     pub(super) fn char_len(&self) -> usize {
         self.chars.len()
     }
@@ -38,12 +29,6 @@ impl<'a> FzfQuery<'a> {
         &self,
     ) -> impl Iterator<Item = char> + DoubleEndedIterator + '_ {
         self.chars.iter().copied()
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub(crate) fn is_ascii(&self) -> bool {
-        self.is_ascii
     }
 
     /// TODO: docs
@@ -61,8 +46,9 @@ impl<'a> FzfQuery<'a> {
     /// TODO: docs
     #[inline]
     pub(super) fn new(chars: &'a [char]) -> Self {
-        let is_ascii = chars.iter().all(char::is_ascii);
-        let has_uppercase = chars.iter().copied().any(char::is_uppercase);
-        Self { chars, is_ascii, has_uppercase }
+        Self {
+            has_uppercase: chars.iter().copied().any(char::is_uppercase),
+            chars,
+        }
     }
 }
