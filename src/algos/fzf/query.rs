@@ -25,6 +25,12 @@ impl<'a> FzfQuery<'a> {
 
     /// TODO: docs
     #[inline]
+    pub(super) fn char(&self, idx: usize) -> char {
+        self.chars[idx]
+    }
+
+    /// TODO: docs
+    #[inline]
     pub(crate) fn chars(
         &self,
     ) -> impl Iterator<Item = char> + DoubleEndedIterator + '_ {

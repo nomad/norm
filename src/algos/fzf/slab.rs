@@ -1,4 +1,4 @@
-use core::ops::{AddAssign, Index, IndexMut, Range};
+use core::ops::{AddAssign, Index, IndexMut};
 
 use super::{FzfQuery, Score};
 
@@ -12,13 +12,13 @@ pub(super) struct V2Slab {
     pub(super) candidate: CandidateSlab,
 
     /// TODO: docs
-    pub(super) consecutive_matrix: ConsecutiveMatrixSlab,
+    pub(super) consecutive_matrix: MatrixSlab<usize>,
 
     /// TODO: docs
     pub(super) matched_indices: MatchedIndicesSlab,
 
     /// TODO: docs
-    pub(super) scoring_matrix: ScoringMatrixSlab,
+    pub(super) scoring_matrix: MatrixSlab<Score>,
 }
 
 /// TODO: docs
@@ -63,7 +63,7 @@ impl CandidateSlab {
         Candidate {
             chars: &self.chars[..len],
             char_offsets: &self.char_offsets[..len],
-            char_offset: 0,
+            byte_len: candidate.len(),
         }
     }
 }
@@ -73,7 +73,7 @@ impl CandidateSlab {
 pub(super) struct Candidate<'a> {
     chars: &'a [char],
     char_offsets: &'a [usize],
-    char_offset: usize,
+    byte_len: usize,
 }
 
 impl core::fmt::Debug for Candidate<'_> {
@@ -93,64 +93,15 @@ impl AddAssign<Self> for CandidateCharIdx {
     }
 }
 
-impl CandidateCharIdx {
-    #[inline]
-    pub fn into_usize(self) -> usize {
-        self.0
-    }
-}
-
 impl<'a> Candidate<'a> {
     /// TODO: docs
     #[inline]
-    pub fn char_idxs(&self) -> CandidateCharIdxs<'_> {
-        CandidateCharIdxs {
-            chars: self.chars,
-            next_idx: CandidateCharIdx(self.char_offset),
-        }
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn char_len(&self) -> usize {
-        self.chars.len()
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn first_idx(&self) -> CandidateCharIdx {
-        CandidateCharIdx(self.char_offset)
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn nth_char(&self, n: usize) -> char {
-        self.chars[n]
-    }
-
-    /// TODO: docs
-    #[inline]
     pub fn nth_char_offset(&self, n: usize) -> usize {
-        self.char_offsets[n]
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn slice_from(self, start: CandidateCharIdx) -> Self {
-        let range = (start.0 - self.char_offset)..;
-        let chars = &self.chars[range.clone()];
-        let char_offsets = &self.char_offsets[range.clone()];
-        Self { chars, char_offsets, char_offset: start.0 }
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn slice(self, range: Range<CandidateCharIdx>) -> Self {
-        let start = range.start.0 - self.char_offset;
-        let end = range.end.0 - self.char_offset + 1;
-        let chars = &self.chars[start..end];
-        let char_offsets = &self.char_offsets[start..end];
-        Self { chars, char_offsets, char_offset: range.start.0 }
+        if n == self.char_offsets.len() {
+            self.byte_len
+        } else {
+            self.char_offsets[n]
+        }
     }
 }
 
@@ -179,13 +130,13 @@ impl Iterator for CandidateCharIdxs<'_> {
 /// TODO: docs
 #[derive(Clone)]
 pub(super) struct MatchedIndicesSlab {
-    vec: Vec<CandidateCharIdx>,
+    vec: Vec<usize>,
 }
 
 impl Default for MatchedIndicesSlab {
     #[inline]
     fn default() -> Self {
-        Self { vec: vec![CandidateCharIdx(0); 16] }
+        Self { vec: vec![0; 16] }
     }
 }
 
@@ -196,7 +147,7 @@ impl MatchedIndicesSlab {
         let char_len = query.char_len();
 
         if char_len > self.vec.len() {
-            self.vec.resize(char_len, CandidateCharIdx(0));
+            self.vec.resize(char_len, 0);
         }
 
         MatchedIndices::new(&mut self.vec[..char_len])
@@ -206,7 +157,7 @@ impl MatchedIndicesSlab {
 /// TODO: docs
 #[derive(Debug)]
 pub(super) struct MatchedIndices<'a> {
-    indices: &'a mut [CandidateCharIdx],
+    indices: &'a mut [usize],
 
     /// The number of indices in [`Self::indices`] that have been pushed so far.
     ///
@@ -218,24 +169,18 @@ pub(super) struct MatchedIndices<'a> {
 impl<'a> MatchedIndices<'a> {
     /// TODO: docs
     #[inline]
-    pub fn first(&self) -> CandidateCharIdx {
-        self.indices[0]
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn into_iter(self) -> impl Iterator<Item = CandidateCharIdx> + 'a {
-        self.indices[..self.len].iter().copied()
+    pub fn into_slice(self) -> &'a mut [usize] {
+        self.indices
     }
 
     #[inline]
-    pub fn new(indices: &'a mut [CandidateCharIdx]) -> Self {
+    pub fn new(indices: &'a mut [usize]) -> Self {
         Self { indices, len: 0 }
     }
 
     /// TODO: docs
     #[inline]
-    pub fn push(&mut self, idx: CandidateCharIdx) {
+    pub fn push(&mut self, idx: usize) {
         self.indices[self.len] = idx;
         self.len += 1;
     }
@@ -257,41 +202,41 @@ impl Default for BonusVectorSlab {
 impl BonusVectorSlab {
     /// TODO: docs
     #[inline]
-    pub fn alloc<'a>(&'a mut self, candidate: Candidate) -> BonusVector<'a> {
-        let char_len = candidate.char_len();
+    pub fn alloc<'a>(&'a mut self, candidate: &str) -> BonusVector<'a> {
+        let byte_len = candidate.len();
 
-        if char_len > self.vec.len() {
-            self.vec.resize(char_len, 0);
+        if byte_len > self.vec.len() {
+            self.vec.resize(byte_len, 0);
         }
 
-        BonusVector { indices: &mut self.vec[..char_len] }
+        BonusVector { indices: &mut self.vec[..byte_len], len: 0 }
     }
 }
 
 /// TODO: docs
 pub(super) struct BonusVector<'a> {
     indices: &'a mut [Score],
+    len: usize,
 }
 
 impl core::fmt::Debug for BonusVector<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.indices.fmt(f)
+        self.indices[..self.len].fmt(f)
     }
 }
 
-impl Index<CandidateCharIdx> for BonusVector<'_> {
-    type Output = Score;
-
+impl<'a> BonusVector<'a> {
+    /// TODO: docs
     #[inline]
-    fn index(&self, index: CandidateCharIdx) -> &Self::Output {
-        &self.indices[index.0]
+    pub fn into_slice(self) -> &'a [Score] {
+        &self.indices[..self.len]
     }
-}
 
-impl IndexMut<CandidateCharIdx> for BonusVector<'_> {
+    /// TODO: docs
     #[inline]
-    fn index_mut(&mut self, index: CandidateCharIdx) -> &mut Self::Output {
-        &mut self.indices[index.0]
+    pub fn push(&mut self, score: Score) {
+        self.indices[self.len] = score;
+        self.len += 1;
     }
 }
 
@@ -335,46 +280,6 @@ impl MatrixItem for usize {
 
 /// TODO: docs
 #[derive(Default, Clone)]
-pub(super) struct ConsecutiveMatrixSlab {
-    slab: MatrixSlab<usize>,
-}
-
-impl ConsecutiveMatrixSlab {
-    /// TODO: docs
-    #[inline]
-    pub fn alloc<'a>(
-        &'a mut self,
-        query: FzfQuery,
-        candidate: Candidate,
-    ) -> Matrix<'a, usize> {
-        let height = query.char_len();
-        let width = candidate.char_len();
-        self.slab.alloc(width, height)
-    }
-}
-
-/// TODO: docs
-#[derive(Default, Clone)]
-pub(super) struct ScoringMatrixSlab {
-    slab: MatrixSlab<Score>,
-}
-
-impl ScoringMatrixSlab {
-    /// TODO: docs
-    #[inline]
-    pub fn alloc(
-        &mut self,
-        query: FzfQuery,
-        candidate: Candidate,
-    ) -> Matrix<'_, Score> {
-        let height = query.char_len();
-        let width = candidate.char_len();
-        self.slab.alloc(width, height)
-    }
-}
-
-/// TODO: docs
-#[derive(Default, Clone)]
 pub(super) struct MatrixSlab<T: MatrixItem> {
     vec: Vec<T>,
 }
@@ -382,7 +287,7 @@ pub(super) struct MatrixSlab<T: MatrixItem> {
 impl<T: MatrixItem> MatrixSlab<T> {
     /// TODO: docs
     #[inline]
-    fn alloc(&mut self, width: usize, height: usize) -> Matrix<'_, T> {
+    pub fn alloc(&mut self, width: usize, height: usize) -> Matrix<'_, T> {
         debug_assert!(height * width > 0);
 
         if height * width > self.vec.len() {
@@ -522,6 +427,12 @@ impl<'a, T: MatrixItem> Matrix<'a, T> {
     }
 
     /// TODO: docs
+    #[inline(always)]
+    pub fn height(&self) -> usize {
+        self.height
+    }
+
+    /// TODO: docs
     #[inline]
     pub fn is_in_first_col(&self, cell: MatrixCell) -> bool {
         self.col_of(cell) == 0
@@ -559,12 +470,6 @@ impl<'a, T: MatrixItem> Matrix<'a, T> {
 
     /// TODO: docs
     #[inline]
-    pub fn right_n(&self, cell: MatrixCell, n: usize) -> MatrixCell {
-        MatrixCell(cell.0 + n)
-    }
-
-    /// TODO: docs
-    #[inline]
     pub fn row_of(&self, cell: MatrixCell) -> usize {
         cell.0 / self.width
     }
@@ -592,9 +497,33 @@ impl<'a, T: MatrixItem> Matrix<'a, T> {
         MatrixCell(0)
     }
 
+    /// TODO: docs
+    #[inline]
+    pub fn two_rows_mut(
+        &mut self,
+        row_idx_a: usize,
+        row_idx_b: usize,
+    ) -> (&mut Row<T>, &mut Row<T>) {
+        debug_assert!(row_idx_a < row_idx_b);
+
+        let start_b = row_idx_b * self.width;
+
+        let (part_a, part_b) = self.slice.split_at_mut(start_b);
+
+        let start_a = row_idx_a * self.width;
+
+        (&mut part_a[start_a..start_a + self.width], &mut part_b[..self.width])
+    }
+
     #[inline]
     pub fn up(&self, cell: MatrixCell) -> MatrixCell {
         MatrixCell(cell.0 - self.width)
+    }
+
+    /// TODO: docs
+    #[inline(always)]
+    pub fn width(&self) -> usize {
+        self.width
     }
 }
 
