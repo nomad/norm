@@ -24,7 +24,7 @@ impl CaseSensitivity {
             Self::Insensitive => case_insensitive_eq,
 
             Self::Smart => {
-                if query.chars().any(char::is_uppercase) {
+                if query.has_uppercase() {
                     case_sensitive_eq
                 } else {
                     case_insensitive_eq

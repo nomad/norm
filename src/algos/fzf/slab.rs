@@ -227,6 +227,12 @@ impl<'a> MatchedIndices<'a> {
         self.len == self.indices.len()
     }
 
+    /// TODO: docs
+    #[inline]
+    pub fn last(&self) -> CandidateCharIdx {
+        self.indices[self.len - 1]
+    }
+
     #[inline]
     pub fn new(indices: &'a mut [CandidateCharIdx]) -> Self {
         Self { indices, len: 0 }

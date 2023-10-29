@@ -75,15 +75,46 @@ impl Metric for FzfV2 {
 
         let case_matcher = self.case_sensitivity.matcher(query);
 
-        let (matched_indices, last_matched_idx) = matched_indices(
-            &mut self.slab.matched_indices,
-            query,
-            candidate,
-            case_matcher,
-        )?;
+        let (matched_indices, last_matched_idx) =
+            if query.is_ascii() && candidate.is_ascii() {
+                let is_case_sensitive = match self.case_sensitivity {
+                    CaseSensitivity::Sensitive => true,
+                    CaseSensitivity::Insensitive => false,
+                    CaseSensitivity::Smart => query.has_uppercase(),
+                };
 
-        // We wait to allocate the `Candidate` until we know that the candidate
-        // string is a match.
+                assert_eq!(
+                    fast_matched_indices(
+                        &mut self.slab.matched_indices,
+                        query,
+                        candidate.as_bytes(),
+                        is_case_sensitive,
+                    )?
+                    .1,
+                    slow_matched_indices(
+                        &mut self.slab.matched_indices,
+                        query,
+                        candidate,
+                        case_matcher,
+                    )?
+                    .1
+                );
+
+                fast_matched_indices(
+                    &mut self.slab.matched_indices,
+                    query,
+                    candidate.as_bytes(),
+                    is_case_sensitive,
+                )
+            } else {
+                slow_matched_indices(
+                    &mut self.slab.matched_indices,
+                    query,
+                    candidate,
+                    case_matcher,
+                )
+            }?;
+
         let candidate = self.slab.candidate.alloc(candidate);
 
         let bonus_vector = compute_bonuses(
@@ -120,7 +151,89 @@ impl Metric for FzfV2 {
 
 /// TODO: docs
 #[inline]
-fn matched_indices<'idx>(
+fn fast_matched_indices<'idx>(
+    indices_slab: &'idx mut MatchedIndicesSlab,
+    query: FzfQuery,
+    candidate: &[u8],
+    is_case_sensitive: bool,
+) -> Option<(MatchedIndices<'idx>, CandidateCharIdx)> {
+    debug_assert!(query.is_ascii());
+    debug_assert!(candidate.is_ascii());
+
+    let mut matched_idxs = indices_slab.alloc(query);
+
+    let mut query_bytes = query.bytes();
+
+    let mut query_byte = query_bytes.next()?;
+
+    let mut offset = 0;
+
+    {
+        let mut candidate = candidate;
+
+        if is_case_sensitive {
+            loop {
+                let idx = memchr::memchr(query_byte, candidate)?;
+
+                matched_idxs.push(CandidateCharIdx(idx + offset));
+
+                query_byte = if let Some(next_needle) = query_bytes.next() {
+                    next_needle
+                } else {
+                    break;
+                };
+
+                candidate = &candidate[idx + 1..];
+
+                offset += idx + 1;
+            }
+        } else {
+            loop {
+                let idx = memchr::memchr2(
+                    query_byte.to_ascii_lowercase(),
+                    query_byte.to_ascii_uppercase(),
+                    candidate,
+                )?;
+
+                matched_idxs.push(CandidateCharIdx(idx + offset));
+
+                query_byte = if let Some(next_needle) = query_bytes.next() {
+                    next_needle
+                } else {
+                    break;
+                };
+
+                candidate = &candidate[idx + 1..];
+
+                offset += idx + 1;
+            }
+        }
+    }
+
+    let mut last_matched_idx = matched_idxs.last().into_usize();
+
+    last_matched_idx = if is_case_sensitive {
+        memchr::memchr_iter(query_byte, &candidate[last_matched_idx..])
+            .rev()
+            .next()
+    } else {
+        memchr::memchr2_iter(
+            query_byte.to_ascii_lowercase(),
+            query_byte.to_ascii_uppercase(),
+            &candidate[last_matched_idx..],
+        )
+        .rev()
+        .next()
+    }
+    .unwrap_or(0)
+        + last_matched_idx;
+
+    Some((matched_idxs, CandidateCharIdx(last_matched_idx)))
+}
+
+/// TODO: docs
+#[inline]
+fn slow_matched_indices<'idx>(
     indices_slab: &'idx mut MatchedIndicesSlab,
     query: FzfQuery,
     candidate: &str,
@@ -134,6 +247,9 @@ fn matched_indices<'idx>(
 
     let mut last_matched_idx = CandidateCharIdx(0);
 
+    // TODO: do something like memchr to quickly find the first match, then slice
+    // the candidate and do the second, etc. Record the byte positions in matched_idxs,
+    // then if we have a match go back and convert those to char positions.
     for (idx, candidate_char) in candidate.chars().enumerate() {
         if case_matcher(query_char, candidate_char) {
             let char_idx = CandidateCharIdx(idx);

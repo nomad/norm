@@ -14,6 +14,7 @@ bench = ["tests"]
 tests = ["fzf-v1", "fzf-v2"]
 
 [dependencies]
+memchr = "2"
 
 [dev-dependencies]
 criterion = "0.5"
