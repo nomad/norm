@@ -569,6 +569,14 @@ impl<'a, T: MatrixItem> Matrix<'a, T> {
         cell.0 / self.width
     }
 
+    /// TODO: docs
+    #[inline]
+    pub fn row_mut(&mut self, row: usize) -> &mut [T] {
+        let start = row * self.width;
+        let end = start + self.width;
+        &mut self.slice[start..end]
+    }
+
     #[inline]
     pub fn rows(&self, starting_from: MatrixCell) -> Rows {
         Rows {
@@ -590,8 +598,10 @@ impl<'a, T: MatrixItem> Matrix<'a, T> {
     }
 }
 
+pub(super) type Row<T> = [T];
+
 #[derive(Debug, Clone, Copy)]
-pub(super) struct MatrixCell(usize);
+pub(super) struct MatrixCell(pub(super) usize);
 
 impl<T: MatrixItem> Index<MatrixCell> for Matrix<'_, T> {
     type Output = T;

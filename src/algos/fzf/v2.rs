@@ -79,24 +79,34 @@ impl Metric for FzfV2 {
             CaseSensitivity::Smart => query.has_uppercase(),
         };
 
+        let is_candidate_ascii = candidate.is_ascii();
+
         let (matched_indices, last_matched_idx) = matched_indices(
             &mut self.slab.matched_indices,
             query,
             candidate,
+            is_candidate_ascii,
             is_case_sensitive,
         )?;
 
-        let candidate = self.slab.candidate.alloc(candidate);
+        let a_candidate = self.slab.candidate.alloc(candidate);
 
         let bonus_vector = compute_bonuses(
             &mut self.slab.bonus_vector,
-            candidate,
+            a_candidate,
             &self.scheme,
         );
 
         let first_matched_idx = matched_indices.first();
 
-        let candidate = candidate.slice(first_matched_idx..last_matched_idx);
+        let candidate = &candidate
+            [first_matched_idx.into_usize()..last_matched_idx.into_usize()];
+
+        let a_candidate = if is_candidate_ascii {
+            a_candidate.slice(first_matched_idx..last_matched_idx)
+        } else {
+            todo!();
+        };
 
         let case_matcher = if is_case_sensitive {
             utils::case_sensitive_eq
@@ -108,14 +118,18 @@ impl Metric for FzfV2 {
             &mut self.slab.scoring_matrix,
             &mut self.slab.consecutive_matrix,
             query,
+            a_candidate,
             candidate,
+            first_matched_idx.into_usize(),
+            is_candidate_ascii,
+            is_case_sensitive,
             matched_indices,
             bonus_vector,
             case_matcher,
         );
 
         let matched_ranges = if self.with_matched_ranges {
-            matched_ranges(scores, consecutive, score_cell, candidate)
+            matched_ranges(scores, consecutive, score_cell, a_candidate)
         } else {
             Vec::new()
         };
@@ -132,10 +146,9 @@ fn matched_indices<'idx>(
     indices_slab: &'idx mut MatchedIndicesSlab,
     query: FzfQuery,
     mut candidate: &str,
+    is_candidate_ascii: bool,
     is_case_sensitive: bool,
 ) -> Option<(MatchedIndices<'idx>, CandidateCharIdx)> {
-    let candidate_is_ascii = candidate.is_ascii();
-
     let mut query_chars = query.chars();
 
     let mut query_char = query_chars.next()?;
@@ -150,7 +163,7 @@ fn matched_indices<'idx>(
         let byte_offset =
             utils::find_first(query_char, candidate, is_case_sensitive)?;
 
-        let char_idx = if candidate_is_ascii {
+        let char_idx = if is_candidate_ascii {
             byte_offset
         } else {
             candidate[..byte_offset].chars().count()
@@ -175,7 +188,7 @@ fn matched_indices<'idx>(
         utils::find_last(query_char, candidate, is_case_sensitive)
             .unwrap_or(0);
 
-    last_matched_idx += CandidateCharIdx(if candidate_is_ascii {
+    last_matched_idx += CandidateCharIdx(if is_candidate_ascii {
         byte_offset
     } else {
         candidate[..byte_offset].chars().count()
@@ -211,6 +224,10 @@ fn score<'scoring, 'consecutive>(
     consecutive_slab: &'consecutive mut ConsecutiveMatrixSlab,
     query: FzfQuery,
     candidate: Candidate,
+    candidate_str: &str,
+    candidate_offset: usize,
+    candidate_is_ascii: bool,
+    case_is_sensitive: bool,
     matched_indices: MatchedIndices,
     bonus_vector: BonusVector,
     case_matcher: CaseMatcher,
@@ -232,12 +249,14 @@ fn score<'scoring, 'consecutive>(
         chars_idxs_rows.next().expect("the query is not empty");
 
     let (max_score, max_score_cell) = score_first_row(
-        &mut scoring_matrix,
-        &mut consecutive_matrix,
-        first_query_char,
-        candidate,
+        scoring_matrix.row_mut(0),
+        consecutive_matrix.row_mut(0),
         &bonus_vector,
-        case_matcher,
+        first_query_char,
+        candidate_offset,
+        candidate_str,
+        candidate_is_ascii,
+        case_is_sensitive,
     );
 
     let (max_score, max_score_cell) = score_remaining_rows(
@@ -257,65 +276,82 @@ fn score<'scoring, 'consecutive>(
 /// TODO: docs
 #[inline]
 fn score_first_row(
-    scores: &mut Matrix<'_, Score>,
-    consecutives: &mut Matrix<'_, usize>,
-    first_query_char: char,
-    candidate: Candidate,
+    scores_first_row: &mut Row<Score>,
+    consecutives_first_row: &mut Row<usize>,
     bonus_vector: &BonusVector,
-    case_matcher: CaseMatcher,
+    query_first_char: char,
+    candidate_char_offset: usize,
+    mut candidate: &str,
+    is_candidate_ascii: bool,
+    is_case_sensitive: bool,
 ) -> (Score, MatrixCell) {
     let mut max_score: Score = 0;
 
-    let mut max_score_cell = scores.top_left();
-
     let mut prev_score: Score = 0;
 
-    let mut is_in_gap = false;
+    let mut max_score_col: usize = 0;
 
-    let mut cols = scores.cols(scores.top_left());
+    // TODO: docs
+    let mut col = 0;
 
-    for (char_idx, candidate_char) in candidate.char_idxs() {
-        let cell = cols.next().expect(
-            "the scoring matrix's width >= than the sliced candidate's char \
-             length",
-        );
+    while !candidate.is_empty() {
+        let Some(byte_idx) =
+            utils::find_first(query_first_char, candidate, is_case_sensitive)
+        else {
+            // TODO: explain what this does.
+            let mut penalty = penalty::GAP_START;
 
-        let bonus = bonus_vector[char_idx];
-
-        let chars_match = case_matcher(first_query_char, candidate_char);
-
-        consecutives[cell] = chars_match as usize;
-
-        let score = if chars_match {
-            is_in_gap = false;
-
-            let score =
-                bonus::MATCH + (bonus * bonus::FIRST_QUERY_CHAR_MULTIPLIER);
-
-            if score > max_score {
-                max_score = score;
-                max_score_cell = cell;
+            for col in col..scores_first_row.len() {
+                let score = prev_score.saturating_sub(penalty);
+                penalty = penalty::GAP_EXTENSION;
+                scores_first_row[col] = score;
+                prev_score = score;
             }
 
-            score
-        } else {
-            let penalty = if is_in_gap {
-                penalty::GAP_EXTENSION
-            } else {
-                penalty::GAP_START
-            };
-
-            is_in_gap = true;
-
-            prev_score.saturating_sub(penalty)
+            break;
         };
 
-        scores[cell] = score;
+        let char_idx = if is_candidate_ascii {
+            byte_idx
+        } else {
+            candidate[..byte_idx].chars().count()
+        };
+
+        // TODO: explain what this does.
+        {
+            let mut penalty = penalty::GAP_START;
+
+            for col in col..col + char_idx {
+                let score = prev_score.saturating_sub(penalty);
+                penalty = penalty::GAP_EXTENSION;
+                scores_first_row[col] = score;
+                prev_score = score;
+            }
+        }
+
+        col += char_idx;
+
+        consecutives_first_row[col] = 1;
+
+        let score = bonus::MATCH
+            + (bonus_vector[CandidateCharIdx(candidate_char_offset + col)]
+                * bonus::FIRST_QUERY_CHAR_MULTIPLIER);
+
+        if score > max_score {
+            max_score = score;
+            max_score_col = col;
+        }
+
+        scores_first_row[col] = score;
 
         prev_score = score;
+
+        col += 1;
+
+        candidate = &candidate[byte_idx + 1..];
     }
 
-    (max_score, max_score_cell)
+    (max_score, MatrixCell(max_score_col))
 }
 
 /// TODO: docs
