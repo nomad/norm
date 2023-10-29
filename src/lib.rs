@@ -1,6 +1,7 @@
 //! TODO: docs
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![allow(clippy::needless_range_loop)]
 #![allow(clippy::too_many_arguments)]
 #![deny(missing_docs)]
 #![deny(rustdoc::broken_intra_doc_links)]
