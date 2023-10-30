@@ -153,7 +153,7 @@ fn matched_indices<'idx>(
     is_candidate_ascii: bool,
     is_case_sensitive: bool,
 ) -> Option<(&'idx mut [CandidateCharIdx], CandidateCharIdx)> {
-    let mut matched_idxs = indices_slab.alloc(query);
+    let matched_idxs = indices_slab.alloc(query);
 
     let mut query_char_idx = 0;
 
@@ -173,7 +173,7 @@ fn matched_indices<'idx>(
 
         last_matched_idx += char_offset;
 
-        matched_idxs.push(last_matched_idx);
+        matched_idxs[query_char_idx] = last_matched_idx;
 
         let query_char_byte_len = query_char.len_utf8();
 
@@ -206,7 +206,7 @@ fn matched_indices<'idx>(
 
     last_matched_idx += char_offset;
 
-    Some((matched_idxs.into_slice(), last_matched_idx))
+    Some((matched_idxs, last_matched_idx))
 }
 
 /// TODO: docs
@@ -221,8 +221,8 @@ fn compute_bonuses<'bonus>(
 
     let mut bonuses = bonus_slab.alloc(candidate);
 
-    for char in candidate.chars() {
-        let char_class = char_class(char, scheme);
+    for ch in candidate.chars() {
+        let char_class = char_class(ch, scheme);
         bonuses.push(bonus(prev_class, char_class, scheme));
         prev_class = char_class;
     }

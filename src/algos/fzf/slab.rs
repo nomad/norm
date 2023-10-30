@@ -143,46 +143,14 @@ impl Default for MatchedIndicesSlab {
 impl MatchedIndicesSlab {
     #[inline]
     /// TODO: docs
-    pub fn alloc<'a>(&'a mut self, query: FzfQuery) -> MatchedIndices<'a> {
+    pub fn alloc<'a>(&'a mut self, query: FzfQuery) -> &'a mut [usize] {
         let char_len = query.char_len();
 
         if char_len > self.vec.len() {
             self.vec.resize(char_len, 0);
         }
 
-        MatchedIndices::new(&mut self.vec[..char_len])
-    }
-}
-
-/// TODO: docs
-#[derive(Debug)]
-pub(super) struct MatchedIndices<'a> {
-    indices: &'a mut [usize],
-
-    /// The number of indices in [`Self::indices`] that have been pushed so far.
-    ///
-    /// The remaining indices are uninitialized (i.e. set to zero) and should
-    /// not be read from.
-    len: usize,
-}
-
-impl<'a> MatchedIndices<'a> {
-    /// TODO: docs
-    #[inline]
-    pub fn into_slice(self) -> &'a mut [usize] {
-        self.indices
-    }
-
-    #[inline]
-    pub fn new(indices: &'a mut [usize]) -> Self {
-        Self { indices, len: 0 }
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn push(&mut self, idx: usize) {
-        self.indices[self.len] = idx;
-        self.len += 1;
+        &mut self.vec[..char_len]
     }
 }
 
