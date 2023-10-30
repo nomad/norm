@@ -279,9 +279,18 @@ impl MatrixItem for usize {
 }
 
 /// TODO: docs
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub(super) struct MatrixSlab<T: MatrixItem> {
     vec: Vec<T>,
+}
+
+impl<T: Default + MatrixItem> Default for MatrixSlab<T> {
+    #[inline]
+    fn default() -> MatrixSlab<T> {
+        // We allocate a 256 cell matrix slab by default to minimize the
+        // need to re-allocate for long `query * candidate` pairs.
+        Self { vec: vec![T::default(); 256] }
+    }
 }
 
 impl<T: MatrixItem> MatrixSlab<T> {
