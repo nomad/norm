@@ -153,54 +153,58 @@ fn matched_indices<'idx>(
     is_candidate_ascii: bool,
     is_case_sensitive: bool,
 ) -> Option<(&'idx mut [CandidateCharIdx], CandidateCharIdx)> {
-    let mut query_chars = query.chars();
-
-    let mut query_char = query_chars.next()?;
-
     let mut matched_idxs = indices_slab.alloc(query);
 
-    let mut char_offset = 0;
+    let mut query_char_idx = 0;
 
-    let mut last_matched_idx;
+    let mut last_matched_idx = 0;
 
     loop {
+        let query_char = query.char(query_char_idx);
+
         let byte_offset =
             utils::find_first(query_char, candidate, is_case_sensitive)?;
 
-        let char_idx = if is_candidate_ascii {
+        let char_offset = if is_candidate_ascii {
             byte_offset
         } else {
             candidate[..byte_offset].chars().count()
         };
 
-        last_matched_idx = char_idx + char_offset;
+        last_matched_idx += char_offset;
 
         matched_idxs.push(last_matched_idx);
+
+        let query_char_byte_len = query_char.len_utf8();
 
         // SAFETY: the start of the range is within the byte length of the
         // candidate and it's a valid char boundary.
         candidate = unsafe {
-            candidate.get_unchecked(byte_offset + query_char.len_utf8()..)
+            candidate.get_unchecked(byte_offset + query_char_byte_len..)
         };
 
-        char_offset += char_idx + 1;
-
-        if let Some(next_char) = query_chars.next() {
-            query_char = next_char;
+        if query_char_idx + 1 < query.char_len() {
+            last_matched_idx += 1;
+            query_char_idx += 1;
         } else {
             break;
         }
     }
 
-    let byte_offset =
-        utils::find_last(query_char, candidate, is_case_sensitive)
-            .unwrap_or(0);
+    let byte_offset = utils::find_last(
+        query.char(query_char_idx),
+        candidate,
+        is_case_sensitive,
+    )
+    .unwrap_or(0);
 
-    last_matched_idx += if is_candidate_ascii {
+    let char_offset = if is_candidate_ascii {
         byte_offset
     } else {
         candidate[..byte_offset].chars().count()
     };
+
+    last_matched_idx += char_offset;
 
     Some((matched_idxs.into_slice(), last_matched_idx))
 }

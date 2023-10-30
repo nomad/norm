@@ -18,13 +18,13 @@ impl core::fmt::Debug for FzfQuery<'_> {
 
 impl<'a> FzfQuery<'a> {
     /// TODO: docs
-    #[inline]
+    #[inline(always)]
     pub(super) fn char_len(&self) -> usize {
         self.chars.len()
     }
 
     /// TODO: docs
-    #[inline]
+    #[inline(always)]
     pub(super) fn char(&self, idx: usize) -> char {
         self.chars[idx]
     }
@@ -44,7 +44,7 @@ impl<'a> FzfQuery<'a> {
     }
 
     /// TODO: docs
-    #[inline]
+    #[inline(always)]
     pub(crate) fn has_uppercase(&self) -> bool {
         self.has_uppercase
     }
