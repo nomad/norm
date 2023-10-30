@@ -177,7 +177,11 @@ fn matched_indices<'idx>(
 
         matched_idxs.push(last_matched_idx);
 
-        candidate = &candidate[byte_offset + query_char.len_utf8()..];
+        // SAFETY: the start of the range is within the byte length of the
+        // candidate and it's a valid char boundary.
+        candidate = unsafe {
+            candidate.get_unchecked(byte_offset + query_char.len_utf8()..)
+        };
 
         char_offset += char_idx + 1;
 
