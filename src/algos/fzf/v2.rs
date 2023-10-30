@@ -168,7 +168,7 @@ fn matched_indices<'idx>(
         let char_offset = if is_candidate_ascii {
             byte_offset
         } else {
-            candidate[..byte_offset].chars().count()
+            utils::char_len(&candidate[..byte_offset])
         };
 
         last_matched_idx += char_offset;
@@ -201,7 +201,7 @@ fn matched_indices<'idx>(
     let char_offset = if is_candidate_ascii {
         byte_offset
     } else {
-        candidate[..byte_offset].chars().count()
+        utils::char_len(&candidate[..byte_offset])
     };
 
     last_matched_idx += char_offset;
@@ -322,7 +322,7 @@ fn score_first_row(
         let char_idx = if is_candidate_ascii {
             byte_idx
         } else {
-            candidate[..byte_idx].chars().count()
+            utils::char_len(&candidate[..byte_idx])
         };
 
         // TODO: explain what this does.
@@ -413,7 +413,7 @@ fn score_remaining_rows(
             let char_offset = if is_candidate_ascii {
                 byte_offset
             } else {
-                candidate[..byte_offset].chars().count()
+                utils::char_len(&candidate[..byte_offset])
             };
 
             // TODO: explain what this does.

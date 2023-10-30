@@ -20,6 +20,12 @@ pub fn case_sensitive_eq(lhs: char, rhs: char) -> bool {
 
 /// TODO: docs
 #[inline(always)]
+pub fn char_len(s: &str) -> usize {
+    s.chars().count()
+}
+
+/// TODO: docs
+#[inline(always)]
 pub fn find_first(
     needle: char,
     haystack: &str,
