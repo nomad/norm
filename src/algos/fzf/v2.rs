@@ -4,9 +4,6 @@ use super::{slab::*, *};
 use crate::*;
 
 /// TODO: docs
-type CandidateCharIdx = usize;
-
-/// TODO: docs
 #[cfg_attr(docsrs, doc(cfg(feature = "fzf-v2")))]
 #[derive(Clone, Default)]
 pub struct FzfV2 {
@@ -84,7 +81,7 @@ impl Metric for FzfV2 {
             CaseSensitivity::Smart => query.has_uppercase(),
         };
 
-        let (matched_indices, last_matched_idx) = matched_indices(
+        let (matches, last_match_offset) = matches(
             &mut self.slab.matched_indices,
             query,
             candidate,
@@ -92,20 +89,19 @@ impl Metric for FzfV2 {
             is_case_sensitive,
         )?;
 
-        let first_matched_idx = matched_indices[0];
+        let first_match = matches[0];
 
-        let initial_char_class = candidate[..first_matched_idx]
+        let initial_char_class = candidate[..first_match.byte_offset]
             .chars()
             .next_back()
             .map(|ch| char_class(ch, &self.scheme))
             .unwrap_or(self.scheme.initial_char_class);
 
-        // TODO: we're slicing with a char range.
-        let candidate = &candidate[first_matched_idx..last_matched_idx + 1];
+        let candidate = &candidate[first_match.byte_offset..last_match_offset];
 
         // After slicing the candidate we need to move all the indices back by
         // `first_matched_idx` so that they still refer to the characters.
-        matched_indices.iter_mut().for_each(|idx| *idx -= first_matched_idx);
+        matches.iter_mut().for_each(|idx| *idx -= first_match);
 
         let bonus_vector = compute_bonuses(
             &mut self.slab.bonus_vector,
@@ -121,7 +117,7 @@ impl Metric for FzfV2 {
             candidate,
             is_candidate_ascii,
             is_case_sensitive,
-            matched_indices,
+            matches,
             bonus_vector,
         );
 
@@ -130,8 +126,8 @@ impl Metric for FzfV2 {
             let mut ranges =
                 matched_ranges(scores, consecutive, score_cell, candidate);
             ranges.iter_mut().for_each(|range| {
-                range.start += first_matched_idx;
-                range.end += first_matched_idx;
+                range.start += first_match.byte_offset;
+                range.end += first_match.byte_offset;
             });
             ranges
         } else {
@@ -146,18 +142,18 @@ impl Metric for FzfV2 {
 
 /// TODO: docs
 #[inline]
-fn matched_indices<'idx>(
+fn matches<'idx>(
     indices_slab: &'idx mut MatchedIndicesSlab,
     query: FzfQuery,
     mut candidate: &str,
     is_candidate_ascii: bool,
     is_case_sensitive: bool,
-) -> Option<(&'idx mut [CandidateCharIdx], CandidateCharIdx)> {
+) -> Option<(&'idx mut [MatchedIdx], usize)> {
     let matched_idxs = indices_slab.alloc(query);
 
     let mut query_char_idx = 0;
 
-    let mut last_matched_idx = 0;
+    let mut last_matched_idx = MatchedIdx::default();
 
     loop {
         let query_char = query.char(query_char_idx);
@@ -171,7 +167,7 @@ fn matched_indices<'idx>(
             utils::char_len(&candidate[..byte_offset])
         };
 
-        last_matched_idx += char_offset;
+        last_matched_idx += MatchedIdx { byte_offset, char_offset };
 
         matched_idxs[query_char_idx] = last_matched_idx;
 
@@ -184,29 +180,28 @@ fn matched_indices<'idx>(
         };
 
         if query_char_idx + 1 < query.char_len() {
-            last_matched_idx += 1;
+            last_matched_idx += MatchedIdx {
+                byte_offset: query_char_byte_len,
+                char_offset: 1,
+            };
             query_char_idx += 1;
         } else {
             break;
         }
     }
 
-    let byte_offset = utils::find_last(
-        query.char(query_char_idx),
-        candidate,
-        is_case_sensitive,
-    )
-    .unwrap_or(0);
+    let last_query_char = query.char(query_char_idx);
 
-    let char_offset = if is_candidate_ascii {
-        byte_offset
-    } else {
-        utils::char_len(&candidate[..byte_offset])
-    };
+    let byte_offset =
+        utils::find_last(last_query_char, candidate, is_case_sensitive)
+            .unwrap_or(0);
 
-    last_matched_idx += char_offset;
-
-    Some((matched_idxs, last_matched_idx))
+    Some((
+        matched_idxs,
+        last_matched_idx.byte_offset
+            + byte_offset
+            + last_query_char.len_utf8(),
+    ))
 }
 
 /// TODO: docs
@@ -239,7 +234,7 @@ fn score<'scoring, 'consecutive>(
     candidate: &str,
     is_candidate_ascii: bool,
     is_case_sensitive: bool,
-    matched_indices: &[CandidateCharIdx],
+    matches: &[MatchedIdx],
     bonus_vector: &[Score],
 ) -> (Matrix<'scoring, Score>, Matrix<'consecutive, usize>, Score, MatrixCell)
 {
@@ -268,7 +263,7 @@ fn score<'scoring, 'consecutive>(
         &mut scoring_matrix,
         &mut consecutive_matrix,
         query,
-        matched_indices,
+        matches,
         candidate,
         bonus_vector,
         is_candidate_ascii,
@@ -367,7 +362,7 @@ fn score_remaining_rows(
     scores: &mut Matrix<'_, Score>,
     consecutives: &mut Matrix<'_, usize>,
     query: FzfQuery,
-    matched_offsets: &[usize],
+    matches: &[MatchedIdx],
     candidate: &str,
     bonus_vector: &[Score],
     is_candidate_ascii: bool,
@@ -386,12 +381,11 @@ fn score_remaining_rows(
         let (prev_consecutives_row, consecutives_row) =
             consecutives.two_rows_mut(row_idx - 1, row_idx);
 
-        let matched_offset = matched_offsets[row_idx];
+        let matched_idx = matches[row_idx];
 
-        let mut column = matched_offset;
+        let mut column = matched_idx.char_offset;
 
-        // TODO: matched_offset is a char offset, not a byte offset.
-        let mut candidate = &candidate[matched_offset..];
+        let mut candidate = &candidate[matched_idx.byte_offset..];
 
         // TODO: explain what this does.
         let mut penalty = penalty::GAP_START;

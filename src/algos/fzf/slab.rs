@@ -1,4 +1,4 @@
-use core::ops::{AddAssign, Index, IndexMut};
+use core::ops::{AddAssign, Index, IndexMut, SubAssign};
 
 use super::{FzfQuery, Score};
 
@@ -130,27 +130,53 @@ impl Iterator for CandidateCharIdxs<'_> {
 /// TODO: docs
 #[derive(Clone)]
 pub(super) struct MatchedIndicesSlab {
-    vec: Vec<usize>,
+    vec: Vec<MatchedIdx>,
 }
 
 impl Default for MatchedIndicesSlab {
     #[inline]
     fn default() -> Self {
-        Self { vec: vec![0; 16] }
+        Self { vec: vec![MatchedIdx::default(); 16] }
     }
 }
 
 impl MatchedIndicesSlab {
     #[inline]
     /// TODO: docs
-    pub fn alloc<'a>(&'a mut self, query: FzfQuery) -> &'a mut [usize] {
+    pub fn alloc<'a>(&'a mut self, query: FzfQuery) -> &'a mut [MatchedIdx] {
         let char_len = query.char_len();
 
         if char_len > self.vec.len() {
-            self.vec.resize(char_len, 0);
+            self.vec.resize(char_len, MatchedIdx::default());
         }
 
         &mut self.vec[..char_len]
+    }
+}
+
+/// TODO: docs
+#[derive(Copy, Clone, Debug, Default)]
+pub(super) struct MatchedIdx {
+    /// TODO: docs
+    pub(super) byte_offset: usize,
+
+    /// TODO: docs
+    pub(super) char_offset: usize,
+}
+
+impl AddAssign<Self> for MatchedIdx {
+    #[inline(always)]
+    fn add_assign(&mut self, rhs: Self) {
+        self.byte_offset += rhs.byte_offset;
+        self.char_offset += rhs.char_offset;
+    }
+}
+
+impl SubAssign<Self> for MatchedIdx {
+    #[inline(always)]
+    fn sub_assign(&mut self, rhs: Self) {
+        self.byte_offset -= rhs.byte_offset;
+        self.char_offset -= rhs.char_offset;
     }
 }
 
