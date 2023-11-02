@@ -297,13 +297,13 @@ fn score_first_row(
 
     let char_len = query_first_char.len_utf8();
 
+    // TODO: explain what this does.
+    let mut penalty = penalty::GAP_START;
+
     while !candidate.is_empty() {
         let Some(byte_idx) =
             utils::find_first(query_first_char, candidate, is_case_sensitive)
         else {
-            // TODO: explain what this does.
-            let mut penalty = penalty::GAP_START;
-
             for col in col..scores_first_row.len() {
                 let score = prev_score.saturating_sub(penalty);
                 penalty = penalty::GAP_EXTENSION;
@@ -322,8 +322,6 @@ fn score_first_row(
 
         // TODO: explain what this does.
         {
-            let mut penalty = penalty::GAP_START;
-
             for col in col..col + char_idx {
                 let score = prev_score.saturating_sub(penalty);
                 penalty = penalty::GAP_EXTENSION;
