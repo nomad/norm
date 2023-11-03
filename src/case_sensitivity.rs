@@ -1,4 +1,3 @@
-use crate::fzf::FzfQuery;
 use crate::*;
 
 /// TODO: docs
@@ -18,14 +17,14 @@ pub enum CaseSensitivity {
 impl CaseSensitivity {
     /// TODO: docs
     #[inline]
-    pub(crate) fn matcher(self, query: FzfQuery) -> CaseMatcher {
+    pub(crate) fn matcher(self, has_uppercase: bool) -> CaseMatcher {
         match self {
             Self::Sensitive => utils::case_sensitive_eq,
 
             Self::Insensitive => utils::case_insensitive_eq,
 
             Self::Smart => {
-                if query.has_uppercase() {
+                if has_uppercase {
                     utils::case_sensitive_eq
                 } else {
                     utils::case_insensitive_eq

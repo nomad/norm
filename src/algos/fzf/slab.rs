@@ -1,6 +1,6 @@
 use core::ops::{AddAssign, Index, IndexMut, SubAssign};
 
-use super::{FzfQuery, Score};
+use super::Score;
 
 /// TODO: docs
 #[derive(Clone, Default)]
@@ -143,14 +143,12 @@ impl Default for MatchedIndicesSlab {
 impl MatchedIndicesSlab {
     #[inline]
     /// TODO: docs
-    pub fn alloc<'a>(&'a mut self, query: FzfQuery) -> &'a mut [MatchedIdx] {
-        let char_len = query.char_len();
-
-        if char_len > self.vec.len() {
-            self.vec.resize(char_len, MatchedIdx::default());
+    pub fn alloc<'a>(&'a mut self, len: usize) -> &'a mut [MatchedIdx] {
+        if len > self.vec.len() {
+            self.vec.resize(len, MatchedIdx::default());
         }
 
-        &mut self.vec[..char_len]
+        &mut self.vec[..len]
     }
 }
 

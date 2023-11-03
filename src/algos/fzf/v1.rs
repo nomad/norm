@@ -1,7 +1,7 @@
 use core::ops::Range;
 
 use super::*;
-use crate::{CaseMatcher, CaseSensitivity, Match, Metric};
+use crate::*;
 
 /// TODO: docs
 #[cfg_attr(docsrs, doc(cfg(any(feature = "fzf-v1", feature = "fzf-v2"))))]
@@ -70,12 +70,15 @@ impl Metric for FzfV1 {
             return None;
         }
 
-        let case_matcher = self.case_sensitivity.matcher(query);
+        let pattern = query.conditions()[0].or_patterns().next().unwrap();
 
-        let range_forward = forward_pass(query, candidate, case_matcher)?;
+        let case_matcher =
+            self.case_sensitivity.matcher(pattern.has_uppercase);
+
+        let range_forward = forward_pass(pattern, candidate, case_matcher)?;
 
         let start_backward = backward_pass(
-            query,
+            pattern,
             &candidate[range_forward.clone()],
             case_matcher,
         );
@@ -83,7 +86,7 @@ impl Metric for FzfV1 {
         let range = range_forward.start + start_backward..range_forward.end;
 
         let (score, matched_ranges) = calculate_score(
-            query,
+            pattern,
             candidate,
             range,
             &self.scheme,
@@ -100,7 +103,7 @@ impl Metric for FzfV1 {
 /// TODO: docs
 #[inline]
 fn forward_pass(
-    query: FzfQuery,
+    pattern: Pattern,
     candidate: &str,
     case_matcher: CaseMatcher,
 ) -> Option<Range<usize>> {
@@ -108,12 +111,12 @@ fn forward_pass(
 
     let mut end_offset = None;
 
-    let mut query_chars = query.chars();
+    let mut pattern_chars = pattern.chars();
 
-    let mut query_char = query_chars.next().expect("query is not empty");
+    let mut pattern_char = pattern_chars.next().expect("pattern is not empty");
 
     for (offset, candidate_char) in candidate.char_indices() {
-        if !case_matcher(query_char, candidate_char) {
+        if !case_matcher(pattern_char, candidate_char) {
             continue;
         }
 
@@ -121,12 +124,12 @@ fn forward_pass(
             start_offset = Some(offset);
         }
 
-        let Some(next_target_char) = query_chars.next() else {
+        let Some(next_target_char) = pattern_chars.next() else {
             end_offset = Some(offset + candidate_char.len_utf8());
             break;
         };
 
-        query_char = next_target_char;
+        pattern_char = next_target_char;
     }
 
     let (Some(start), Some(end)) = (start_offset, end_offset) else {
@@ -139,25 +142,25 @@ fn forward_pass(
 /// TODO: docs
 #[inline]
 fn backward_pass(
-    query: FzfQuery,
+    pattern: Pattern,
     candidate: &str,
     case_matcher: CaseMatcher,
 ) -> usize {
     // The candidate must start with the first character of the query.
     debug_assert!(case_matcher(
         candidate.chars().next().unwrap(),
-        query.chars().next().unwrap()
+        pattern.chars().next().unwrap()
     ));
 
     // The candidate must end with the last character of the query.
     debug_assert!(case_matcher(
         candidate.chars().next_back().unwrap(),
-        query.chars().next_back().unwrap()
+        pattern.chars().next_back().unwrap()
     ));
 
     let mut start_offset = 0;
 
-    let mut query_chars = query.chars().rev();
+    let mut query_chars = pattern.chars().rev();
 
     let mut query_char = query_chars.next().expect("query is not empty");
 
@@ -180,18 +183,18 @@ fn backward_pass(
 /// TODO: docs
 #[inline]
 fn calculate_score(
-    query: FzfQuery,
+    pattern: Pattern,
     candidate: &str,
     range: Range<usize>,
     scheme: &Scheme,
     case_matcher: CaseMatcher,
     track_matched_ranges: bool,
-) -> (Score, Vec<Range<usize>>) {
+) -> (Score, MatchedRanges) {
     // TODO: docs
     let mut is_in_gap = false;
 
     // TODO: docs
-    let mut is_first_query_char = true;
+    let mut is_first_pattern_char = true;
 
     // TODO: docs
     let mut first_bonus = 0u32;
@@ -207,18 +210,18 @@ fn calculate_score(
         .map(|ch| char_class(ch, scheme))
         .unwrap_or(scheme.initial_char_class);
 
-    let mut query_chars = query.chars();
+    let mut pattern_chars = pattern.chars();
 
-    let mut query_char = query_chars.next().expect("query is not empty");
+    let mut pattern_char = pattern_chars.next().expect("pattern is not empty");
 
     let mut score = 0u32;
 
-    let mut matched_ranges = Vec::new();
+    let mut matched_ranges = MatchedRanges::default();
 
     for (offset, candidate_ch) in candidate[range].char_indices() {
         let ch_class = char_class(candidate_ch, scheme);
 
-        if case_matcher(query_char, candidate_ch) {
+        if case_matcher(pattern_char, candidate_ch) {
             score += bonus::MATCH;
 
             let mut bonus = bonus(prev_class, ch_class, scheme);
@@ -232,7 +235,7 @@ fn calculate_score(
                 bonus = bonus.max(first_bonus).max(bonus::CONSECUTIVE);
             }
 
-            score += if is_first_query_char {
+            score += if is_first_pattern_char {
                 bonus * bonus::FIRST_QUERY_CHAR_MULTIPLIER
             } else {
                 bonus
@@ -254,12 +257,12 @@ fn calculate_score(
 
             is_in_gap = false;
 
-            is_first_query_char = false;
+            is_first_pattern_char = false;
 
             consecutive += 1;
 
-            if let Some(next_char) = query_chars.next() {
-                query_char = next_char;
+            if let Some(next_char) = pattern_chars.next() {
+                pattern_char = next_char;
             } else {
                 break;
             };
