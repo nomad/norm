@@ -1,4 +1,4 @@
-use super::{slab::*, *};
+use super::{query::*, scoring::*, slab::*, *};
 use crate::*;
 
 /// TODO: docs
@@ -73,11 +73,13 @@ impl Metric for FzfV2 {
 
         let mut score = 0;
 
+        let mut matched_ranges = MatchedRanges::default();
+
         for condition in query.conditions() {
-            let (condition_score, _) =
+            let (condition_score, ranges) =
                 condition.or_patterns().find_map(|pattern| {
-                    match pattern.ty {
-                        PatternType::FuzzyMatch => {
+                    match pattern.match_type {
+                        MatchType::Fuzzy => {
                             fzf_v2(self, pattern, candidate, false)
                         },
                         _ => todo!(),
@@ -85,12 +87,10 @@ impl Metric for FzfV2 {
                 })?;
 
             score += condition_score;
-        }
 
-        let mut matched_ranges = MatchedRanges::default();
-
-        if self.with_matched_ranges {
-            todo!();
+            if self.with_matched_ranges {
+                matched_ranges.join(ranges);
+            }
         }
 
         let distance = FzfDistance::from_score(score);

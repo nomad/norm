@@ -1,6 +1,6 @@
 use core::ops::Range;
 
-use super::*;
+use super::{query::*, *};
 use crate::*;
 
 /// TODO: docs

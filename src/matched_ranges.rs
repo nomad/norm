@@ -29,7 +29,10 @@ impl MatchedRanges {
 
     /// TODO: docs
     #[inline(always)]
-    pub(crate) fn join(&mut self, other: Self) {}
+    pub(crate) fn join(&mut self, other: Self) {
+        // TODO: implement this.
+        self.ranges.extend(other.ranges);
+    }
 
     /// TODO: docs
     #[inline(always)]
