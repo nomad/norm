@@ -83,7 +83,7 @@ impl<'a> Condition<'a> {
     #[inline]
     pub(super) fn or_patterns(
         &self,
-    ) -> impl Iterator<Item = Pattern<'a>> + '_ {
+    ) -> impl Iterator<Item = Pattern<'a>> + ExactSizeIterator + '_ {
         self.or_patterns.iter().copied()
     }
 }
@@ -104,7 +104,7 @@ pub(super) struct Pattern<'a> {
 impl core::fmt::Debug for Pattern<'_> {
     #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_tuple("Pattern").field(&self.into_string()).finish()
+        self.into_string().fmt(f)
     }
 }
 
@@ -141,13 +141,14 @@ impl<'a> Pattern<'a> {
 
     /// TODO: docs
     #[inline]
-    fn into_string(self) -> String {
+    pub(super) fn into_string(self) -> String {
         self.text.iter().collect::<String>()
     }
 }
 
 /// TODO: docs
 #[derive(Default, Clone, Copy)]
+#[cfg_attr(test, derive(Debug, PartialEq))]
 pub(super) enum MatchType {
     /// TODO: docs
     #[default]
@@ -164,6 +165,9 @@ pub(super) enum MatchType {
 
     /// TODO: docs
     InverseExact,
+
+    /// TODO: docs
+    InverseFuzzy,
 
     /// TODO: docs
     InversePrefixExact,

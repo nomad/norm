@@ -88,3 +88,122 @@ impl FzfParser {
         Self::default()
     }
 }
+
+/// TODO: docs
+#[inline]
+fn parse(mut query: &str) -> Vec<Condition<'static>> {
+    let mut conditions = Vec::new();
+
+    while !query.is_empty() {
+        let pattern_start;
+
+        let mut match_type;
+
+        match query.as_bytes()[0] {
+            b'\'' => {
+                pattern_start = 1;
+                match_type = MatchType::Exact;
+            },
+
+            b'^' => {
+                pattern_start = 1;
+                match_type = MatchType::PrefixExact;
+            },
+
+            b'!' => {
+                match query.as_bytes().get(1) {
+                    Some(b'\'') => {
+                        pattern_start = 2;
+                        match_type = MatchType::InverseFuzzy;
+                    },
+
+                    Some(b'^') => {
+                        pattern_start = 2;
+                        match_type = MatchType::InversePrefixExact;
+                    },
+
+                    _ => {
+                        pattern_start = 1;
+                        match_type = MatchType::InverseExact;
+                    },
+                };
+            },
+
+            _ => {
+                pattern_start = 0;
+                match_type = MatchType::Fuzzy;
+            },
+        };
+
+        query = &query[pattern_start..];
+
+        let pattern_end;
+
+        let next_pattern_start;
+
+        match memchr::memchr2(b' ', b'\\', query.as_bytes()) {
+            Some(idx) if query.as_bytes()[idx] == b' ' => {
+                todo!();
+            },
+
+            Some(idx) if query.as_bytes()[idx] == b'\\' => {
+                todo!();
+            },
+
+            Some(_) => {
+                unreachable!();
+            },
+
+            None => {
+                pattern_end = query.len();
+                next_pattern_start = query.len();
+            },
+        };
+
+        let pattern_text = &query[..pattern_end];
+
+        let pattern = {
+            let pattern_text = pattern_text.chars().collect::<Vec<_>>().leak();
+            Pattern::new(pattern_text, match_type)
+        };
+
+        {
+            let or_patterns = vec![pattern].leak();
+            let condition = Condition::new(or_patterns);
+            conditions.push(condition);
+        }
+
+        query = &query[next_pattern_start..];
+    }
+
+    conditions
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_query_empty() {
+        assert!(parse("").is_empty());
+    }
+
+    #[test]
+    fn parse_query_single_fuzzy() {
+        let conditions = parse("foo");
+
+        assert_eq!(conditions.len(), 1);
+
+        let condition = conditions.into_iter().next().unwrap();
+
+        let mut patterns = condition.or_patterns();
+
+        assert_eq!(patterns.len(), 1);
+
+        let pattern = patterns.next().unwrap();
+
+        assert_eq!(pattern.into_string(), "foo");
+
+        assert_eq!(pattern.match_type, MatchType::Fuzzy);
+    }
+}
