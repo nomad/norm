@@ -7,6 +7,8 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(rustdoc::private_intra_doc_links)]
 
+extern crate alloc;
+
 mod algos;
 mod case_sensitivity;
 mod r#match;

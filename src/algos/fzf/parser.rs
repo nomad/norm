@@ -1,3 +1,5 @@
+use alloc::borrow::Cow;
+
 use super::query::{Condition, FzfQuery, MatchType, Pattern};
 
 /// TODO: docs
@@ -91,10 +93,12 @@ impl FzfParser {
 
 /// TODO: docs
 #[inline]
-fn parse(mut query: &str) -> Vec<Condition<'static>> {
+fn parse(query: &str) -> Vec<Condition<'static>> {
     let mut conditions = Vec::new();
 
-    while !query.is_empty() {
+    for word in Words::new(query) {
+        let mut word = word.as_ref();
+
         let pattern_start;
 
         let mut match_type;
@@ -135,13 +139,11 @@ fn parse(mut query: &str) -> Vec<Condition<'static>> {
             },
         };
 
-        query = &query[pattern_start..];
+        word = &word[pattern_start..];
 
         let pattern_end;
 
-        let next_pattern_start;
-
-        match memchr::memchr2(b' ', b'\\', query.as_bytes()) {
+        match memchr::memchr2(b' ', b'\\', word.as_bytes()) {
             Some(idx) if query.as_bytes()[idx] == b' ' => {
                 todo!();
             },
@@ -156,7 +158,6 @@ fn parse(mut query: &str) -> Vec<Condition<'static>> {
 
             None => {
                 pattern_end = query.len();
-                next_pattern_start = query.len();
             },
         };
 
@@ -172,16 +173,141 @@ fn parse(mut query: &str) -> Vec<Condition<'static>> {
             let condition = Condition::new(or_patterns);
             conditions.push(condition);
         }
-
-        query = &query[next_pattern_start..];
     }
 
     conditions
 }
 
+/// An iterator over the words of a string.
+///
+/// Here, a "word" is simply a string of consecutive non-ascii-space
+/// characters. Escaped spaces are treated as non-space characters.
+///
+/// # Examples
+///
+/// ```rust
+/// # use norm::algos::fzf::parser::Words;
+/// let mut words = Words::new("foo 'bar' \"baz\"");
+/// assert_eq!(words.next().as_deref(), Some("foo"));
+/// assert_eq!(words.next().as_deref(), Some("'bar'"));
+/// assert_eq!(words.next().as_deref(), Some("\"baz\""));
+/// assert_eq!(words.next(), None);
+/// ```
+///
+/// ```rust
+/// # use norm::algos::fzf::parser::Words;
+/// let mut words = Words::new("foo\ bar baz");
+/// assert_eq!(words.next().as_deref(), Some("foo bar"));
+/// assert_eq!(words.next().as_deref(), Some("baz"));
+/// assert_eq!(words.next(), None);
+/// ```
+struct Words<'a> {
+    s: &'a str,
+}
+
+impl<'a> Words<'a> {
+    #[inline]
+    fn new(s: &'a str) -> Self {
+        Self { s: strip_spaces(s) }
+    }
+}
+
+impl<'a> Iterator for Words<'a> {
+    type Item = Cow<'a, str>;
+
+    #[inline(always)]
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.s.is_empty() {
+            return None;
+        }
+
+        let mut word_end = 0;
+
+        let mut bytes = self.s.as_bytes();
+
+        loop {
+            match memchr::memchr(b' ', bytes) {
+                Some(offset) => {
+                    if let Some(b'\\') = bytes.get(offset.wrapping_sub(1)) {
+                        word_end += offset + 1;
+                        bytes = &bytes[offset + 1..];
+                    } else {
+                        word_end += offset;
+                        break;
+                    }
+                },
+
+                None => {
+                    word_end += bytes.len();
+                    break;
+                },
+            }
+        }
+
+        let (word, rest) = self.s.split_at(word_end);
+
+        self.s = strip_spaces(rest);
+
+        Some(Cow::Borrowed(word))
+    }
+}
+
+#[inline(always)]
+fn strip_spaces(s: &str) -> &str {
+    let leading_spaces = s.bytes().take_while(|&b| b == b' ').count();
+    &s[leading_spaces..]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn words_empty() {
+        let mut words = Words::new("");
+        assert!(words.next().is_none());
+    }
+
+    #[test]
+    fn words_single() {
+        let mut words = Words::new("foo");
+        assert_eq!(words.next().as_deref(), Some("foo"));
+        assert_eq!(words.next(), None);
+    }
+
+    #[test]
+    fn words_multiple() {
+        let mut words = Words::new("foo bar");
+        assert_eq!(words.next().as_deref(), Some("foo"));
+        assert_eq!(words.next().as_deref(), Some("bar"));
+        assert_eq!(words.next(), None);
+    }
+
+    #[test]
+    fn words_multiple_leading_trailing_spaces() {
+        let mut words = Words::new("   foo bar   ");
+        assert_eq!(words.next().as_deref(), Some("foo"));
+        assert_eq!(words.next().as_deref(), Some("bar"));
+        assert_eq!(words.next(), None);
+    }
+
+    #[test]
+    fn words_multiple_words_space_escaped() {
+        let mut words = Words::new("foo\\ bar\\ baz");
+        assert_eq!(words.next().as_deref(), Some("foo bar baz"));
+        assert_eq!(words.next(), None);
+    }
+
+    #[test]
+    fn words_multiple_escaped_spaces() {
+        let mut words = Words::new(" \\  foo \\ bar \\  ");
+        assert_eq!(words.next().as_deref(), Some(" "));
+        assert_eq!(words.next().as_deref(), Some("foo"));
+        assert_eq!(words.next().as_deref(), Some(" "));
+        assert_eq!(words.next().as_deref(), Some("bar"));
+        assert_eq!(words.next().as_deref(), Some(" "));
+        assert_eq!(words.next(), None);
+    }
 
     #[test]
     fn parse_query_empty() {
