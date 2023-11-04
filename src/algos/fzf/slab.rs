@@ -143,7 +143,7 @@ impl Default for MatchedIndicesSlab {
 impl MatchedIndicesSlab {
     #[inline]
     /// TODO: docs
-    pub fn alloc<'a>(&'a mut self, len: usize) -> &'a mut [MatchedIdx] {
+    pub fn alloc(&mut self, len: usize) -> &mut [MatchedIdx] {
         if len > self.vec.len() {
             self.vec.resize(len, MatchedIdx::default());
         }
