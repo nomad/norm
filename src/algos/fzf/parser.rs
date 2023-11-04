@@ -196,8 +196,17 @@ fn parse(query: &str) -> Vec<Condition<'static>> {
 ///
 /// ```rust
 /// # use norm::algos::fzf::parser::Words;
-/// let mut words = Words::new("foo\ bar baz");
+/// let mut words = Words::new("foo\\ bar baz");
 /// assert_eq!(words.next().as_deref(), Some("foo bar"));
+/// assert_eq!(words.next().as_deref(), Some("baz"));
+/// assert_eq!(words.next(), None);
+/// ```
+///
+/// ```rust
+/// # use norm::algos::fzf::parser::Words;
+/// let mut words = Words::new("foo \\ bar");
+/// assert_eq!(words.next().as_deref(), Some("foo"));
+/// assert_eq!(words.next().as_deref(), Some(" "));
 /// assert_eq!(words.next().as_deref(), Some("baz"));
 /// assert_eq!(words.next(), None);
 /// ```
@@ -221,34 +230,69 @@ impl<'a> Iterator for Words<'a> {
             return None;
         }
 
+        let mut word = Cow::Borrowed("");
+
         let mut word_end = 0;
 
-        let mut bytes = self.s.as_bytes();
+        let mut s = self.s;
 
         loop {
-            match memchr::memchr(b' ', bytes) {
-                Some(offset) => {
-                    if let Some(b'\\') = bytes.get(offset.wrapping_sub(1)) {
-                        word_end += offset + 1;
-                        bytes = &bytes[offset + 1..];
-                    } else {
-                        word_end += offset;
-                        break;
+            match memchr::memchr(b' ', s.as_bytes()) {
+                Some(0) => break,
+
+                Some(offset) if s.as_bytes()[offset - 1] == b'\\' => {
+                    // The string starts with an escaped space. We don't have
+                    // to allocate yet.
+                    if offset == 1 && word.is_empty() {
+                        word = Cow::Borrowed(" ");
+                        word_end = 2;
+                        s = &s[word_end..];
+                        continue;
                     }
+
+                    // This word includes an escaped space, so we have to
+                    // allocate because we'll skip the escape.
+                    let word = word.to_mut();
+
+                    // Push everything up to (but not including) the escape.
+                    word.push_str(&s[..offset - 1]);
+
+                    // ..skip the escape..
+
+                    // ..and push the space.
+                    word.push(' ');
+
+                    s = &s[offset + 1..];
+
+                    word_end += offset + 1;
+                },
+
+                Some(offset) => {
+                    let s = &s[..offset];
+                    if word.is_empty() {
+                        word = Cow::Borrowed(s);
+                    } else {
+                        word.to_mut().push_str(s);
+                    }
+                    word_end += s.len();
+                    break;
                 },
 
                 None => {
-                    word_end += bytes.len();
+                    if word.is_empty() {
+                        word = Cow::Borrowed(s);
+                    } else {
+                        word.to_mut().push_str(s);
+                    }
+                    word_end += s.len();
                     break;
                 },
             }
         }
 
-        let (word, rest) = self.s.split_at(word_end);
+        self.s = strip_spaces(&self.s[word_end..]);
 
-        self.s = strip_spaces(rest);
-
-        Some(Cow::Borrowed(word))
+        Some(word)
     }
 }
 
@@ -276,6 +320,13 @@ mod tests {
     }
 
     #[test]
+    fn words_escaped_escape_escaped_space() {
+        let mut words = Words::new("\\\\ ");
+        assert_eq!(words.next().as_deref(), Some("\\ "));
+        assert_eq!(words.next(), None);
+    }
+
+    #[test]
     fn words_multiple() {
         let mut words = Words::new("foo bar");
         assert_eq!(words.next().as_deref(), Some("foo"));
@@ -292,20 +343,33 @@ mod tests {
     }
 
     #[test]
-    fn words_multiple_words_space_escaped() {
+    fn words_multiple_escaped_spaces() {
         let mut words = Words::new("foo\\ bar\\ baz");
         assert_eq!(words.next().as_deref(), Some("foo bar baz"));
         assert_eq!(words.next(), None);
     }
 
     #[test]
-    fn words_multiple_escaped_spaces() {
+    fn words_multiple_standalone_escaped_spaces() {
         let mut words = Words::new(" \\  foo \\ bar \\  ");
         assert_eq!(words.next().as_deref(), Some(" "));
         assert_eq!(words.next().as_deref(), Some("foo"));
+        assert_eq!(words.next().as_deref(), Some(" bar"));
         assert_eq!(words.next().as_deref(), Some(" "));
-        assert_eq!(words.next().as_deref(), Some("bar"));
-        assert_eq!(words.next().as_deref(), Some(" "));
+        assert_eq!(words.next(), None);
+    }
+
+    #[test]
+    fn words_single_escaped_spaces() {
+        let mut words = Words::new("\\ ");
+        assert_eq!(words.next(), Some(Cow::Borrowed(" ")));
+        assert_eq!(words.next(), None);
+    }
+
+    #[test]
+    fn words_consecutive_escaped_spaces() {
+        let mut words = Words::new(" \\ \\ \\  ");
+        assert_eq!(words.next().as_deref(), Some("   "));
         assert_eq!(words.next(), None);
     }
 
