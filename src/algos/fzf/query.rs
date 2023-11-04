@@ -164,10 +164,10 @@ pub(super) enum MatchType {
     SuffixExact,
 
     /// TODO: docs
-    InverseExact,
+    InverseFuzzy,
 
     /// TODO: docs
-    InverseFuzzy,
+    InverseExact,
 
     /// TODO: docs
     InversePrefixExact,

@@ -71,12 +71,12 @@ impl Metric for FzfV2 {
             return None;
         }
 
-        let mut score = 0;
+        let mut total_score = 0;
 
         let mut matched_ranges = MatchedRanges::default();
 
         for condition in query.conditions() {
-            let (condition_score, ranges) =
+            let (score, ranges) =
                 condition.or_patterns().find_map(|pattern| {
                     match pattern.match_type {
                         MatchType::Fuzzy => {
@@ -86,14 +86,14 @@ impl Metric for FzfV2 {
                     }
                 })?;
 
-            score += condition_score;
+            total_score += score;
 
             if self.with_matched_ranges {
                 matched_ranges.join(ranges);
             }
         }
 
-        let distance = FzfDistance::from_score(score);
+        let distance = FzfDistance::from_score(total_score);
 
         Some(Match::new(distance, matched_ranges))
     }

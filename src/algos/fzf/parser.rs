@@ -178,6 +178,71 @@ fn parse(query: &str) -> Vec<Condition<'static>> {
     conditions
 }
 
+const OR_BLOCK_SEPARATOR: &str = "|";
+
+/// TODO: docs
+struct OrBlocks<'a> {
+    /// TODO: docs
+    words: Words<'a>,
+
+    /// TODO: docs
+    next: Option<<Words<'a> as Iterator>::Item>,
+}
+
+impl<'a> OrBlocks<'a> {
+    #[inline]
+    fn new(s: &'a str) -> Self {
+        Self { words: Words::new(s), next: None }
+    }
+}
+
+impl<'a> Iterator for OrBlocks<'a> {
+    type Item = Vec<<Words<'a> as Iterator>::Item>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut blocks;
+
+        // Whether we're expecting the next word yielded by `self.words` to be
+        // a "|". This is set to true after getting a word, and set to false
+        // after a "|".
+        let mut looking_for_or;
+
+        if let Some(first_block) = self.next.take() {
+            blocks = vec![first_block];
+            looking_for_or = true;
+        } else {
+            blocks = Vec::new();
+            looking_for_or = false;
+        }
+
+        loop {
+            let Some(word) = self.words.next() else {
+                break;
+            };
+
+            let word_is_condition = word != OR_BLOCK_SEPARATOR;
+
+            if word_is_condition {
+                if looking_for_or {
+                    self.next = Some(word);
+                    break;
+                } else {
+                    blocks.push(word);
+                    looking_for_or = true;
+                    continue;
+                }
+            }
+
+            looking_for_or = false;
+        }
+
+        (!blocks.is_empty()).then_some(blocks)
+    }
+}
+
+impl core::iter::FusedIterator for OrBlocks<'_> {}
+
 /// An iterator over the words of a string.
 ///
 /// Here, a "word" is simply a string of consecutive non-ascii-space
@@ -296,10 +361,91 @@ impl<'a> Iterator for Words<'a> {
     }
 }
 
+impl core::iter::FusedIterator for Words<'_> {}
+
 #[inline(always)]
 fn strip_spaces(s: &str) -> &str {
     let leading_spaces = s.bytes().take_while(|&b| b == b' ').count();
     &s[leading_spaces..]
+}
+
+#[cfg(test)]
+mod parse_tests {
+    use super::*;
+
+    #[test]
+    fn parse_query_empty() {
+        assert!(parse("").is_empty());
+    }
+
+    #[test]
+    fn parse_query_single_fuzzy() {
+        let conditions = parse("foo");
+
+        assert_eq!(conditions.len(), 1);
+
+        let condition = conditions.into_iter().next().unwrap();
+
+        let mut patterns = condition.or_patterns();
+
+        assert_eq!(patterns.len(), 1);
+
+        let pattern = patterns.next().unwrap();
+
+        assert_eq!(pattern.into_string(), "foo");
+
+        assert_eq!(pattern.match_type, MatchType::Fuzzy);
+    }
+}
+
+#[cfg(test)]
+mod or_blocks_tests {
+    use super::*;
+
+    #[test]
+    fn or_blocks_empty() {
+        let mut blocks = OrBlocks::new("");
+        assert!(blocks.next().is_none());
+    }
+
+    #[test]
+    fn or_blocks_single() {
+        let mut blocks = OrBlocks::new("foo");
+        assert_eq!(blocks.next().unwrap(), ["foo"]);
+        assert_eq!(blocks.next(), None);
+    }
+
+    #[test]
+    fn or_blocks_multiple_ors() {
+        let mut blocks = OrBlocks::new("foo | bar | baz");
+        assert_eq!(blocks.next().unwrap(), ["foo", "bar", "baz"]);
+        assert_eq!(blocks.next(), None);
+    }
+
+    #[test]
+    fn or_blocks_multiple_ands() {
+        let mut blocks = OrBlocks::new("foo bar baz");
+        assert_eq!(blocks.next().unwrap(), ["foo"]);
+        assert_eq!(blocks.next().unwrap(), ["bar"]);
+        assert_eq!(blocks.next().unwrap(), ["baz"]);
+        assert_eq!(blocks.next(), None);
+    }
+
+    #[test]
+    fn or_blocks_empty_between_ors() {
+        let mut blocks = OrBlocks::new("foo | | bar");
+        assert_eq!(blocks.next().unwrap(), ["foo", "bar"]);
+        assert_eq!(blocks.next(), None);
+    }
+
+    #[test]
+    fn or_blocks_multiple_ors_multiple_ands() {
+        let mut blocks = OrBlocks::new("foo | bar baz qux | quux | corge");
+        assert_eq!(blocks.next().unwrap(), ["foo", "bar"]);
+        assert_eq!(blocks.next().unwrap(), ["baz"]);
+        assert_eq!(blocks.next().unwrap(), ["qux", "quux", "corge"]);
+        assert_eq!(blocks.next(), None);
+    }
 }
 
 #[cfg(test)]
@@ -371,29 +517,5 @@ mod tests {
         let mut words = Words::new(" \\ \\ \\  ");
         assert_eq!(words.next().as_deref(), Some("   "));
         assert_eq!(words.next(), None);
-    }
-
-    #[test]
-    fn parse_query_empty() {
-        assert!(parse("").is_empty());
-    }
-
-    #[test]
-    fn parse_query_single_fuzzy() {
-        let conditions = parse("foo");
-
-        assert_eq!(conditions.len(), 1);
-
-        let condition = conditions.into_iter().next().unwrap();
-
-        let mut patterns = condition.or_patterns();
-
-        assert_eq!(patterns.len(), 1);
-
-        let pattern = patterns.next().unwrap();
-
-        assert_eq!(pattern.into_string(), "foo");
-
-        assert_eq!(pattern.match_type, MatchType::Fuzzy);
     }
 }
