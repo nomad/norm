@@ -131,11 +131,60 @@ impl<'a> Pattern<'a> {
 
     /// TODO: docs
     #[inline]
-    pub(super) fn new(text: &'a [char], ty: MatchType) -> Self {
+    pub(super) fn parse(mut text: &'a [char]) -> Self {
+        debug_assert!(!text.is_empty());
+
+        let first_char = text[0];
+
+        let last_char = text[text.len() - 1];
+
+        let match_type;
+
+        match first_char {
+            '\'' => {
+                text = &text[1..];
+                match_type = MatchType::Exact;
+            },
+
+            '^' => {
+                text = &text[1..];
+                match_type = MatchType::PrefixExact;
+            },
+
+            '!' if text.get(1).copied() == Some('\'') => {
+                text = &text[2..];
+                match_type = MatchType::InverseFuzzy;
+            },
+
+            '!' if text.get(1).copied() == Some('^') => {
+                text = &text[2..];
+                match_type = MatchType::InversePrefixExact;
+            },
+
+            '!' if last_char == '$' => {
+                text = &text[1..text.len() - 1];
+                match_type = MatchType::InverseSuffixExact;
+            },
+
+            '!' => {
+                text = &text[1..];
+                match_type = MatchType::InverseExact;
+            },
+
+            _ if last_char == '$' => {
+                text = &text[..text.len() - 1];
+                match_type = MatchType::SuffixExact;
+            },
+
+            _ => {
+                match_type = MatchType::Fuzzy;
+            },
+        }
+
         Self {
             has_uppercase: text.iter().copied().any(char::is_uppercase),
             text,
-            match_type: ty,
+            match_type,
         }
     }
 
