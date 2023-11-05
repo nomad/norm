@@ -1,4 +1,4 @@
-use alloc::borrow::Cow;
+use core::mem::transmute;
 
 use super::query::{Condition, FzfQuery, Pattern};
 
@@ -30,12 +30,6 @@ impl FzfParser {
     /// TODO: docs
     #[inline]
     pub fn parse<'a>(&'a mut self, query: &str) -> FzfQuery<'a> {
-        let max_char_len = query.len();
-
-        if max_char_len > self.chars.len() {
-            self.chars.resize(max_char_len, char::default());
-        }
-
         // The theoretical maximum number of conditions that could be included
         // in the query.
         //
@@ -52,13 +46,6 @@ impl FzfParser {
             self.patterns.resize(max_conditions, Pattern::default());
         }
 
-        // let mut char_len = 0;
-        //
-        // for ch in query.chars() {
-        //     self.chars[char_len] = ch;
-        //     char_len += 1;
-        // }
-
         // // SAFETY: todo.
         // let pattern = unsafe {
         //     core::mem::transmute::<Pattern, Pattern<'static>>(pattern)
@@ -69,7 +56,16 @@ impl FzfParser {
         //     core::mem::transmute::<Condition, Condition<'static>>(condition)
         // };
 
-        let conditions = parse(query);
+        let conditions = OrBlocks::new(&mut self.chars, query)
+            .map(|or_block| {
+                or_block
+                    .into_iter()
+                    .map(Pattern::parse)
+                    .collect::<Vec<_>>()
+                    .leak() as _
+            })
+            .map(Condition::new)
+            .collect::<Vec<_>>();
 
         FzfQuery::new(conditions.leak())
     }
@@ -81,42 +77,26 @@ impl FzfParser {
     }
 }
 
-/// TODO: docs
-#[inline]
-fn parse(query: &str) -> Vec<Condition<'static>> {
-    OrBlocks::new(query)
-        .map(|or_block| {
-            or_block
-                .into_iter()
-                .map(|pattern| pattern.chars().collect::<Vec<_>>().leak() as _)
-                .map(Pattern::parse)
-                .collect::<Vec<_>>()
-                .leak() as _
-        })
-        .map(Condition::new)
-        .collect::<Vec<_>>()
-}
-
-const OR_BLOCK_SEPARATOR: &str = "|";
+const OR_BLOCK_SEPARATOR: &[char] = &['|'];
 
 /// TODO: docs
-struct OrBlocks<'a> {
+struct OrBlocks<'buf, 's> {
     /// TODO: docs
-    words: Words<'a>,
+    words: Words<'buf, 's>,
 
     /// TODO: docs
-    next: Option<<Words<'a> as Iterator>::Item>,
+    next: Option<<Words<'buf, 's> as Iterator>::Item>,
 }
 
-impl<'a> OrBlocks<'a> {
+impl<'buf, 's> OrBlocks<'buf, 's> {
     #[inline]
-    fn new(s: &'a str) -> Self {
-        Self { words: Words::new(s), next: None }
+    fn new(buf: &'buf mut Vec<char>, s: &'s str) -> Self {
+        Self { words: Words::new(buf, s), next: None }
     }
 }
 
-impl<'a> Iterator for OrBlocks<'a> {
-    type Item = Vec<<Words<'a> as Iterator>::Item>;
+impl<'buf, 's> Iterator for OrBlocks<'buf, 's> {
+    type Item = Vec<<Words<'buf, 's> as Iterator>::Item>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -160,7 +140,7 @@ impl<'a> Iterator for OrBlocks<'a> {
     }
 }
 
-impl core::iter::FusedIterator for OrBlocks<'_> {}
+impl core::iter::FusedIterator for OrBlocks<'_, '_> {}
 
 /// An iterator over the words of a string.
 ///
@@ -170,8 +150,8 @@ impl core::iter::FusedIterator for OrBlocks<'_> {}
 /// # Examples
 ///
 /// ```rust
-/// # use norm::fzf::Words;
-/// let mut words = Words::new("foo 'bar' \"baz\"");
+/// # use norm::fzf::words;
+/// let mut words = words("foo 'bar' \"baz\"");
 /// assert_eq!(words.next().as_deref(), Some("foo"));
 /// assert_eq!(words.next().as_deref(), Some("'bar'"));
 /// assert_eq!(words.next().as_deref(), Some("\"baz\""));
@@ -179,34 +159,63 @@ impl core::iter::FusedIterator for OrBlocks<'_> {}
 /// ```
 ///
 /// ```rust
-/// # use norm::fzf::Words;
-/// let mut words = Words::new("foo\\ bar baz");
+/// # use norm::fzf::words;
+/// let mut words = words("foo\\ bar baz");
 /// assert_eq!(words.next().as_deref(), Some("foo bar"));
 /// assert_eq!(words.next().as_deref(), Some("baz"));
 /// assert_eq!(words.next(), None);
 /// ```
 ///
 /// ```rust
-/// # use norm::fzf::Words;
-/// let mut words = Words::new("foo \\ bar");
+/// # use norm::fzf::words;
+/// let mut words = words("foo \\ bar");
 /// assert_eq!(words.next().as_deref(), Some("foo"));
 /// assert_eq!(words.next().as_deref(), Some(" bar"));
 /// assert_eq!(words.next(), None);
 /// ```
 #[doc(hidden)]
-pub struct Words<'a> {
-    s: &'a str,
+pub struct Words<'buf, 'sentence> {
+    /// TODO: docs
+    buf: &'buf mut Vec<char>,
+
+    /// TODO: docs
+    allocated: usize,
+
+    /// TODO: docs
+    s: &'sentence str,
 }
 
-impl<'a> Words<'a> {
+impl<'buf, 'sentence> Words<'buf, 'sentence> {
+    /// TODO: docs
     #[inline]
-    pub fn new(s: &'a str) -> Self {
-        Self { s: strip_spaces(s) }
+    fn alloc(&mut self, s: &str) {
+        let buf = &mut self.buf[self.allocated..];
+
+        let mut char_len = 0;
+
+        for ch in s.chars() {
+            buf[char_len] = ch;
+            char_len += 1;
+        }
+
+        self.allocated += char_len;
+    }
+
+    /// TODO: docs
+    #[inline]
+    fn new(buf: &'buf mut Vec<char>, s: &'sentence str) -> Self {
+        let max_yielded_char_len = s.len();
+
+        if buf.len() < max_yielded_char_len {
+            buf.resize(max_yielded_char_len, char::default());
+        }
+
+        Self { buf, s: strip_leading_spaces(s), allocated: 0 }
     }
 }
 
-impl<'a> Iterator for Words<'a> {
-    type Item = Cow<'a, str>;
+impl<'buf> Iterator for Words<'buf, '_> {
+    type Item = &'buf [char];
 
     #[inline(always)]
     fn next(&mut self) -> Option<Self::Item> {
@@ -214,9 +223,9 @@ impl<'a> Iterator for Words<'a> {
             return None;
         }
 
-        let mut word = Cow::Borrowed("");
+        let prev_allocated = self.allocated;
 
-        let mut word_end = 0;
+        let mut word_byte_end = 0;
 
         let mut s = self.s;
 
@@ -225,67 +234,60 @@ impl<'a> Iterator for Words<'a> {
                 Some(0) => break,
 
                 Some(offset) if s.as_bytes()[offset - 1] == b'\\' => {
-                    // The string starts with an escaped space. We don't have
-                    // to allocate yet.
-                    if offset == 1 && word.is_empty() {
-                        word = Cow::Borrowed(" ");
-                        word_end = 2;
-                        s = &s[word_end..];
-                        continue;
-                    }
-
-                    // This word includes an escaped space, so we have to
-                    // allocate because we'll skip the escape.
-                    let word = word.to_mut();
-
                     // Push everything up to (but not including) the escape.
-                    word.push_str(&s[..offset - 1]);
+                    self.alloc(&s[..offset - 1]);
 
                     // ..skip the escape..
 
                     // ..and push the space.
-                    word.push(' ');
+                    self.alloc(" ");
 
                     s = &s[offset + 1..];
 
-                    word_end += offset + 1;
+                    word_byte_end += offset + 1;
                 },
 
                 Some(offset) => {
                     let s = &s[..offset];
-                    if word.is_empty() {
-                        word = Cow::Borrowed(s);
-                    } else {
-                        word.to_mut().push_str(s);
-                    }
-                    word_end += s.len();
+                    self.alloc(s);
+                    word_byte_end += s.len();
                     break;
                 },
 
                 None => {
-                    if word.is_empty() {
-                        word = Cow::Borrowed(s);
-                    } else {
-                        word.to_mut().push_str(s);
-                    }
-                    word_end += s.len();
+                    self.alloc(s);
+                    word_byte_end += s.len();
                     break;
                 },
             }
         }
 
-        self.s = strip_spaces(&self.s[word_end..]);
+        self.s = strip_leading_spaces(&self.s[word_byte_end..]);
+
+        let word = &self.buf[prev_allocated..self.allocated];
+
+        // SAFETY: todo
+        let word = unsafe { transmute::<&[char], &'buf [char]>(word) };
 
         Some(word)
     }
 }
 
-impl core::iter::FusedIterator for Words<'_> {}
+impl core::iter::FusedIterator for Words<'_, '_> {}
 
+/// TODO: docs
 #[inline(always)]
-fn strip_spaces(s: &str) -> &str {
+fn strip_leading_spaces(s: &str) -> &str {
     let leading_spaces = s.bytes().take_while(|&b| b == b' ').count();
     &s[leading_spaces..]
+}
+
+/// TODO: docs
+#[cfg(debug_assertions)]
+#[doc(hidden)]
+pub fn parse(s: &str) -> FzfQuery<'static> {
+    let parser = Box::leak(Box::new(FzfParser::new()));
+    parser.parse(s)
 }
 
 #[cfg(test)]
@@ -300,11 +302,13 @@ mod parse_tests {
 
     #[test]
     fn parse_query_single_fuzzy() {
-        let conditions = parse("foo");
+        let query = parse("foo");
+
+        let conditions = query.conditions();
 
         assert_eq!(conditions.len(), 1);
 
-        let condition = conditions.into_iter().next().unwrap();
+        let condition = conditions.iter().next().unwrap();
 
         let mut patterns = condition.or_patterns();
 
@@ -318,33 +322,46 @@ mod parse_tests {
     }
 }
 
+#[cfg(debug_assertions)]
+#[doc(hidden)]
+pub fn or_blocks(s: &str) -> impl Iterator<Item = Vec<String>> {
+    let mut buf = Vec::new();
+
+    OrBlocks::new(&mut buf, s)
+        .map(|blocks| {
+            blocks.into_iter().map(String::from_iter).collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>()
+        .into_iter()
+}
+
 #[cfg(test)]
 mod or_blocks_tests {
     use super::*;
 
     #[test]
     fn or_blocks_empty() {
-        let mut blocks = OrBlocks::new("");
+        let mut blocks = or_blocks("");
         assert!(blocks.next().is_none());
     }
 
     #[test]
     fn or_blocks_single() {
-        let mut blocks = OrBlocks::new("foo");
+        let mut blocks = or_blocks("foo");
         assert_eq!(blocks.next().unwrap(), ["foo"]);
         assert_eq!(blocks.next(), None);
     }
 
     #[test]
     fn or_blocks_multiple_ors() {
-        let mut blocks = OrBlocks::new("foo | bar | baz");
+        let mut blocks = or_blocks("foo | bar | baz");
         assert_eq!(blocks.next().unwrap(), ["foo", "bar", "baz"]);
         assert_eq!(blocks.next(), None);
     }
 
     #[test]
     fn or_blocks_multiple_ands() {
-        let mut blocks = OrBlocks::new("foo bar baz");
+        let mut blocks = or_blocks("foo bar baz");
         assert_eq!(blocks.next().unwrap(), ["foo"]);
         assert_eq!(blocks.next().unwrap(), ["bar"]);
         assert_eq!(blocks.next().unwrap(), ["baz"]);
@@ -353,14 +370,14 @@ mod or_blocks_tests {
 
     #[test]
     fn or_blocks_empty_between_ors() {
-        let mut blocks = OrBlocks::new("foo | | bar");
+        let mut blocks = or_blocks("foo | | bar");
         assert_eq!(blocks.next().unwrap(), ["foo", "bar"]);
         assert_eq!(blocks.next(), None);
     }
 
     #[test]
     fn or_blocks_multiple_ors_multiple_ands() {
-        let mut blocks = OrBlocks::new("foo | bar baz qux | quux | corge");
+        let mut blocks = or_blocks("foo | bar baz qux | quux | corge");
         assert_eq!(blocks.next().unwrap(), ["foo", "bar"]);
         assert_eq!(blocks.next().unwrap(), ["baz"]);
         assert_eq!(blocks.next().unwrap(), ["qux", "quux", "corge"]);
@@ -368,33 +385,44 @@ mod or_blocks_tests {
     }
 }
 
+#[cfg(debug_assertions)]
+#[doc(hidden)]
+pub fn words(s: &str) -> impl Iterator<Item = String> {
+    let mut buf = Vec::new();
+
+    Words::new(&mut buf, s)
+        .map(String::from_iter)
+        .collect::<Vec<_>>()
+        .into_iter()
+}
+
 #[cfg(test)]
-mod tests {
+mod word_tests {
     use super::*;
 
     #[test]
     fn words_empty() {
-        let mut words = Words::new("");
+        let mut words = words("");
         assert!(words.next().is_none());
     }
 
     #[test]
     fn words_single() {
-        let mut words = Words::new("foo");
+        let mut words = words("foo");
         assert_eq!(words.next().as_deref(), Some("foo"));
         assert_eq!(words.next(), None);
     }
 
     #[test]
     fn words_escaped_escape_escaped_space() {
-        let mut words = Words::new("\\\\ ");
+        let mut words = words("\\\\ ");
         assert_eq!(words.next().as_deref(), Some("\\ "));
         assert_eq!(words.next(), None);
     }
 
     #[test]
     fn words_multiple() {
-        let mut words = Words::new("foo bar");
+        let mut words = words("foo bar");
         assert_eq!(words.next().as_deref(), Some("foo"));
         assert_eq!(words.next().as_deref(), Some("bar"));
         assert_eq!(words.next(), None);
@@ -402,7 +430,7 @@ mod tests {
 
     #[test]
     fn words_multiple_leading_trailing_spaces() {
-        let mut words = Words::new("   foo bar   ");
+        let mut words = words("   foo bar   ");
         assert_eq!(words.next().as_deref(), Some("foo"));
         assert_eq!(words.next().as_deref(), Some("bar"));
         assert_eq!(words.next(), None);
@@ -410,14 +438,14 @@ mod tests {
 
     #[test]
     fn words_multiple_escaped_spaces() {
-        let mut words = Words::new("foo\\ bar\\ baz");
+        let mut words = words("foo\\ bar\\ baz");
         assert_eq!(words.next().as_deref(), Some("foo bar baz"));
         assert_eq!(words.next(), None);
     }
 
     #[test]
     fn words_multiple_standalone_escaped_spaces() {
-        let mut words = Words::new(" \\  foo \\ bar \\  ");
+        let mut words = words(" \\  foo \\ bar \\  ");
         assert_eq!(words.next().as_deref(), Some(" "));
         assert_eq!(words.next().as_deref(), Some("foo"));
         assert_eq!(words.next().as_deref(), Some(" bar"));
@@ -427,14 +455,14 @@ mod tests {
 
     #[test]
     fn words_single_escaped_spaces() {
-        let mut words = Words::new("\\ ");
-        assert_eq!(words.next(), Some(Cow::Borrowed(" ")));
+        let mut words = words("\\ ");
+        assert_eq!(words.next().as_deref(), Some(" "));
         assert_eq!(words.next(), None);
     }
 
     #[test]
     fn words_consecutive_escaped_spaces() {
-        let mut words = Words::new(" \\ \\ \\  ");
+        let mut words = words(" \\ \\ \\  ");
         assert_eq!(words.next().as_deref(), Some("   "));
         assert_eq!(words.next(), None);
     }
