@@ -4,8 +4,8 @@ use super::{query::*, *};
 use crate::*;
 
 /// TODO: docs
-#[cfg_attr(docsrs, doc(cfg(any(feature = "fzf-v1", feature = "fzf-v2"))))]
-#[derive(Default)]
+#[cfg_attr(docsrs, doc(cfg(feature = "fzf-v1")))]
+#[derive(Clone, Default)]
 pub struct FzfV1 {
     /// TODO: docs
     case_sensitivity: CaseSensitivity,

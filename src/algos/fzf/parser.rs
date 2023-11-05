@@ -283,7 +283,7 @@ fn strip_leading_spaces(s: &str) -> &str {
 }
 
 /// TODO: docs
-#[cfg(debug_assertions)]
+#[cfg(feature = "tests")]
 #[doc(hidden)]
 pub fn parse(s: &str) -> FzfQuery<'static> {
     let parser = Box::leak(Box::new(FzfParser::new()));
@@ -322,7 +322,7 @@ mod parse_tests {
     }
 }
 
-#[cfg(debug_assertions)]
+#[cfg(feature = "tests")]
 #[doc(hidden)]
 pub fn or_blocks(s: &str) -> impl Iterator<Item = Vec<String>> {
     let mut buf = Vec::new();
@@ -385,7 +385,7 @@ mod or_blocks_tests {
     }
 }
 
-#[cfg(debug_assertions)]
+#[cfg(feature = "tests")]
 #[doc(hidden)]
 pub fn words(s: &str) -> impl Iterator<Item = String> {
     let mut buf = Vec::new();
