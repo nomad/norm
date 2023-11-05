@@ -20,7 +20,7 @@ pub struct FzfV1 {
 impl core::fmt::Debug for FzfV1 {
     #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("FzfV2")
+        f.debug_struct("FzfV1")
             .field("case_sensitivity", &self.case_sensitivity)
             .field("matched_ranges", &self.with_matched_ranges)
             .field("scheme", &FzfScheme::from_inner(&self.scheme).unwrap())
