@@ -109,20 +109,15 @@ pub(super) fn calculate_score(
     (score, matched_ranges)
 }
 
+/// TODO: docs
 #[inline]
 pub(super) fn prefix_match(
     pattern: Pattern,
     candidate: &str,
     scheme: &Scheme,
-    case_sensitivity: CaseSensitivity,
+    is_case_sensitive: bool,
     with_matched_ranges: bool,
 ) -> Option<(Score, MatchedRanges)> {
-    let is_case_sensitive = match case_sensitivity {
-        CaseSensitivity::Sensitive => true,
-        CaseSensitivity::Insensitive => false,
-        CaseSensitivity::Smart => pattern.has_uppercase,
-    };
-
     let char_eq = utils::char_eq(is_case_sensitive);
 
     let mut pattern_chars = pattern.chars();
@@ -147,6 +142,60 @@ pub(super) fn prefix_match(
 
     let matched_range =
         ignored_whitespaces..ignored_whitespaces + pattern.byte_len;
+
+    let (score, _) = calculate_score(
+        pattern,
+        candidate,
+        matched_range.clone(),
+        scheme,
+        char_eq,
+        false,
+    );
+
+    let mut ranges = MatchedRanges::default();
+
+    if with_matched_ranges {
+        ranges.push(matched_range);
+    }
+
+    Some((score, ranges))
+}
+
+/// TODO: docs
+#[inline]
+pub(super) fn suffix_match(
+    pattern: Pattern,
+    candidate: &str,
+    scheme: &Scheme,
+    is_case_sensitive: bool,
+    with_matched_ranges: bool,
+) -> Option<(Score, MatchedRanges)> {
+    let char_eq = utils::char_eq(is_case_sensitive);
+
+    let mut pattern_chars = pattern.chars().rev();
+
+    let up_to_ignored_whitespaces = candidate.len()
+        - if pattern.last_char().is_ascii_whitespace() {
+            0
+        } else {
+            utils::trailing_spaces(candidate)
+        };
+
+    for (pattern_ch, candidate_ch) in pattern_chars
+        .by_ref()
+        .zip(candidate[..up_to_ignored_whitespaces].chars())
+    {
+        if !char_eq(pattern_ch, candidate_ch) {
+            break;
+        }
+    }
+
+    if pattern_chars.next().is_some() {
+        return None;
+    }
+
+    let matched_range = up_to_ignored_whitespaces - pattern.byte_len
+        ..up_to_ignored_whitespaces;
 
     let (score, _) = calculate_score(
         pattern,

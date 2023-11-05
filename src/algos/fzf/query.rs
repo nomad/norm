@@ -134,6 +134,12 @@ impl<'a> Pattern<'a> {
     }
 
     /// TODO: docs
+    #[inline(always)]
+    pub(super) fn last_char(&self) -> char {
+        self.char(self.char_len() - 1)
+    }
+
+    /// TODO: docs
     #[inline]
     pub(super) fn parse(mut text: &'a [char]) -> Self {
         debug_assert!(!text.is_empty());

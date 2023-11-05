@@ -136,3 +136,9 @@ pub fn leading_spaces(s: &str) -> usize {
 pub fn strip_leading_spaces(s: &str) -> &str {
     &s[leading_spaces(s)..]
 }
+
+/// TODO: docs
+#[inline(always)]
+pub fn trailing_spaces(s: &str) -> usize {
+    s.bytes().rev().take_while(|&b| b == b' ').count()
+}
