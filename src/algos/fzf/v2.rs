@@ -79,9 +79,7 @@ impl Metric for FzfV2 {
             let (score, ranges) =
                 condition.or_patterns().find_map(|pattern| {
                     match pattern.match_type {
-                        MatchType::Fuzzy => {
-                            fzf_v2(self, pattern, candidate, false)
-                        },
+                        MatchType::Fuzzy => fzf_v2(self, pattern, candidate),
                         _ => todo!(),
                     }
                 })?;
@@ -105,7 +103,6 @@ fn fzf_v2(
     fzf: &mut FzfV2,
     pattern: Pattern,
     candidate: &str,
-    with_matched_ranges: bool,
 ) -> Option<(Score, MatchedRanges)> {
     let is_candidate_ascii = candidate.is_ascii();
 
@@ -156,20 +153,23 @@ fn fzf_v2(
         bonus_vector,
     );
 
-    let matched_ranges = if with_matched_ranges {
-        let candidate = fzf.slab.candidate.alloc(candidate);
-        let mut ranges =
-            matched_ranges(scores, consecutive, score_cell, candidate);
+    let mut ranges = MatchedRanges::default();
+
+    if fzf.with_matched_ranges {
+        matched_ranges(
+            scores,
+            consecutive,
+            score_cell,
+            fzf.slab.candidate.alloc(candidate),
+            &mut ranges,
+        );
         ranges.iter_mut().for_each(|range| {
             range.start += first_match.byte_offset;
             range.end += first_match.byte_offset;
         });
-        ranges
-    } else {
-        MatchedRanges::default()
     };
 
-    Some((score, matched_ranges))
+    Some((score, ranges))
 }
 
 /// TODO: docs
@@ -512,9 +512,8 @@ fn matched_ranges(
     consecutives: Matrix<usize>,
     max_score_cell: MatrixCell,
     candidate: Candidate,
-) -> MatchedRanges {
-    let mut ranges = MatchedRanges::default();
-
+    ranges: &mut MatchedRanges,
+) {
     let mut prefer_match = true;
 
     let mut cell = max_score_cell;
@@ -580,6 +579,4 @@ fn matched_ranges(
             break;
         }
     }
-
-    ranges
 }
