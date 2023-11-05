@@ -170,7 +170,7 @@ impl core::iter::FusedIterator for OrBlocks<'_> {}
 /// # Examples
 ///
 /// ```rust
-/// # use norm::algos::fzf::parser::Words;
+/// # use norm::fzf::Words;
 /// let mut words = Words::new("foo 'bar' \"baz\"");
 /// assert_eq!(words.next().as_deref(), Some("foo"));
 /// assert_eq!(words.next().as_deref(), Some("'bar'"));
@@ -179,7 +179,7 @@ impl core::iter::FusedIterator for OrBlocks<'_> {}
 /// ```
 ///
 /// ```rust
-/// # use norm::algos::fzf::parser::Words;
+/// # use norm::fzf::Words;
 /// let mut words = Words::new("foo\\ bar baz");
 /// assert_eq!(words.next().as_deref(), Some("foo bar"));
 /// assert_eq!(words.next().as_deref(), Some("baz"));
@@ -187,20 +187,20 @@ impl core::iter::FusedIterator for OrBlocks<'_> {}
 /// ```
 ///
 /// ```rust
-/// # use norm::algos::fzf::parser::Words;
+/// # use norm::fzf::Words;
 /// let mut words = Words::new("foo \\ bar");
 /// assert_eq!(words.next().as_deref(), Some("foo"));
-/// assert_eq!(words.next().as_deref(), Some(" "));
-/// assert_eq!(words.next().as_deref(), Some("baz"));
+/// assert_eq!(words.next().as_deref(), Some(" bar"));
 /// assert_eq!(words.next(), None);
 /// ```
-struct Words<'a> {
+#[doc(hidden)]
+pub struct Words<'a> {
     s: &'a str,
 }
 
 impl<'a> Words<'a> {
     #[inline]
-    fn new(s: &'a str) -> Self {
+    pub fn new(s: &'a str) -> Self {
         Self { s: strip_spaces(s) }
     }
 }

@@ -12,7 +12,7 @@ mod v1;
 mod v2;
 
 pub use distance::FzfDistance;
-pub use parser::FzfParser;
+pub use parser::*;
 pub use query::FzfQuery;
 pub use scheme::FzfScheme;
 #[doc(hidden)]
