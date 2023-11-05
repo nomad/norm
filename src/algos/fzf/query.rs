@@ -90,6 +90,7 @@ impl<'a> Condition<'a> {
 
 /// TODO: docs
 #[derive(Default, Clone, Copy)]
+#[cfg_attr(test, derive(PartialEq))]
 pub(super) struct Pattern<'a> {
     /// TODO: docs
     text: &'a [char],

@@ -30,6 +30,12 @@ impl FzfParser {
     /// TODO: docs
     #[inline]
     pub fn parse<'a>(&'a mut self, query: &str) -> FzfQuery<'a> {
+        let max_chars = query.len();
+
+        if self.chars.len() < max_chars {
+            self.chars.resize(max_chars, char::default());
+        }
+
         // The theoretical maximum number of conditions that could be included
         // in the query.
         //
@@ -46,28 +52,32 @@ impl FzfParser {
             self.patterns.resize(max_conditions, Pattern::default());
         }
 
-        // // SAFETY: todo.
-        // let pattern = unsafe {
-        //     core::mem::transmute::<Pattern, Pattern<'static>>(pattern)
-        // };
-        //
-        // // SAFETY: todo.
-        // let condition = unsafe {
-        //     core::mem::transmute::<Condition, Condition<'static>>(condition)
-        // };
+        let patterns: &'a mut [Pattern<'static>] =
+            self.patterns.as_mut_slice();
 
-        let conditions = OrBlocks::new(&mut self.chars, query)
-            .map(|or_block| {
-                or_block
-                    .into_iter()
-                    .map(Pattern::parse)
-                    .collect::<Vec<_>>()
-                    .leak() as _
-            })
-            .map(Condition::new)
-            .collect::<Vec<_>>();
+        // SAFETY: todo.
+        let patterns = unsafe {
+            transmute::<&'a mut [Pattern<'static>], &'a mut [Pattern<'a>]>(
+                patterns,
+            )
+        };
 
-        FzfQuery::new(conditions.leak())
+        let mut num_conditions = 0;
+
+        for condition in
+            Patterns::new(patterns, &mut self.chars, query).map(Condition::new)
+        {
+            // SAFETY: todo
+            let condition = unsafe {
+                transmute::<Condition, Condition<'static>>(condition)
+            };
+
+            self.conditions[num_conditions] = condition;
+
+            num_conditions += 1;
+        }
+
+        FzfQuery::new(&self.conditions[..num_conditions])
     }
 
     /// TODO: docs
@@ -80,38 +90,58 @@ impl FzfParser {
 const OR_BLOCK_SEPARATOR: &[char] = &['|'];
 
 /// TODO: docs
-struct OrBlocks<'buf, 's> {
+struct Patterns<'buf, 's> {
+    /// TODO: docs
+    buf: &'buf mut [Pattern<'buf>],
+
+    /// TODO: docs
+    allocated: usize,
+
     /// TODO: docs
     words: Words<'buf, 's>,
 
     /// TODO: docs
-    next: Option<<Words<'buf, 's> as Iterator>::Item>,
+    next: Option<Pattern<'buf>>,
 }
 
-impl<'buf, 's> OrBlocks<'buf, 's> {
+impl<'buf, 's> Patterns<'buf, 's> {
     #[inline]
-    fn new(buf: &'buf mut Vec<char>, s: &'s str) -> Self {
-        Self { words: Words::new(buf, s), next: None }
+    fn alloc(&mut self, pattern: Pattern<'buf>) {
+        self.buf[self.allocated] = pattern;
+        self.allocated += 1;
+    }
+
+    #[inline]
+    fn new(
+        patterns_buf: &'buf mut [Pattern<'buf>],
+        char_buf: &'buf mut [char],
+        s: &'s str,
+    ) -> Self {
+        Self {
+            buf: patterns_buf,
+            allocated: 0,
+            words: Words::new(char_buf, s),
+            next: None,
+        }
     }
 }
 
-impl<'buf, 's> Iterator for OrBlocks<'buf, 's> {
-    type Item = Vec<<Words<'buf, 's> as Iterator>::Item>;
+impl<'buf, 's> Iterator for Patterns<'buf, 's> {
+    type Item = &'buf [Pattern<'buf>];
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let mut blocks;
+        let prev_allocated = self.allocated;
 
         // Whether we're expecting the next word yielded by `self.words` to be
         // a "|". This is set to true after getting a word, and set to false
         // after a "|".
         let mut looking_for_or;
 
-        if let Some(first_block) = self.next.take() {
-            blocks = vec![first_block];
+        if let Some(first_pattern) = self.next.take() {
+            self.alloc(first_pattern);
             looking_for_or = true;
         } else {
-            blocks = Vec::new();
             looking_for_or = false;
         }
 
@@ -123,11 +153,13 @@ impl<'buf, 's> Iterator for OrBlocks<'buf, 's> {
             let word_is_condition = word != OR_BLOCK_SEPARATOR;
 
             if word_is_condition {
+                let word = Pattern::parse(word);
+
                 if looking_for_or {
                     self.next = Some(word);
                     break;
                 } else {
-                    blocks.push(word);
+                    self.alloc(word);
                     looking_for_or = true;
                     continue;
                 }
@@ -136,11 +168,19 @@ impl<'buf, 's> Iterator for OrBlocks<'buf, 's> {
             looking_for_or = false;
         }
 
-        (!blocks.is_empty()).then_some(blocks)
+        if self.allocated == prev_allocated {
+            return None;
+        }
+
+        let patterns = &self.buf[prev_allocated..self.allocated];
+
+        // SAFETY: todo
+        let patterns =
+            unsafe { transmute::<&[Pattern], &'buf [Pattern]>(patterns) };
+
+        Some(patterns)
     }
 }
-
-impl core::iter::FusedIterator for OrBlocks<'_, '_> {}
 
 /// An iterator over the words of a string.
 ///
@@ -176,7 +216,7 @@ impl core::iter::FusedIterator for OrBlocks<'_, '_> {}
 #[doc(hidden)]
 pub struct Words<'buf, 'sentence> {
     /// TODO: docs
-    buf: &'buf mut Vec<char>,
+    buf: &'buf mut [char],
 
     /// TODO: docs
     allocated: usize,
@@ -189,27 +229,15 @@ impl<'buf, 'sentence> Words<'buf, 'sentence> {
     /// TODO: docs
     #[inline]
     fn alloc(&mut self, s: &str) {
-        let buf = &mut self.buf[self.allocated..];
-
-        let mut char_len = 0;
-
         for ch in s.chars() {
-            buf[char_len] = ch;
-            char_len += 1;
+            self.buf[self.allocated] = ch;
+            self.allocated += 1;
         }
-
-        self.allocated += char_len;
     }
 
     /// TODO: docs
     #[inline]
-    fn new(buf: &'buf mut Vec<char>, s: &'sentence str) -> Self {
-        let max_yielded_char_len = s.len();
-
-        if buf.len() < max_yielded_char_len {
-            buf.resize(max_yielded_char_len, char::default());
-        }
-
+    fn new(buf: &'buf mut [char], s: &'sentence str) -> Self {
         Self { buf, s: strip_leading_spaces(s), allocated: 0 }
     }
 }
@@ -273,8 +301,6 @@ impl<'buf> Iterator for Words<'buf, '_> {
     }
 }
 
-impl core::iter::FusedIterator for Words<'_, '_> {}
-
 /// TODO: docs
 #[inline(always)]
 fn strip_leading_spaces(s: &str) -> &str {
@@ -322,65 +348,70 @@ mod parse_tests {
     }
 }
 
-#[cfg(feature = "tests")]
-#[doc(hidden)]
-pub fn or_blocks(s: &str) -> impl Iterator<Item = Vec<String>> {
-    let mut buf = Vec::new();
-
-    OrBlocks::new(&mut buf, s)
-        .map(|blocks| {
-            blocks.into_iter().map(String::from_iter).collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>()
-        .into_iter()
-}
-
 #[cfg(test)]
-mod or_blocks_tests {
+mod patterns_tests {
     use super::*;
 
+    fn patterns(
+        s: &str,
+    ) -> impl Iterator<Item = &'static [Pattern<'static>]> + '_ {
+        let patterns_buf = vec![Pattern::default(); s.len() / 2 + 1].leak();
+        let char_buf = vec![char::default(); s.len()].leak();
+        Patterns::new(patterns_buf, char_buf, s)
+    }
+
+    fn pattern(s: &str) -> Pattern<'static> {
+        Pattern::parse(s.chars().collect::<Vec<_>>().leak())
+    }
+
     #[test]
-    fn or_blocks_empty() {
-        let mut blocks = or_blocks("");
+    fn patterns_empty() {
+        let mut blocks = patterns("");
         assert!(blocks.next().is_none());
     }
 
     #[test]
-    fn or_blocks_single() {
-        let mut blocks = or_blocks("foo");
-        assert_eq!(blocks.next().unwrap(), ["foo"]);
+    fn patterns_single() {
+        let mut blocks = patterns("foo");
+        assert_eq!(blocks.next().unwrap(), [pattern("foo")]);
         assert_eq!(blocks.next(), None);
     }
 
     #[test]
-    fn or_blocks_multiple_ors() {
-        let mut blocks = or_blocks("foo | bar | baz");
-        assert_eq!(blocks.next().unwrap(), ["foo", "bar", "baz"]);
+    fn patterns_multiple_ors() {
+        let mut blocks = patterns("foo | bar | baz");
+        assert_eq!(
+            blocks.next().unwrap(),
+            [pattern("foo"), pattern("bar"), pattern("baz")]
+        );
         assert_eq!(blocks.next(), None);
     }
 
     #[test]
-    fn or_blocks_multiple_ands() {
-        let mut blocks = or_blocks("foo bar baz");
-        assert_eq!(blocks.next().unwrap(), ["foo"]);
-        assert_eq!(blocks.next().unwrap(), ["bar"]);
-        assert_eq!(blocks.next().unwrap(), ["baz"]);
+    fn patterns_multiple_ands() {
+        let mut blocks = patterns("foo bar baz");
+        assert_eq!(blocks.next().unwrap(), [pattern("foo")]);
+        assert_eq!(blocks.next().unwrap(), [pattern("bar")]);
+        assert_eq!(blocks.next().unwrap(), [pattern("baz")]);
         assert_eq!(blocks.next(), None);
     }
 
     #[test]
-    fn or_blocks_empty_between_ors() {
-        let mut blocks = or_blocks("foo | | bar");
-        assert_eq!(blocks.next().unwrap(), ["foo", "bar"]);
+    fn patterns_empty_between_ors() {
+        let mut blocks = patterns("foo | | bar");
+        assert_eq!(blocks.next().unwrap(), [pattern("foo"), pattern("bar")]);
         assert_eq!(blocks.next(), None);
     }
 
     #[test]
-    fn or_blocks_multiple_ors_multiple_ands() {
-        let mut blocks = or_blocks("foo | bar baz qux | quux | corge");
-        assert_eq!(blocks.next().unwrap(), ["foo", "bar"]);
-        assert_eq!(blocks.next().unwrap(), ["baz"]);
-        assert_eq!(blocks.next().unwrap(), ["qux", "quux", "corge"]);
+    fn patterns_multiple_ors_multiple_ands() {
+        let mut blocks = patterns("foo | bar baz qux | quux | corge");
+        assert_eq!(blocks.next().unwrap(), [pattern("foo"), pattern("bar")]);
+        assert_eq!(blocks.next().unwrap(), [pattern("baz")]);
+        assert_eq!(
+            blocks.next().unwrap(),
+            [pattern("qux"), pattern("quux"), pattern("corge")]
+        );
         assert_eq!(blocks.next(), None);
     }
 }
@@ -389,6 +420,8 @@ mod or_blocks_tests {
 #[doc(hidden)]
 pub fn words(s: &str) -> impl Iterator<Item = String> {
     let mut buf = Vec::new();
+
+    buf.resize(s.len(), char::default());
 
     Words::new(&mut buf, s)
         .map(String::from_iter)
