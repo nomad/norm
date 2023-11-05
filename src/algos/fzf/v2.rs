@@ -97,33 +97,14 @@ impl Metric for FzfV2 {
                         CaseSensitivity::Smart => pattern.has_uppercase,
                     };
 
-                    match pattern.match_type {
-                        MatchType::Fuzzy => fzf_v2(
-                            self,
-                            pattern,
-                            candidate,
-                            is_case_sensitive,
-                            is_candidate_ascii,
-                        ),
-
-                        MatchType::PrefixExact => prefix_match(
-                            pattern,
-                            candidate,
-                            &self.scheme,
-                            is_case_sensitive,
-                            self.with_matched_ranges,
-                        ),
-
-                        MatchType::SuffixExact => suffix_match(
-                            pattern,
-                            candidate,
-                            &self.scheme,
-                            is_case_sensitive,
-                            self.with_matched_ranges,
-                        ),
-
-                        _ => todo!(),
-                    }
+                    pattern.score(
+                        candidate,
+                        &self.scheme,
+                        is_case_sensitive,
+                        self.with_matched_ranges,
+                        (&mut self.slab, is_candidate_ascii),
+                        fzf_v2,
+                    )
                 })?;
 
             total_score += score;
@@ -141,15 +122,16 @@ impl Metric for FzfV2 {
 
 /// TODO: docs
 #[inline]
-fn fzf_v2(
-    fzf: &mut FzfV2,
+pub(super) fn fzf_v2(
     pattern: Pattern,
     candidate: &str,
+    scheme: &Scheme,
     is_case_sensitive: bool,
-    is_candidate_ascii: bool,
+    with_matched_ranges: bool,
+    (slab, is_candidate_ascii): (&mut V2Slab, bool),
 ) -> Option<(Score, MatchedRanges)> {
     let (matches, last_match_offset) = matches(
-        &mut fzf.slab.matched_indices,
+        &mut slab.matched_indices,
         pattern,
         candidate,
         is_candidate_ascii,
@@ -161,8 +143,8 @@ fn fzf_v2(
     let initial_char_class = candidate[..first_match.byte_offset]
         .chars()
         .next_back()
-        .map(|ch| char_class(ch, &fzf.scheme))
-        .unwrap_or(fzf.scheme.initial_char_class);
+        .map(|ch| char_class(ch, scheme))
+        .unwrap_or(scheme.initial_char_class);
 
     let candidate = &candidate[first_match.byte_offset..last_match_offset];
 
@@ -172,15 +154,15 @@ fn fzf_v2(
     matches.iter_mut().for_each(|idx| *idx -= first_match);
 
     let bonus_vector = compute_bonuses(
-        &mut fzf.slab.bonus_vector,
+        &mut slab.bonus_vector,
         candidate,
         initial_char_class,
-        &fzf.scheme,
+        scheme,
     );
 
     let (scores, consecutive, score, score_cell) = score(
-        &mut fzf.slab.scoring_matrix,
-        &mut fzf.slab.consecutive_matrix,
+        &mut slab.scoring_matrix,
+        &mut slab.consecutive_matrix,
         pattern,
         candidate,
         is_candidate_ascii,
@@ -191,12 +173,12 @@ fn fzf_v2(
 
     let mut ranges = MatchedRanges::default();
 
-    if fzf.with_matched_ranges {
+    if with_matched_ranges {
         matched_ranges(
             scores,
             consecutive,
             score_cell,
-            fzf.slab.candidate.alloc(candidate),
+            slab.candidate.alloc(candidate),
             &mut ranges,
         );
         ranges.iter_mut().for_each(|range| {

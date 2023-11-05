@@ -1,5 +1,18 @@
 use core::fmt::Write;
 
+use super::*;
+use crate::*;
+
+/// TODO: docs
+type FuzzyAlgo<T> = fn(
+    Pattern,
+    &str,
+    &Scheme,
+    bool,
+    bool,
+    T,
+) -> Option<(Score, MatchedRanges)>;
+
 /// TODO: docs.
 #[derive(Clone, Copy)]
 pub struct FzfQuery<'a> {
@@ -103,6 +116,9 @@ pub(super) struct Pattern<'a> {
 
     /// TODO: docs
     pub(super) match_type: MatchType,
+
+    /// TODO: docs
+    pub(super) is_inverse: bool,
 }
 
 impl core::fmt::Debug for Pattern<'_> {
@@ -134,6 +150,12 @@ impl<'a> Pattern<'a> {
     }
 
     /// TODO: docs
+    #[inline]
+    pub(super) fn into_string(self) -> String {
+        self.text.iter().collect::<String>()
+    }
+
+    /// TODO: docs
     #[inline(always)]
     pub(super) fn last_char(&self) -> char {
         self.char(self.char_len() - 1)
@@ -147,6 +169,8 @@ impl<'a> Pattern<'a> {
         let first_char = text[0];
 
         let last_char = text[text.len() - 1];
+
+        let mut is_inverse = false;
 
         let match_type;
 
@@ -163,22 +187,26 @@ impl<'a> Pattern<'a> {
 
             '!' if text.get(1).copied() == Some('\'') => {
                 text = &text[2..];
-                match_type = MatchType::InverseFuzzy;
+                match_type = MatchType::Fuzzy;
+                is_inverse = true;
             },
 
             '!' if text.get(1).copied() == Some('^') => {
                 text = &text[2..];
-                match_type = MatchType::InversePrefixExact;
+                match_type = MatchType::PrefixExact;
+                is_inverse = true;
             },
 
             '!' if last_char == '$' => {
                 text = &text[1..text.len() - 1];
-                match_type = MatchType::InverseSuffixExact;
+                match_type = MatchType::SuffixExact;
+                is_inverse = true;
             },
 
             '!' => {
                 text = &text[1..];
-                match_type = MatchType::InverseExact;
+                match_type = MatchType::Exact;
+                is_inverse = true;
             },
 
             _ if last_char == '$' => {
@@ -196,13 +224,57 @@ impl<'a> Pattern<'a> {
             has_uppercase: text.iter().copied().any(char::is_uppercase),
             text,
             match_type,
+            is_inverse,
         }
     }
 
     /// TODO: docs
     #[inline]
-    pub(super) fn into_string(self) -> String {
-        self.text.iter().collect::<String>()
+    pub(super) fn score<Extras>(
+        self,
+        candidate: &str,
+        scheme: &Scheme,
+        is_case_sensitive: bool,
+        with_matched_ranges: bool,
+        extras: Extras,
+        fuzzy_algo: FuzzyAlgo<Extras>,
+    ) -> Option<(Score, MatchedRanges)> {
+        let result = match self.match_type {
+            MatchType::Fuzzy => fuzzy_algo(
+                self,
+                candidate,
+                scheme,
+                is_case_sensitive,
+                with_matched_ranges,
+                extras,
+            ),
+
+            MatchType::Exact => todo!(),
+
+            MatchType::PrefixExact => prefix_match(
+                self,
+                candidate,
+                scheme,
+                is_case_sensitive,
+                with_matched_ranges,
+            ),
+
+            MatchType::SuffixExact => suffix_match(
+                self,
+                candidate,
+                scheme,
+                is_case_sensitive,
+                with_matched_ranges,
+            ),
+        };
+
+        match (result.is_some(), self.is_inverse) {
+            (true, false) => result,
+
+            (false, true) => Some((0, MatchedRanges::default())),
+
+            _ => None,
+        }
     }
 }
 
@@ -222,16 +294,4 @@ pub(super) enum MatchType {
 
     /// TODO: docs
     SuffixExact,
-
-    /// TODO: docs
-    InverseFuzzy,
-
-    /// TODO: docs
-    InverseExact,
-
-    /// TODO: docs
-    InversePrefixExact,
-
-    /// TODO: docs
-    InverseSuffixExact,
 }
