@@ -1,6 +1,7 @@
 use core::mem::transmute;
 
 use super::query::{Condition, FzfQuery, Pattern};
+use crate::utils;
 
 /// TODO: docs
 #[derive(Clone)]
@@ -245,7 +246,7 @@ impl<'buf, 'sentence> Words<'buf, 'sentence> {
     /// TODO: docs
     #[inline]
     fn new(buf: &'buf mut [char], s: &'sentence str) -> Self {
-        Self { buf, s: strip_leading_spaces(s), allocated: 0 }
+        Self { buf, s: utils::strip_leading_spaces(s), allocated: 0 }
     }
 }
 
@@ -297,7 +298,7 @@ impl<'buf> Iterator for Words<'buf, '_> {
             }
         }
 
-        self.s = strip_leading_spaces(&self.s[word_byte_end..]);
+        self.s = utils::strip_leading_spaces(&self.s[word_byte_end..]);
 
         let word = &self.buf[prev_allocated..self.allocated];
 
@@ -306,13 +307,6 @@ impl<'buf> Iterator for Words<'buf, '_> {
 
         Some(word)
     }
-}
-
-/// TODO: docs
-#[inline(always)]
-fn strip_leading_spaces(s: &str) -> &str {
-    let leading_spaces = s.bytes().take_while(|&b| b == b' ').count();
-    &s[leading_spaces..]
 }
 
 /// TODO: docs

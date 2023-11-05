@@ -20,6 +20,16 @@ pub fn case_sensitive_eq(lhs: char, rhs: char) -> bool {
 
 /// TODO: docs
 #[inline(always)]
+pub fn char_eq(is_case_sensitive: bool) -> fn(char, char) -> bool {
+    if is_case_sensitive {
+        case_sensitive_eq
+    } else {
+        case_insensitive_eq
+    }
+}
+
+/// TODO: docs
+#[inline(always)]
 pub fn char_len(s: &str) -> usize {
     s.chars().count()
 }
@@ -113,4 +123,16 @@ fn find_last_unicode(needle: char, haystack: &str) -> Option<usize> {
     haystack
         .char_indices()
         .find_map(|(offset, ch)| (needle == ch).then_some(offset))
+}
+
+/// TODO: docs
+#[inline(always)]
+pub fn leading_spaces(s: &str) -> usize {
+    s.bytes().take_while(|&b| b == b' ').count()
+}
+
+/// TODO: docs
+#[inline(always)]
+pub fn strip_leading_spaces(s: &str) -> &str {
+    &s[leading_spaces(s)..]
 }

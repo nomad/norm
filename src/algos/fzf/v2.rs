@@ -86,11 +86,27 @@ impl Metric for FzfV2 {
 
         let mut matched_ranges = MatchedRanges::default();
 
+        let is_candidate_ascii = candidate.is_ascii();
+
         for condition in query.conditions() {
             let (score, ranges) =
                 condition.or_patterns().find_map(|pattern| {
                     match pattern.match_type {
-                        MatchType::Fuzzy => fzf_v2(self, pattern, candidate),
+                        MatchType::Fuzzy => fzf_v2(
+                            self,
+                            pattern,
+                            candidate,
+                            is_candidate_ascii,
+                        ),
+
+                        MatchType::PrefixExact => prefix_match(
+                            pattern,
+                            candidate,
+                            &self.scheme,
+                            self.case_sensitivity,
+                            self.with_matched_ranges,
+                        ),
+
                         _ => todo!(),
                     }
                 })?;
@@ -114,9 +130,8 @@ fn fzf_v2(
     fzf: &mut FzfV2,
     pattern: Pattern,
     candidate: &str,
+    is_candidate_ascii: bool,
 ) -> Option<(Score, MatchedRanges)> {
-    let is_candidate_ascii = candidate.is_ascii();
-
     let is_case_sensitive = match fzf.case_sensitivity {
         CaseSensitivity::Sensitive => true,
         CaseSensitivity::Insensitive => false,

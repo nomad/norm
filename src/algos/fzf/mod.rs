@@ -1,5 +1,6 @@
 //! TODO: docs
 
+mod common;
 mod distance;
 mod parser;
 mod query;
@@ -11,6 +12,7 @@ mod v1;
 #[cfg(feature = "fzf-v1")]
 mod v2;
 
+use common::*;
 pub use distance::FzfDistance;
 pub use parser::*;
 pub use query::FzfQuery;
