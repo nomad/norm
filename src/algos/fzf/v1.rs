@@ -17,6 +17,17 @@ pub struct FzfV1 {
     with_matched_ranges: bool,
 }
 
+impl core::fmt::Debug for FzfV1 {
+    #[inline]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("FzfV2")
+            .field("case_sensitivity", &self.case_sensitivity)
+            .field("matched_ranges", &self.with_matched_ranges)
+            .field("scheme", &FzfScheme::from_inner(&self.scheme).unwrap())
+            .finish_non_exhaustive()
+    }
+}
+
 impl FzfV1 {
     /// TODO: docs
     #[inline]

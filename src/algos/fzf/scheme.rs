@@ -24,6 +24,22 @@ impl FzfScheme {
             Self::History => HISTORY,
         }
     }
+
+    /// TODO: docs
+    #[inline]
+    pub(super) fn from_inner(scheme: &Scheme) -> Option<Self> {
+        if scheme.bonus_boundary_white == DEFAULT.bonus_boundary_white {
+            Some(Self::Default)
+        } else if scheme.bonus_boundary_white == PATH.bonus_boundary_white {
+            if scheme.initial_char_class == CharClass::Delimiter {
+                Some(Self::Path)
+            } else {
+                Some(Self::History)
+            }
+        } else {
+            None
+        }
+    }
 }
 
 /// TODO: docs

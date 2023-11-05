@@ -26,6 +26,13 @@ impl Default for FzfParser {
     }
 }
 
+impl core::fmt::Debug for FzfParser {
+    #[inline]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("FzfParser").finish_non_exhaustive()
+    }
+}
+
 impl FzfParser {
     /// TODO: docs
     #[inline]
