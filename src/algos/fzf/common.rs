@@ -210,17 +210,14 @@ pub(super) fn prefix_match(
 
     let mut pattern_chars = pattern.chars();
 
-    let ignored_whitespaces = if pattern.char(0).is_ascii_whitespace() {
-        0
-    } else {
-        utils::leading_spaces(candidate)
-    };
+    let ignored_leading_spaces =
+        ignored_candidate_leading_spaces(pattern, candidate)?;
 
     for (pattern_ch, candidate_ch) in
-        pattern_chars.by_ref().zip(candidate[ignored_whitespaces..].chars())
+        pattern_chars.by_ref().zip(candidate[ignored_leading_spaces..].chars())
     {
         if !char_eq(pattern_ch, candidate_ch) {
-            break;
+            return None;
         }
     }
 
@@ -229,7 +226,7 @@ pub(super) fn prefix_match(
     }
 
     let matched_range =
-        ignored_whitespaces..ignored_whitespaces + pattern.byte_len;
+        ignored_leading_spaces..ignored_leading_spaces + pattern.byte_len;
 
     let (score, _) = calculate_score(
         pattern,
@@ -262,19 +259,14 @@ pub(super) fn suffix_match(
 
     let mut pattern_chars = pattern.chars().rev();
 
-    let up_to_ignored_whitespaces = candidate.len()
-        - if pattern.last_char().is_ascii_whitespace() {
-            0
-        } else {
-            utils::trailing_spaces(candidate)
-        };
+    let up_to_ignored_spaces = candidate.len()
+        - ignored_candidate_trailing_spaces(pattern, candidate)?;
 
-    for (pattern_ch, candidate_ch) in pattern_chars
-        .by_ref()
-        .zip(candidate[..up_to_ignored_whitespaces].chars())
+    for (pattern_ch, candidate_ch) in
+        pattern_chars.by_ref().zip(candidate[..up_to_ignored_spaces].chars())
     {
         if !char_eq(pattern_ch, candidate_ch) {
-            break;
+            return None;
         }
     }
 
@@ -282,8 +274,8 @@ pub(super) fn suffix_match(
         return None;
     }
 
-    let matched_range = up_to_ignored_whitespaces - pattern.byte_len
-        ..up_to_ignored_whitespaces;
+    let matched_range =
+        up_to_ignored_spaces - pattern.byte_len..up_to_ignored_spaces;
 
     let (score, _) = calculate_score(
         pattern,
@@ -301,4 +293,94 @@ pub(super) fn suffix_match(
     }
 
     Some((score, ranges))
+}
+
+/// TODO: docs
+#[inline]
+pub(super) fn equal_match(
+    pattern: Pattern,
+    candidate: &str,
+    scheme: &Scheme,
+    is_case_sensitive: bool,
+    with_matched_ranges: bool,
+) -> Option<(Score, MatchedRanges)> {
+    let ignored_leading_spaces =
+        ignored_candidate_leading_spaces(pattern, candidate)?;
+
+    let ignored_trailing_spaces =
+        ignored_candidate_trailing_spaces(pattern, candidate)?;
+
+    let matched_range =
+        ignored_leading_spaces..candidate.len() - ignored_trailing_spaces;
+
+    let relevant_candidate = &candidate[matched_range.clone()];
+
+    if relevant_candidate.len() < pattern.char_len() {
+        return None;
+    }
+
+    let char_eq = utils::char_eq(is_case_sensitive);
+
+    let mut pattern_chars = pattern.chars();
+
+    let mut candidate_chars = relevant_candidate.chars();
+
+    for (pattern_ch, candidate_ch) in
+        pattern_chars.by_ref().zip(candidate_chars.by_ref())
+    {
+        if !char_eq(pattern_ch, candidate_ch) {
+            break;
+        }
+    }
+
+    if pattern_chars.next().is_some() || candidate_chars.next().is_some() {
+        return None;
+    }
+
+    let (score, _) = calculate_score(
+        pattern,
+        candidate,
+        matched_range.clone(),
+        scheme,
+        char_eq,
+        false,
+    );
+
+    let mut ranges = MatchedRanges::default();
+
+    if with_matched_ranges {
+        ranges.push(matched_range);
+    }
+
+    Some((score, ranges))
+}
+
+/// TODO: docs
+#[inline(always)]
+fn ignored_candidate_leading_spaces(
+    pattern: Pattern,
+    candidate: &str,
+) -> Option<usize> {
+    let candidate_leading_spaces = utils::leading_spaces(candidate);
+
+    if pattern.leading_spaces() > candidate_leading_spaces {
+        None
+    } else {
+        Some(candidate_leading_spaces - pattern.leading_spaces())
+    }
+}
+
+/// TODO: docs
+#[inline(always)]
+fn ignored_candidate_trailing_spaces(
+    pattern: Pattern,
+    candidate: &str,
+) -> Option<usize> {
+    let candidate_trailing_spaces = utils::trailing_spaces(candidate);
+
+    if pattern.trailing_spaces() > candidate_trailing_spaces {
+        None
+    } else {
+        Some(candidate_trailing_spaces - pattern.trailing_spaces())
+    }
 }

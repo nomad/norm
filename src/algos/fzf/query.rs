@@ -147,6 +147,12 @@ pub(super) struct Pattern<'a> {
 
     /// TODO: docs
     pub(super) is_inverse: bool,
+
+    /// TODO: docs
+    pub(super) leading_spaces: usize,
+
+    /// TODO: docs
+    pub(super) trailing_spaces: usize,
 }
 
 impl core::fmt::Debug for Pattern<'_> {
@@ -191,8 +197,8 @@ impl<'a> Pattern<'a> {
 
     /// TODO: docs
     #[inline(always)]
-    pub(super) fn last_char(&self) -> char {
-        self.char(self.char_len() - 1)
+    pub(super) fn leading_spaces(&self) -> usize {
+        self.leading_spaces
     }
 
     /// TODO: docs
@@ -212,6 +218,11 @@ impl<'a> Pattern<'a> {
             '\'' => {
                 text = &text[1..];
                 match_type = MatchType::Exact;
+            },
+
+            '^' if last_char == '$' => {
+                text = &text[1..text.len() - 1];
+                match_type = MatchType::EqualExact;
             },
 
             '^' => {
@@ -253,7 +264,14 @@ impl<'a> Pattern<'a> {
             },
         }
 
+        let leading_spaces = text.iter().take_while(|&&c| c == ' ').count();
+
+        let trailing_spaces =
+            text.iter().rev().take_while(|&&c| c == ' ').count();
+
         Self {
+            leading_spaces,
+            trailing_spaces,
             byte_len: text.iter().copied().map(char::len_utf8).sum(),
             has_uppercase: text.iter().copied().any(char::is_uppercase),
             text,
@@ -306,6 +324,14 @@ impl<'a> Pattern<'a> {
                 is_case_sensitive,
                 with_matched_ranges,
             ),
+
+            MatchType::EqualExact => equal_match(
+                self,
+                candidate,
+                scheme,
+                is_case_sensitive,
+                with_matched_ranges,
+            ),
         };
 
         match (result.is_some(), self.is_inverse) {
@@ -315,6 +341,12 @@ impl<'a> Pattern<'a> {
 
             _ => None,
         }
+    }
+
+    /// TODO: docs
+    #[inline(always)]
+    pub(super) fn trailing_spaces(&self) -> usize {
+        self.trailing_spaces
     }
 }
 
@@ -334,4 +366,7 @@ pub(super) enum MatchType {
 
     /// TODO: docs
     SuffixExact,
+
+    /// TODO: docs
+    EqualExact,
 }
