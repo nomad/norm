@@ -111,6 +111,94 @@ pub(super) fn calculate_score(
 
 /// TODO: docs
 #[inline]
+pub(super) fn exact_match(
+    pattern: Pattern,
+    candidate: &str,
+    scheme: &Scheme,
+    is_case_sensitive: bool,
+    with_matched_ranges: bool,
+) -> Option<(Score, MatchedRanges)> {
+    let char_eq = utils::char_eq(is_case_sensitive);
+
+    // TODO: docs
+    let mut best_bonus: Score = 0;
+
+    // TODO: docs
+    let mut best_bonus_byte_offset = 0;
+
+    // TODO: docs
+    let mut matched = false;
+
+    let mut pattern_char_idx = 0;
+
+    let mut prev_char_class = scheme.initial_char_class;
+
+    let mut current_bonus: Score = 0;
+
+    for (byte_offset, candidate_ch) in candidate.char_indices() {
+        let pattern_ch = pattern.char(pattern_char_idx);
+
+        let char_class = char_class(candidate_ch, scheme);
+
+        if char_eq(pattern_ch, candidate_ch) {
+            if pattern_char_idx == 0 {
+                current_bonus = bonus(prev_char_class, char_class, scheme);
+            }
+
+            pattern_char_idx += 1;
+
+            if pattern_char_idx == pattern.char_len() {
+                matched = true;
+
+                if current_bonus > best_bonus {
+                    best_bonus = current_bonus;
+                    best_bonus_byte_offset =
+                        byte_offset + candidate_ch.len_utf8();
+                }
+
+                if current_bonus >= bonus::BOUNDARY {
+                    break;
+                }
+
+                pattern_char_idx = 0;
+                current_bonus = 0;
+            }
+        } else {
+            pattern_char_idx = 0;
+            current_bonus = 0;
+        }
+
+        prev_char_class = char_class;
+    }
+
+    if !matched {
+        return None;
+    }
+
+    let matched_range = {
+        let end = best_bonus_byte_offset;
+        end - pattern.byte_len..end
+    };
+
+    let (score, _) = calculate_score(
+        pattern,
+        candidate,
+        matched_range.clone(),
+        scheme,
+        char_eq,
+        false,
+    );
+
+    let mut ranges = MatchedRanges::default();
+
+    if with_matched_ranges {
+        ranges.push(matched_range);
+    }
+
+    Some((score, ranges))
+}
+/// TODO: docs
+#[inline]
 pub(super) fn prefix_match(
     pattern: Pattern,
     candidate: &str,

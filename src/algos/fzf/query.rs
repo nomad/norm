@@ -283,7 +283,13 @@ impl<'a> Pattern<'a> {
                 extras,
             ),
 
-            MatchType::Exact => todo!(),
+            MatchType::Exact => exact_match(
+                self,
+                candidate,
+                scheme,
+                is_case_sensitive,
+                with_matched_ranges,
+            ),
 
             MatchType::PrefixExact => prefix_match(
                 self,
