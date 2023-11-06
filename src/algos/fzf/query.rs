@@ -8,7 +8,7 @@ type FuzzyAlgo<T> = fn(
     Pattern,
     &str,
     &Scheme,
-    bool,
+    CharEq,
     bool,
     T,
 ) -> Option<(Score, MatchedRanges)>;
@@ -286,7 +286,7 @@ impl<'a> Pattern<'a> {
         self,
         candidate: &str,
         scheme: &Scheme,
-        is_case_sensitive: bool,
+        char_eq: CharEq,
         with_matched_ranges: bool,
         extras: Extras,
         fuzzy_algo: FuzzyAlgo<Extras>,
@@ -296,7 +296,7 @@ impl<'a> Pattern<'a> {
                 self,
                 candidate,
                 scheme,
-                is_case_sensitive,
+                char_eq,
                 with_matched_ranges,
                 extras,
             ),
@@ -305,7 +305,7 @@ impl<'a> Pattern<'a> {
                 self,
                 candidate,
                 scheme,
-                is_case_sensitive,
+                char_eq,
                 with_matched_ranges,
             ),
 
@@ -313,7 +313,7 @@ impl<'a> Pattern<'a> {
                 self,
                 candidate,
                 scheme,
-                is_case_sensitive,
+                char_eq,
                 with_matched_ranges,
             ),
 
@@ -321,7 +321,7 @@ impl<'a> Pattern<'a> {
                 self,
                 candidate,
                 scheme,
-                is_case_sensitive,
+                char_eq,
                 with_matched_ranges,
             ),
 
@@ -329,7 +329,7 @@ impl<'a> Pattern<'a> {
                 self,
                 candidate,
                 scheme,
-                is_case_sensitive,
+                char_eq,
                 with_matched_ranges,
             ),
         };

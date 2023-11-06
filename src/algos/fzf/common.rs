@@ -10,7 +10,7 @@ pub(super) fn calculate_score(
     candidate: &str,
     range: Range<usize>,
     scheme: &Scheme,
-    case_matcher: CaseMatcher,
+    char_eq: CharEq,
     with_matched_ranges: bool,
 ) -> (Score, MatchedRanges) {
     // TODO: docs
@@ -44,7 +44,7 @@ pub(super) fn calculate_score(
     for (offset, candidate_ch) in candidate[range].char_indices() {
         let ch_class = char_class(candidate_ch, scheme);
 
-        if case_matcher(pattern_char, candidate_ch) {
+        if char_eq(pattern_char, candidate_ch) {
             score += bonus::MATCH;
 
             let mut bonus = bonus(prev_class, ch_class, scheme);
@@ -115,11 +115,9 @@ pub(super) fn exact_match(
     pattern: Pattern,
     candidate: &str,
     scheme: &Scheme,
-    is_case_sensitive: bool,
+    char_eq: CharEq,
     with_matched_ranges: bool,
 ) -> Option<(Score, MatchedRanges)> {
-    let char_eq = utils::char_eq(is_case_sensitive);
-
     // TODO: docs
     let mut best_bonus: Score = 0;
 
@@ -203,11 +201,9 @@ pub(super) fn prefix_match(
     pattern: Pattern,
     candidate: &str,
     scheme: &Scheme,
-    is_case_sensitive: bool,
+    char_eq: CharEq,
     with_matched_ranges: bool,
 ) -> Option<(Score, MatchedRanges)> {
-    let char_eq = utils::char_eq(is_case_sensitive);
-
     let mut pattern_chars = pattern.chars();
 
     let ignored_leading_spaces =
@@ -252,11 +248,9 @@ pub(super) fn suffix_match(
     pattern: Pattern,
     candidate: &str,
     scheme: &Scheme,
-    is_case_sensitive: bool,
+    char_eq: CharEq,
     with_matched_ranges: bool,
 ) -> Option<(Score, MatchedRanges)> {
-    let char_eq = utils::char_eq(is_case_sensitive);
-
     let mut pattern_chars = pattern.chars().rev();
 
     let up_to_ignored_spaces = candidate.len()
@@ -301,7 +295,7 @@ pub(super) fn equal_match(
     pattern: Pattern,
     candidate: &str,
     scheme: &Scheme,
-    is_case_sensitive: bool,
+    char_eq: CharEq,
     with_matched_ranges: bool,
 ) -> Option<(Score, MatchedRanges)> {
     let ignored_leading_spaces =
@@ -318,8 +312,6 @@ pub(super) fn equal_match(
     if relevant_candidate.len() < pattern.char_len() {
         return None;
     }
-
-    let char_eq = utils::char_eq(is_case_sensitive);
 
     let mut pattern_chars = pattern.chars();
 

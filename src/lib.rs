@@ -17,8 +17,8 @@ mod metric;
 mod utils;
 
 pub use algos::*;
-use case_sensitivity::CaseMatcher;
 pub use case_sensitivity::CaseSensitivity;
 use matched_ranges::MatchedRanges;
 pub use metric::Metric;
 pub use r#match::Match;
+use utils::CharEq;

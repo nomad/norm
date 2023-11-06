@@ -86,16 +86,18 @@ impl Metric for FzfV1 {
             SearchMode::Extended(_) => todo!(),
         };
 
-        let case_matcher =
-            self.case_sensitivity.matcher(pattern.has_uppercase);
+        let is_case_sensitive = match self.case_sensitivity {
+            CaseSensitivity::Sensitive => true,
+            CaseSensitivity::Insensitive => false,
+            CaseSensitivity::Smart => pattern.has_uppercase,
+        };
 
-        let range_forward = forward_pass(pattern, candidate, case_matcher)?;
+        let char_eq = utils::char_eq(is_case_sensitive, false);
 
-        let start_backward = backward_pass(
-            pattern,
-            &candidate[range_forward.clone()],
-            case_matcher,
-        );
+        let range_forward = forward_pass(pattern, candidate, char_eq)?;
+
+        let start_backward =
+            backward_pass(pattern, &candidate[range_forward.clone()], char_eq);
 
         let range = range_forward.start + start_backward..range_forward.end;
 
@@ -104,7 +106,7 @@ impl Metric for FzfV1 {
             candidate,
             range,
             &self.scheme,
-            case_matcher,
+            char_eq,
             self.with_matched_ranges,
         );
 
@@ -119,7 +121,7 @@ impl Metric for FzfV1 {
 fn forward_pass(
     pattern: Pattern,
     candidate: &str,
-    case_matcher: CaseMatcher,
+    char_eq: CharEq,
 ) -> Option<Range<usize>> {
     let mut start_offset = None;
 
@@ -130,7 +132,7 @@ fn forward_pass(
     let mut pattern_char = pattern_chars.next().expect("pattern is not empty");
 
     for (offset, candidate_char) in candidate.char_indices() {
-        if !case_matcher(pattern_char, candidate_char) {
+        if !char_eq(pattern_char, candidate_char) {
             continue;
         }
 
@@ -155,19 +157,15 @@ fn forward_pass(
 
 /// TODO: docs
 #[inline]
-fn backward_pass(
-    pattern: Pattern,
-    candidate: &str,
-    case_matcher: CaseMatcher,
-) -> usize {
+fn backward_pass(pattern: Pattern, candidate: &str, char_eq: CharEq) -> usize {
     // The candidate must start with the first character of the query.
-    debug_assert!(case_matcher(
+    debug_assert!(char_eq(
         candidate.chars().next().unwrap(),
         pattern.chars().next().unwrap()
     ));
 
     // The candidate must end with the last character of the query.
-    debug_assert!(case_matcher(
+    debug_assert!(char_eq(
         candidate.chars().next_back().unwrap(),
         pattern.chars().next_back().unwrap()
     ));
@@ -179,7 +177,7 @@ fn backward_pass(
     let mut query_char = query_chars.next().expect("query is not empty");
 
     for (offset, candidate_char) in candidate.char_indices().rev() {
-        if !case_matcher(query_char, candidate_char) {
+        if !char_eq(query_char, candidate_char) {
             continue;
         }
 

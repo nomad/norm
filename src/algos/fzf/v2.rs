@@ -9,6 +9,9 @@ pub struct FzfV2 {
     case_sensitivity: CaseSensitivity,
 
     /// TODO: docs
+    normalization: bool,
+
+    /// TODO: docs
     scheme: Scheme,
 
     /// TODO: docs
@@ -24,6 +27,7 @@ impl core::fmt::Debug for FzfV2 {
         f.debug_struct("FzfV2")
             .field("case_sensitivity", &self.case_sensitivity)
             .field("matched_ranges", &self.with_matched_ranges)
+            .field("normalization", &self.normalization)
             .field("scheme", &FzfScheme::from_inner(&self.scheme).unwrap())
             .finish_non_exhaustive()
     }
@@ -40,6 +44,13 @@ impl FzfV2 {
     #[cfg(feature = "tests")]
     pub fn scheme(&self) -> &Scheme {
         &self.scheme
+    }
+
+    /// TODO: docs
+    #[inline]
+    pub fn with_normalization(mut self, normalization: bool) -> Self {
+        self.normalization = normalization;
+        self
     }
 
     /// TODO: docs
@@ -92,11 +103,14 @@ impl Metric for FzfV2 {
                     CaseSensitivity::Smart => pattern.has_uppercase,
                 };
 
+                let char_eq =
+                    utils::char_eq(is_case_sensitive, self.normalization);
+
                 let (score, matched_ranges) = fzf_v2(
                     pattern,
                     candidate,
                     &self.scheme,
-                    is_case_sensitive,
+                    char_eq,
                     self.with_matched_ranges,
                     (&mut self.slab, is_candidate_ascii),
                 )?;
@@ -122,10 +136,13 @@ impl Metric for FzfV2 {
                         CaseSensitivity::Smart => pattern.has_uppercase,
                     };
 
+                    let char_eq =
+                        utils::char_eq(is_case_sensitive, self.normalization);
+
                     pattern.score(
                         candidate,
                         &self.scheme,
-                        is_case_sensitive,
+                        char_eq,
                         self.with_matched_ranges,
                         (&mut self.slab, is_candidate_ascii),
                         fzf_v2,
@@ -151,7 +168,7 @@ pub(super) fn fzf_v2(
     pattern: Pattern,
     candidate: &str,
     scheme: &Scheme,
-    is_case_sensitive: bool,
+    char_eq: CharEq,
     with_matched_ranges: bool,
     (slab, is_candidate_ascii): (&mut V2Slab, bool),
 ) -> Option<(Score, MatchedRanges)> {
@@ -160,7 +177,7 @@ pub(super) fn fzf_v2(
         pattern,
         candidate,
         is_candidate_ascii,
-        is_case_sensitive,
+        char_eq,
     )?;
 
     let first_match = matches[0];
@@ -191,7 +208,7 @@ pub(super) fn fzf_v2(
         pattern,
         candidate,
         is_candidate_ascii,
-        is_case_sensitive,
+        char_eq,
         matches,
         bonus_vector,
     );
@@ -222,7 +239,7 @@ fn matches<'idx>(
     pattern: Pattern,
     mut candidate: &str,
     is_candidate_ascii: bool,
-    is_case_sensitive: bool,
+    char_eq: CharEq,
 ) -> Option<(&'idx mut [MatchedIdx], usize)> {
     let matched_idxs = indices_slab.alloc(pattern.char_len());
 
@@ -233,8 +250,12 @@ fn matches<'idx>(
     loop {
         let query_char = pattern.char(query_char_idx);
 
-        let byte_offset =
-            utils::find_first(query_char, candidate, is_case_sensitive)?;
+        let (byte_offset, matched_ch) = utils::find_first(
+            query_char,
+            candidate,
+            is_candidate_ascii,
+            char_eq,
+        )?;
 
         let char_offset = if is_candidate_ascii {
             byte_offset
@@ -246,17 +267,17 @@ fn matches<'idx>(
 
         matched_idxs[query_char_idx] = last_matched_idx;
 
-        let query_char_byte_len = query_char.len_utf8();
+        let matched_char_byte_len = matched_ch.len_utf8();
 
         // SAFETY: the start of the range is within the byte length of the
         // candidate and it's a valid char boundary.
         candidate = unsafe {
-            candidate.get_unchecked(byte_offset + query_char_byte_len..)
+            candidate.get_unchecked(byte_offset + matched_char_byte_len..)
         };
 
         if query_char_idx + 1 < pattern.char_len() {
             last_matched_idx += MatchedIdx {
-                byte_offset: query_char_byte_len,
+                byte_offset: matched_char_byte_len,
                 char_offset: 1,
             };
             query_char_idx += 1;
@@ -267,15 +288,17 @@ fn matches<'idx>(
 
     let last_query_char = pattern.char(query_char_idx);
 
-    let byte_offset =
-        utils::find_last(last_query_char, candidate, is_case_sensitive)
-            .unwrap_or(0);
+    let (byte_offset, matched_ch) = utils::find_last(
+        last_query_char,
+        candidate,
+        is_candidate_ascii,
+        char_eq,
+    )
+    .unwrap_or((0, last_query_char));
 
     Some((
         matched_idxs,
-        last_matched_idx.byte_offset
-            + byte_offset
-            + last_query_char.len_utf8(),
+        last_matched_idx.byte_offset + byte_offset + matched_ch.len_utf8(),
     ))
 }
 
@@ -308,7 +331,7 @@ fn score<'scoring, 'consecutive>(
     pattern: Pattern,
     candidate: &str,
     is_candidate_ascii: bool,
-    is_case_sensitive: bool,
+    char_eq: CharEq,
     matches: &[MatchedIdx],
     bonus_vector: &[Score],
 ) -> (Matrix<'scoring, Score>, Matrix<'consecutive, usize>, Score, MatrixCell)
@@ -331,7 +354,7 @@ fn score<'scoring, 'consecutive>(
         pattern.char(0),
         candidate,
         is_candidate_ascii,
-        is_case_sensitive,
+        char_eq,
     );
 
     let (max_score, max_score_cell) = score_remaining_rows(
@@ -342,7 +365,7 @@ fn score<'scoring, 'consecutive>(
         candidate,
         bonus_vector,
         is_candidate_ascii,
-        is_case_sensitive,
+        char_eq,
         max_score,
         max_score_cell,
     );
@@ -359,7 +382,7 @@ fn score_first_row(
     query_first_char: char,
     mut candidate: &str,
     is_candidate_ascii: bool,
-    is_case_sensitive: bool,
+    char_eq: CharEq,
 ) -> (Score, MatrixCell) {
     let mut max_score: Score = 0;
 
@@ -376,9 +399,12 @@ fn score_first_row(
     let mut penalty = penalty::GAP_START;
 
     while !candidate.is_empty() {
-        let Some(byte_idx) =
-            utils::find_first(query_first_char, candidate, is_case_sensitive)
-        else {
+        let Some((byte_idx, matched_ch)) = utils::find_first(
+            query_first_char,
+            candidate,
+            is_candidate_ascii,
+            char_eq,
+        ) else {
             for col in col..scores_first_row.len() {
                 let score = prev_score.saturating_sub(penalty);
                 penalty = penalty::GAP_EXTENSION;
@@ -439,7 +465,7 @@ fn score_remaining_rows(
     candidate: &str,
     bonus_vector: &[Score],
     is_candidate_ascii: bool,
-    is_case_sensitive: bool,
+    char_eq: CharEq,
     mut max_score: Score,
     mut max_score_cell: MatrixCell,
 ) -> (Score, MatrixCell) {
@@ -464,9 +490,12 @@ fn score_remaining_rows(
         let mut penalty = penalty::GAP_START;
 
         while !candidate.is_empty() {
-            let Some(byte_offset) =
-                utils::find_first(query_char, candidate, is_case_sensitive)
-            else {
+            let Some((byte_offset, matched_ch)) = utils::find_first(
+                query_char,
+                candidate,
+                is_candidate_ascii,
+                char_eq,
+            ) else {
                 for col in column..matrix_width {
                     let score_left = scores_row[col - 1];
                     let score = score_left.saturating_sub(penalty);
