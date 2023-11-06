@@ -82,13 +82,38 @@ impl Metric for FzfV2 {
             return None;
         }
 
+        let is_candidate_ascii = candidate.is_ascii();
+
+        let conditions = match query.search_mode {
+            SearchMode::NotExtended(pattern) => {
+                let is_case_sensitive = match self.case_sensitivity {
+                    CaseSensitivity::Sensitive => true,
+                    CaseSensitivity::Insensitive => false,
+                    CaseSensitivity::Smart => pattern.has_uppercase,
+                };
+
+                let (score, matched_ranges) = fzf_v2(
+                    pattern,
+                    candidate,
+                    &self.scheme,
+                    is_case_sensitive,
+                    self.with_matched_ranges,
+                    (&mut self.slab, is_candidate_ascii),
+                )?;
+
+                let distance = FzfDistance::from_score(score);
+
+                return Some(Match::new(distance, matched_ranges));
+            },
+
+            SearchMode::Extended(conditions) => conditions,
+        };
+
         let mut total_score = 0;
 
         let mut matched_ranges = MatchedRanges::default();
 
-        let is_candidate_ascii = candidate.is_ascii();
-
-        for condition in query.conditions() {
+        for condition in conditions {
             let (score, ranges) =
                 condition.or_patterns().find_map(|pattern| {
                     let is_case_sensitive = match self.case_sensitivity {

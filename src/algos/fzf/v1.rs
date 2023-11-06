@@ -81,7 +81,10 @@ impl Metric for FzfV1 {
             return None;
         }
 
-        let pattern = query.conditions()[0].or_patterns().next().unwrap();
+        let pattern = match query.search_mode {
+            SearchMode::NotExtended(pattern) => pattern,
+            SearchMode::Extended(_) => todo!(),
+        };
 
         let case_matcher =
             self.case_sensitivity.matcher(pattern.has_uppercase);

@@ -319,7 +319,7 @@ pub fn parse(s: &str) -> FzfQuery<'static> {
 
 #[cfg(test)]
 mod parse_tests {
-    use super::super::query::MatchType;
+    use super::super::query::*;
     use super::*;
 
     #[test]
@@ -331,17 +331,9 @@ mod parse_tests {
     fn parse_query_single_fuzzy() {
         let query = parse("foo");
 
-        let conditions = query.conditions();
-
-        assert_eq!(conditions.len(), 1);
-
-        let condition = conditions.iter().next().unwrap();
-
-        let mut patterns = condition.or_patterns();
-
-        assert_eq!(patterns.len(), 1);
-
-        let pattern = patterns.next().unwrap();
+        let SearchMode::NotExtended(pattern) = query.search_mode else {
+            panic!();
+        };
 
         assert_eq!(pattern.into_string(), "foo");
 

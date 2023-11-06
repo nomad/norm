@@ -16,17 +16,30 @@ type FuzzyAlgo<T> = fn(
 /// TODO: docs.
 #[derive(Clone, Copy)]
 pub struct FzfQuery<'a> {
-    conditions: &'a [Condition<'a>],
+    pub(super) search_mode: SearchMode<'a>,
+}
+
+/// TODO: docs
+#[derive(Clone, Copy)]
+pub(super) enum SearchMode<'a> {
+    /// TODO: docs
+    Extended(&'a [Condition<'a>]),
+
+    /// TODO: docs
+    NotExtended(Pattern<'a>),
 }
 
 impl core::fmt::Debug for FzfQuery<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let s = self
-            .conditions
-            .iter()
-            .map(|condition| format!("{:?}", condition))
-            .collect::<Vec<_>>()
-            .join(" && ");
+        let s = match self.search_mode {
+            SearchMode::Extended(conditions) => conditions
+                .iter()
+                .map(|condition| format!("{:?}", condition))
+                .collect::<Vec<_>>()
+                .join(" && "),
+
+            SearchMode::NotExtended(pattern) => pattern.into_string(),
+        };
 
         f.debug_tuple("FzfQuery").field(&s).finish()
     }
@@ -34,21 +47,36 @@ impl core::fmt::Debug for FzfQuery<'_> {
 
 impl<'a> FzfQuery<'a> {
     /// TODO: docs
-    #[inline(always)]
-    pub(super) fn conditions(&self) -> &[Condition<'a>] {
-        self.conditions
-    }
-
-    /// TODO: docs
     #[inline]
     pub(super) fn is_empty(&self) -> bool {
-        self.conditions.is_empty()
+        match self.search_mode {
+            SearchMode::Extended(conditions) => conditions.is_empty(),
+            SearchMode::NotExtended(pattern) => pattern.is_empty(),
+        }
     }
 
     /// TODO: docs
     #[inline]
     pub(super) fn new(conditions: &'a [Condition<'a>]) -> Self {
-        Self { conditions }
+        // If there's only one condition with a single pattern, and that
+        // pattern is fuzzy, then we can use the non-extended search mode.
+        if conditions.len() == 1 {
+            let mut patterns = conditions[0].or_patterns();
+
+            let first_pattern = patterns
+                .next()
+                .expect("conditions always have at least one pattern");
+
+            if patterns.next().is_none()
+                && matches!(first_pattern.match_type, MatchType::Fuzzy)
+            {
+                return Self {
+                    search_mode: SearchMode::NotExtended(first_pattern),
+                };
+            }
+        }
+
+        Self { search_mode: SearchMode::Extended(conditions) }
     }
 }
 
@@ -147,6 +175,12 @@ impl<'a> Pattern<'a> {
         &self,
     ) -> impl Iterator<Item = char> + DoubleEndedIterator + '_ {
         self.text.iter().copied()
+    }
+
+    /// TODO: docs
+    #[inline]
+    pub(super) fn is_empty(&self) -> bool {
+        self.text.is_empty()
     }
 
     /// TODO: docs
