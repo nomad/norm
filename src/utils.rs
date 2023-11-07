@@ -57,11 +57,11 @@ pub fn find_first(
     needle: char,
     haystack: &str,
     is_candidate_ascii: bool,
+    is_case_sensitive: bool,
     char_eq: CharEq,
 ) -> Option<(usize, char)> {
     if is_candidate_ascii {
         if needle.is_ascii() {
-            let is_case_sensitive = char_eq('a', 'A');
             find_first_ascii(needle as u8, haystack, is_case_sensitive)
         } else {
             None
@@ -110,11 +110,11 @@ pub fn find_last(
     needle: char,
     haystack: &str,
     is_candidate_ascii: bool,
+    is_case_sensitive: bool,
     char_eq: CharEq,
 ) -> Option<(usize, char)> {
     if is_candidate_ascii {
         if needle.is_ascii() {
-            let is_case_sensitive = char_eq('a', 'A');
             find_last_ascii(needle as u8, haystack, is_case_sensitive)
         } else {
             None

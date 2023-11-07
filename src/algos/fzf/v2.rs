@@ -111,6 +111,7 @@ impl Metric for FzfV2 {
                     candidate,
                     &self.scheme,
                     char_eq,
+                    is_case_sensitive,
                     self.with_matched_ranges,
                     (&mut self.slab, is_candidate_ascii),
                 )?;
@@ -143,6 +144,7 @@ impl Metric for FzfV2 {
                         candidate,
                         &self.scheme,
                         char_eq,
+                        is_case_sensitive,
                         self.with_matched_ranges,
                         (&mut self.slab, is_candidate_ascii),
                         fzf_v2,
@@ -169,6 +171,7 @@ pub(super) fn fzf_v2(
     candidate: &str,
     scheme: &Scheme,
     char_eq: CharEq,
+    is_case_sensitive: bool,
     with_matched_ranges: bool,
     (slab, is_candidate_ascii): (&mut V2Slab, bool),
 ) -> Option<(Score, MatchedRanges)> {
@@ -176,6 +179,7 @@ pub(super) fn fzf_v2(
         &mut slab.matched_indices,
         pattern,
         candidate,
+        is_case_sensitive,
         is_candidate_ascii,
         char_eq,
     )?;
@@ -207,6 +211,7 @@ pub(super) fn fzf_v2(
         &mut slab.consecutive_matrix,
         pattern,
         candidate,
+        is_case_sensitive,
         is_candidate_ascii,
         char_eq,
         matches,
@@ -238,6 +243,7 @@ fn matches<'idx>(
     indices_slab: &'idx mut MatchedIndicesSlab,
     pattern: Pattern,
     mut candidate: &str,
+    is_case_sensitive: bool,
     is_candidate_ascii: bool,
     char_eq: CharEq,
 ) -> Option<(&'idx mut [MatchedIdx], usize)> {
@@ -254,6 +260,7 @@ fn matches<'idx>(
             query_char,
             candidate,
             is_candidate_ascii,
+            is_case_sensitive,
             char_eq,
         )?;
 
@@ -292,6 +299,7 @@ fn matches<'idx>(
         last_query_char,
         candidate,
         is_candidate_ascii,
+        is_case_sensitive,
         char_eq,
     )
     .unwrap_or((0, last_query_char));
@@ -330,6 +338,7 @@ fn score<'scoring, 'consecutive>(
     consecutive_slab: &'consecutive mut MatrixSlab<usize>,
     pattern: Pattern,
     candidate: &str,
+    is_case_sensitive: bool,
     is_candidate_ascii: bool,
     char_eq: CharEq,
     matches: &[MatchedIdx],
@@ -353,6 +362,7 @@ fn score<'scoring, 'consecutive>(
         bonus_vector,
         pattern.char(0),
         candidate,
+        is_case_sensitive,
         is_candidate_ascii,
         char_eq,
     );
@@ -364,6 +374,7 @@ fn score<'scoring, 'consecutive>(
         matches,
         candidate,
         bonus_vector,
+        is_case_sensitive,
         is_candidate_ascii,
         char_eq,
         max_score,
@@ -381,6 +392,7 @@ fn score_first_row(
     bonus_vector: &[Score],
     query_first_char: char,
     mut candidate: &str,
+    is_case_sensitive: bool,
     is_candidate_ascii: bool,
     char_eq: CharEq,
 ) -> (Score, MatrixCell) {
@@ -402,6 +414,7 @@ fn score_first_row(
         let Some((byte_idx, matched_ch)) = utils::find_first(
             query_first_char,
             candidate,
+            is_case_sensitive,
             is_candidate_ascii,
             char_eq,
         ) else {
@@ -464,6 +477,7 @@ fn score_remaining_rows(
     matches: &[MatchedIdx],
     candidate: &str,
     bonus_vector: &[Score],
+    is_case_sensitive: bool,
     is_candidate_ascii: bool,
     char_eq: CharEq,
     mut max_score: Score,
@@ -493,6 +507,7 @@ fn score_remaining_rows(
             let Some((byte_offset, matched_ch)) = utils::find_first(
                 query_char,
                 candidate,
+                is_case_sensitive,
                 is_candidate_ascii,
                 char_eq,
             ) else {
