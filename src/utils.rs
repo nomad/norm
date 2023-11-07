@@ -166,7 +166,7 @@ pub fn leading_spaces(s: &str) -> usize {
 
 /// TODO: docs
 #[inline(always)]
-fn normalize_candidate_char(query_char: char, candidate_char: char) -> char {
+fn normalize_candidate_char(_query_char: char, candidate_char: char) -> char {
     candidate_char
 }
 

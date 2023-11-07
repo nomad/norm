@@ -256,7 +256,7 @@ fn matches<'idx>(
     loop {
         let query_char = pattern.char(query_char_idx);
 
-        let (byte_offset, matched_ch) = utils::find_first(
+        let (byte_offset, matched_char) = utils::find_first(
             query_char,
             candidate,
             is_candidate_ascii,
@@ -274,7 +274,7 @@ fn matches<'idx>(
 
         matched_idxs[query_char_idx] = last_matched_idx;
 
-        let matched_char_byte_len = matched_ch.len_utf8();
+        let matched_char_byte_len = matched_char.len_utf8();
 
         // SAFETY: the start of the range is within the byte length of the
         // candidate and it's a valid char boundary.
@@ -295,7 +295,7 @@ fn matches<'idx>(
 
     let last_query_char = pattern.char(query_char_idx);
 
-    let (byte_offset, matched_ch) = utils::find_last(
+    let (byte_offset, matched_char) = utils::find_last(
         last_query_char,
         candidate,
         is_candidate_ascii,
@@ -306,7 +306,7 @@ fn matches<'idx>(
 
     Some((
         matched_idxs,
-        last_matched_idx.byte_offset + byte_offset + matched_ch.len_utf8(),
+        last_matched_idx.byte_offset + byte_offset + matched_char.len_utf8(),
     ))
 }
 
@@ -405,13 +405,11 @@ fn score_first_row(
     // TODO: docs
     let mut col = 0;
 
-    let char_len = query_first_char.len_utf8();
-
     // TODO: explain what this does.
     let mut penalty = penalty::GAP_START;
 
     while !candidate.is_empty() {
-        let Some((byte_idx, matched_ch)) = utils::find_first(
+        let Some((byte_idx, matched_char)) = utils::find_first(
             query_first_char,
             candidate,
             is_case_sensitive,
@@ -462,7 +460,7 @@ fn score_first_row(
 
         col += 1;
 
-        candidate = &candidate[byte_idx + char_len..];
+        candidate = &candidate[byte_idx + matched_char.len_utf8()..];
     }
 
     (max_score, MatrixCell(max_score_col))
@@ -504,7 +502,7 @@ fn score_remaining_rows(
         let mut penalty = penalty::GAP_START;
 
         while !candidate.is_empty() {
-            let Some((byte_offset, matched_ch)) = utils::find_first(
+            let Some((byte_offset, matched_char)) = utils::find_first(
                 query_char,
                 candidate,
                 is_case_sensitive,
@@ -585,7 +583,7 @@ fn score_remaining_rows(
 
             column += 1;
 
-            candidate = &candidate[byte_offset + query_char.len_utf8()..];
+            candidate = &candidate[byte_offset + matched_char.len_utf8()..];
         }
     }
 
