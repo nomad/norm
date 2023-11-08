@@ -1,8 +1,42 @@
 //! TODO: docs
 
-const FIRST_BATCH_START: char = FIRST_BATCH[0].0;
+/// TODO: docs
+const fn linearize_batch<
+    const BATCHED_LEN: usize,
+    const LINEARIZED_LEN: usize,
+>(
+    batch: [(char, char); BATCHED_LEN],
+) -> [char; LINEARIZED_LEN] {
+    let first_char = batch[0].0 as u32;
 
-const FIRST_BATCH_END: char = FIRST_BATCH[FIRST_BATCH.len() - 1].0;
+    let mut linearized = ['\0'; LINEARIZED_LEN];
+
+    let mut idx = 0;
+
+    let mut j = 0;
+
+    while idx < BATCHED_LEN {
+        // TODO: use `char::from_u32_unchecked` when it becomes `const fn`.
+        let raw_char = unsafe {
+            core::mem::transmute::<_, char>(first_char + idx as u32)
+        };
+
+        linearized[idx] = if raw_char == batch[j].0 {
+            j += 1;
+            batch[j].1
+        } else {
+            raw_char
+        };
+
+        idx += 1;
+    }
+
+    linearized
+}
+
+const FIRST_BATCH_START: u32 = FIRST_BATCH[0].0 as u32;
+
+const FIRST_BATCH_END: u32 = FIRST_BATCH[FIRST_BATCH.len() - 1].0 as u32;
 
 const FIRST_BATCH: [(char, char); 277] = [
     ('\u{00C0}', 'A'), //  WITH GRAVE, LATIN CAPITAL LETTER
@@ -284,9 +318,11 @@ const FIRST_BATCH: [(char, char); 277] = [
     ('\u{036F}', 'x'), // , COMBINING LATIN SMALL LETTER
 ];
 
-const SECOND_BATCH_START: char = SECOND_BATCH[0].0;
+static FIRST_BATCH_LINEARIZED: [char; 277] = linearize_batch(FIRST_BATCH);
 
-const SECOND_BATCH_END: char = SECOND_BATCH[SECOND_BATCH.len() - 1].0;
+const SECOND_BATCH_START: u32 = SECOND_BATCH[0].0 as u32;
+
+const SECOND_BATCH_END: u32 = SECOND_BATCH[SECOND_BATCH.len() - 1].0 as u32;
 
 const SECOND_BATCH: [(char, char); 174] = [
     ('\u{1D00}', 'A'), // , LATIN LETTER SMALL CAPITAL
@@ -465,9 +501,11 @@ const SECOND_BATCH: [(char, char); 174] = [
     ('\u{1EF9}', 'y'), //  WITH TILDE, LATIN SMALL LETTER
 ];
 
-const THIRD_BATCH_START: char = THIRD_BATCH[0].0;
+static SECOND_BATCH_LINEARIZED: [char; 177] = linearize_batch(SECOND_BATCH);
 
-const THIRD_BATCH_END: char = THIRD_BATCH[THIRD_BATCH.len() - 1].0;
+const THIRD_BATCH_START: u32 = THIRD_BATCH[0].0 as u32;
+
+const THIRD_BATCH_END: u32 = THIRD_BATCH[THIRD_BATCH.len() - 1].0 as u32;
 
 const THIRD_BATCH: [(char, char); 10] = [
     ('\u{2071}', 'i'), // , SUPERSCRIPT LATIN SMALL LETTER
@@ -482,11 +520,13 @@ const THIRD_BATCH: [(char, char); 10] = [
     ('\u{2184}', 'c'), // , LATIN SMALL LETTER REVERSED
 ];
 
+static THIRD_BATCH_LINEARIZED: [char; 10] = linearize_batch(THIRD_BATCH);
+
 /// TODO: docs
 #[inline(always)]
 pub(super) fn is_normalized(ch: char) -> bool {
     let is_normalizable = matches!(
-        ch,
+        ch as u32,
         FIRST_BATCH_START..=FIRST_BATCH_END
         | SECOND_BATCH_START..=SECOND_BATCH_END
         | THIRD_BATCH_START..=THIRD_BATCH_END
@@ -499,9 +539,17 @@ pub(super) fn is_normalized(ch: char) -> bool {
 #[inline(always)]
 pub(super) fn normalize(ch: char) -> char {
     if is_normalized(ch) {
-        ch
+        return ch;
+    }
+
+    let ch = ch as u32;
+
+    if ch <= FIRST_BATCH_END {
+        FIRST_BATCH_LINEARIZED[(ch - FIRST_BATCH_START) as usize]
+    } else if ch <= SECOND_BATCH_END {
+        SECOND_BATCH_LINEARIZED[(ch - SECOND_BATCH_START) as usize]
     } else {
-        todo!();
+        THIRD_BATCH_LINEARIZED[(ch - THIRD_BATCH_START) as usize]
     }
 }
 
