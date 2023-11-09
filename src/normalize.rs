@@ -7,28 +7,28 @@ const fn linearize_batch<
 >(
     batch: [(char, char); BATCHED_LEN],
 ) -> [char; LINEARIZED_LEN] {
-    let first_char = batch[0].0 as u32;
+    let first_raw_char = batch[0].0 as u32;
 
     let mut linearized = ['\0'; LINEARIZED_LEN];
 
-    let mut idx = 0;
+    let mut array_idx = 0;
 
-    let mut j = 0;
+    let mut batch_idx = 0;
 
-    while idx < BATCHED_LEN {
+    while array_idx < LINEARIZED_LEN {
         // TODO: use `char::from_u32_unchecked` when it becomes `const fn`.
         let raw_char = unsafe {
-            core::mem::transmute::<_, char>(first_char + idx as u32)
+            core::mem::transmute::<_, char>(first_raw_char + array_idx as u32)
         };
 
-        linearized[idx] = if raw_char == batch[j].0 {
-            j += 1;
-            batch[j].1
+        if batch[batch_idx].0 == raw_char {
+            linearized[array_idx] = batch[batch_idx].1;
+            batch_idx += 1;
         } else {
-            raw_char
+            linearized[array_idx] = raw_char;
         };
 
-        idx += 1;
+        array_idx += 1;
     }
 
     linearized
@@ -318,7 +318,11 @@ const FIRST_BATCH: [(char, char); 277] = [
     ('\u{036F}', 'x'), // , COMBINING LATIN SMALL LETTER
 ];
 
-static FIRST_BATCH_LINEARIZED: [char; 277] = linearize_batch(FIRST_BATCH);
+const FIRST_BATCH_LINEARIZED_LEN: usize =
+    FIRST_BATCH_END as usize - FIRST_BATCH_START as usize + 1;
+
+static FIRST_BATCH_LINEARIZED: [char; FIRST_BATCH_LINEARIZED_LEN] =
+    linearize_batch(FIRST_BATCH);
 
 const SECOND_BATCH_START: u32 = SECOND_BATCH[0].0 as u32;
 
@@ -501,7 +505,11 @@ const SECOND_BATCH: [(char, char); 174] = [
     ('\u{1EF9}', 'y'), //  WITH TILDE, LATIN SMALL LETTER
 ];
 
-static SECOND_BATCH_LINEARIZED: [char; 177] = linearize_batch(SECOND_BATCH);
+const SECOND_BATCH_LINEARIZED_LEN: usize =
+    SECOND_BATCH_END as usize - SECOND_BATCH_START as usize + 1;
+
+static SECOND_BATCH_LINEARIZED: [char; SECOND_BATCH_LINEARIZED_LEN] =
+    linearize_batch(SECOND_BATCH);
 
 const THIRD_BATCH_START: u32 = THIRD_BATCH[0].0 as u32;
 
@@ -520,7 +528,11 @@ const THIRD_BATCH: [(char, char); 10] = [
     ('\u{2184}', 'c'), // , LATIN SMALL LETTER REVERSED
 ];
 
-static THIRD_BATCH_LINEARIZED: [char; 10] = linearize_batch(THIRD_BATCH);
+const THIRD_BATCH_LINEARIZED_LEN: usize =
+    THIRD_BATCH_END as usize - THIRD_BATCH_START as usize + 1;
+
+static THIRD_BATCH_LINEARIZED: [char; THIRD_BATCH_LINEARIZED_LEN] =
+    linearize_batch(THIRD_BATCH);
 
 /// TODO: docs
 #[inline(always)]
