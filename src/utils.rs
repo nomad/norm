@@ -1,3 +1,5 @@
+use crate::normalize::{is_normalized, normalize};
+
 /// TODO: docs
 pub(crate) type CharEq = fn(char, char) -> bool;
 
@@ -166,8 +168,12 @@ pub fn leading_spaces(s: &str) -> usize {
 
 /// TODO: docs
 #[inline(always)]
-fn normalize_candidate_char(_query_char: char, candidate_char: char) -> char {
-    candidate_char
+fn normalize_candidate_char(query_char: char, candidate_char: char) -> char {
+    if is_normalized(query_char) {
+        normalize(candidate_char)
+    } else {
+        candidate_char
+    }
 }
 
 /// TODO: docs

@@ -14,6 +14,7 @@ mod case_sensitivity;
 mod r#match;
 mod matched_ranges;
 mod metric;
+mod normalize;
 mod utils;
 
 pub use algos::*;
