@@ -209,6 +209,21 @@ impl<'a> Pattern<'a> {
 
         let first_char = text[0];
 
+        // If the pattern is a single character we always parse it as a fuzzy
+        // match. This diverges from fzf which seems to do the same for a
+        // single '$', but not for a single '^', '!', or '''.
+        if text.len() == 1 {
+            return Self {
+                text,
+                byte_len: first_char.len_utf8(),
+                has_uppercase: first_char.is_uppercase(),
+                match_type: MatchType::Fuzzy,
+                is_inverse: false,
+                leading_spaces: 0,
+                trailing_spaces: 0,
+            };
+        }
+
         let last_char = text[text.len() - 1];
 
         let mut is_inverse = false;
@@ -372,4 +387,71 @@ pub(super) enum MatchType {
 
     /// TODO: docs
     EqualExact,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn pattern(s: &str) -> Pattern<'static> {
+        Pattern::parse(s.chars().collect::<Vec<_>>().leak())
+    }
+
+    #[test]
+    fn pattern_parse_single_apostrophe() {
+        let pattern = pattern("'");
+        assert_eq!(pattern.into_string(), "'");
+        assert_eq!(pattern.match_type, MatchType::Fuzzy);
+    }
+
+    #[test]
+    fn pattern_parse_single_caret() {
+        let pattern = pattern("^");
+        assert_eq!(pattern.into_string(), "^");
+        assert_eq!(pattern.match_type, MatchType::Fuzzy);
+    }
+
+    #[test]
+    fn pattern_parse_single_dollar() {
+        let pattern = pattern("$");
+        assert_eq!(pattern.into_string(), "$");
+        assert_eq!(pattern.match_type, MatchType::Fuzzy);
+    }
+
+    #[test]
+    fn pattern_parse_single_exclamation() {
+        let pattern = pattern("!");
+        assert_eq!(pattern.into_string(), "!");
+        assert_eq!(pattern.match_type, MatchType::Fuzzy);
+    }
+
+    #[test]
+    fn pattern_parse_double_caret() {
+        let pattern = pattern("^^");
+        assert_eq!(pattern.into_string(), "^");
+        assert_eq!(pattern.match_type, MatchType::PrefixExact);
+    }
+
+    #[test]
+    fn pattern_parse_double_dollar() {
+        let pattern = pattern("$$");
+        assert_eq!(pattern.into_string(), "$");
+        assert_eq!(pattern.match_type, MatchType::SuffixExact);
+    }
+
+    #[test]
+    fn pattern_parse_exclamation_caret() {
+        let pattern = pattern("!^");
+        assert_eq!(pattern.into_string(), "");
+        assert_eq!(pattern.match_type, MatchType::PrefixExact);
+        assert!(pattern.is_inverse);
+    }
+
+    #[test]
+    fn pattern_parse_exlamation_dollar() {
+        let pattern = pattern("!$");
+        assert_eq!(pattern.into_string(), "");
+        assert_eq!(pattern.match_type, MatchType::SuffixExact);
+        assert!(pattern.is_inverse);
+    }
 }
