@@ -269,8 +269,10 @@ pub(super) fn suffix_match(
     let up_to_ignored_spaces = candidate.len()
         - ignored_candidate_trailing_spaces(pattern, candidate)?;
 
-    for (candidate_ch, pattern_ch) in
-        candidate[..up_to_ignored_spaces].chars().zip(pattern_chars.by_ref())
+    for (candidate_ch, pattern_ch) in candidate[..up_to_ignored_spaces]
+        .chars()
+        .rev()
+        .zip(pattern_chars.by_ref())
     {
         if !char_eq(pattern_ch, candidate_ch) {
             return None;

@@ -188,6 +188,36 @@ fn fzf_v2_upstream_prefix_8() {
 }
 
 #[test]
+fn fzf_v2_upstream_suffix_1() {
+    common::upstream_suffix_1::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_suffix_2() {
+    common::upstream_suffix_2::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_suffix_3() {
+    common::upstream_suffix_3::<FzfV2>()
+}
+
+#[test]
+fn fzf_v2_upstream_suffix_4() {
+    common::upstream_suffix_4::<FzfV2>()
+}
+
+#[test]
+fn fzf_v2_upstream_suffix_5() {
+    common::upstream_suffix_5::<FzfV2>()
+}
+
+#[test]
+fn fzf_v2_upstream_suffix_6() {
+    common::upstream_suffix_6::<FzfV2>()
+}
+
+#[test]
 fn fzf_v2_score_1() {
     let mut fzf = FzfV2::new()
         .with_case_sensitivity(CaseSensitivity::Sensitive)

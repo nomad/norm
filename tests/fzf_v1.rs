@@ -184,3 +184,33 @@ fn fzf_v1_upstream_prefix_7() {
 fn fzf_v1_upstream_prefix_8() {
     common::upstream_prefix_8::<FzfV1>()
 }
+
+#[test]
+fn fzf_v1_upstream_suffix_1() {
+    common::upstream_suffix_1::<FzfV1>();
+}
+
+#[test]
+fn fzf_v1_upstream_suffix_2() {
+    common::upstream_suffix_2::<FzfV1>();
+}
+
+#[test]
+fn fzf_v1_upstream_suffix_3() {
+    common::upstream_suffix_3::<FzfV1>()
+}
+
+#[test]
+fn fzf_v1_upstream_suffix_4() {
+    common::upstream_suffix_4::<FzfV1>()
+}
+
+#[test]
+fn fzf_v1_upstream_suffix_5() {
+    common::upstream_suffix_5::<FzfV1>()
+}
+
+#[test]
+fn fzf_v1_upstream_suffix_6() {
+    common::upstream_suffix_6::<FzfV1>()
+}
