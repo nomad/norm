@@ -11,6 +11,9 @@ pub struct FzfV1 {
     case_sensitivity: CaseSensitivity,
 
     /// TODO: docs
+    normalization: bool,
+
+    /// TODO: docs
     scheme: Scheme,
 
     /// TODO: docs
@@ -23,6 +26,7 @@ impl core::fmt::Debug for FzfV1 {
         f.debug_struct("FzfV1")
             .field("case_sensitivity", &self.case_sensitivity)
             .field("matched_ranges", &self.with_matched_ranges)
+            .field("normalization", &self.normalization)
             .field("scheme", &FzfScheme::from_inner(&self.scheme).unwrap())
             .finish_non_exhaustive()
     }
@@ -60,6 +64,13 @@ impl FzfV1 {
 
     /// TODO: docs
     #[inline]
+    pub fn with_normalization(mut self, normalization: bool) -> Self {
+        self.normalization = normalization;
+        self
+    }
+
+    /// TODO: docs
+    #[inline]
     pub fn with_scoring_scheme(mut self, scheme: FzfScheme) -> Self {
         self.scheme = scheme.into_inner();
         self
@@ -81,6 +92,8 @@ impl Metric for FzfV1 {
             return None;
         }
 
+        let is_candidate_ascii = candidate.is_ascii();
+
         let pattern = match query.search_mode {
             SearchMode::NotExtended(pattern) => pattern,
             SearchMode::Extended(_) => todo!(),
@@ -92,12 +105,23 @@ impl Metric for FzfV1 {
             CaseSensitivity::Smart => pattern.has_uppercase,
         };
 
-        let char_eq = utils::char_eq(is_case_sensitive, false);
+        let char_eq = utils::char_eq(is_case_sensitive, self.normalization);
 
-        let range_forward = forward_pass(pattern, candidate, char_eq)?;
+        let range_forward = forward_pass(
+            pattern,
+            candidate,
+            is_candidate_ascii,
+            is_case_sensitive,
+            char_eq,
+        )?;
 
-        let start_backward =
-            backward_pass(pattern, &candidate[range_forward.clone()], char_eq);
+        let start_backward = backward_pass(
+            pattern,
+            &candidate[range_forward.clone()],
+            is_candidate_ascii,
+            is_case_sensitive,
+            char_eq,
+        );
 
         let range = range_forward.start + start_backward..range_forward.end;
 
@@ -120,44 +144,71 @@ impl Metric for FzfV1 {
 #[inline]
 fn forward_pass(
     pattern: Pattern,
-    candidate: &str,
+    mut candidate: &str,
+    is_candidate_ascii: bool,
+    is_case_sensitive: bool,
     char_eq: CharEq,
 ) -> Option<Range<usize>> {
-    let mut start_offset = None;
-
-    let mut end_offset = None;
-
     let mut pattern_chars = pattern.chars();
 
-    let mut pattern_char = pattern_chars.next().expect("pattern is not empty");
+    let mut pattern_char = pattern_chars.next()?;
 
-    for (offset, candidate_char) in candidate.char_indices() {
-        if !char_eq(pattern_char, candidate_char) {
-            continue;
-        }
+    let (start_offset, matched_char) = utils::find_first(
+        pattern_char,
+        candidate,
+        is_candidate_ascii,
+        is_case_sensitive,
+        char_eq,
+    )?;
 
-        if start_offset.is_none() {
-            start_offset = Some(offset);
-        }
+    let matched_char_byte_len = matched_char.len_utf8();
 
-        let Some(next_target_char) = pattern_chars.next() else {
-            end_offset = Some(offset + candidate_char.len_utf8());
-            break;
-        };
+    let mut end_offset = start_offset + matched_char_byte_len;
 
-        pattern_char = next_target_char;
+    if let Some(next) = pattern_chars.next() {
+        pattern_char = next;
+    } else {
+        return Some(start_offset..end_offset);
     }
 
-    let (Some(start), Some(end)) = (start_offset, end_offset) else {
-        return None;
-    };
+    // SAFETY: todo.
+    candidate = unsafe { candidate.get_unchecked(end_offset..) };
 
-    Some(start..end)
+    loop {
+        let (byte_offset, matched_char) = utils::find_first(
+            pattern_char,
+            candidate,
+            is_candidate_ascii,
+            is_case_sensitive,
+            char_eq,
+        )?;
+
+        let matched_char_byte_len = matched_char.len_utf8();
+
+        end_offset += byte_offset + matched_char_byte_len;
+
+        if let Some(next) = pattern_chars.next() {
+            pattern_char = next;
+        } else {
+            return Some(start_offset..end_offset);
+        }
+
+        // SAFETY: todo.
+        candidate = unsafe {
+            candidate.get_unchecked(byte_offset + matched_char_byte_len..)
+        };
+    }
 }
 
 /// TODO: docs
 #[inline]
-fn backward_pass(pattern: Pattern, candidate: &str, char_eq: CharEq) -> usize {
+fn backward_pass(
+    pattern: Pattern,
+    mut candidate: &str,
+    is_candidate_ascii: bool,
+    is_case_sensitive: bool,
+    char_eq: CharEq,
+) -> usize {
     // The candidate must start with the first character of the query.
     debug_assert!(char_eq(
         candidate.chars().next().unwrap(),
@@ -170,24 +221,27 @@ fn backward_pass(pattern: Pattern, candidate: &str, char_eq: CharEq) -> usize {
         pattern.chars().next_back().unwrap()
     ));
 
-    let mut start_offset = 0;
+    let mut pattern_chars = pattern.chars().rev();
 
-    let mut query_chars = pattern.chars().rev();
+    let mut pattern_char = pattern_chars.next().expect("pattern is not empty");
 
-    let mut query_char = query_chars.next().expect("query is not empty");
+    loop {
+        let (byte_offset, _) = utils::find_last(
+            pattern_char,
+            candidate,
+            is_candidate_ascii,
+            is_case_sensitive,
+            char_eq,
+        )
+        .unwrap();
 
-    for (offset, candidate_char) in candidate.char_indices().rev() {
-        if !char_eq(query_char, candidate_char) {
-            continue;
+        if let Some(next) = pattern_chars.next() {
+            pattern_char = next;
+        } else {
+            return byte_offset;
         }
 
-        let Some(next_query_char) = query_chars.next() else {
-            start_offset = offset;
-            break;
-        };
-
-        query_char = next_query_char;
+        // SAFETY: todo.
+        candidate = unsafe { candidate.get_unchecked(..byte_offset) };
     }
-
-    start_offset
 }

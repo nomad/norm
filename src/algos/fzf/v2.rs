@@ -48,18 +48,18 @@ impl FzfV2 {
 
     /// TODO: docs
     #[inline]
-    pub fn with_normalization(mut self, normalization: bool) -> Self {
-        self.normalization = normalization;
-        self
-    }
-
-    /// TODO: docs
-    #[inline]
     pub fn with_case_sensitivity(
         mut self,
         case_sensitivity: CaseSensitivity,
     ) -> Self {
         self.case_sensitivity = case_sensitivity;
+        self
+    }
+
+    /// TODO: docs
+    #[inline]
+    pub fn with_normalization(mut self, normalization: bool) -> Self {
+        self.normalization = normalization;
         self
     }
 
