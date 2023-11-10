@@ -95,6 +95,8 @@ impl Metric for FzfV2 {
 
         let is_candidate_ascii = candidate.is_ascii();
 
+        let mut matched_ranges = MatchedRanges::default();
+
         let conditions = match query.search_mode {
             SearchMode::NotExtended(pattern) => {
                 let is_case_sensitive = match self.case_sensitivity {
@@ -106,7 +108,7 @@ impl Metric for FzfV2 {
                 let char_eq =
                     utils::char_eq(is_case_sensitive, self.normalization);
 
-                let (score, matched_ranges) = fzf_v2(
+                let score = fzf_v2(
                     pattern,
                     candidate,
                     &self.scheme,
@@ -114,6 +116,7 @@ impl Metric for FzfV2 {
                     is_case_sensitive,
                     self.with_matched_ranges,
                     (&mut self.slab, is_candidate_ascii),
+                    &mut matched_ranges,
                 )?;
 
                 let distance = FzfDistance::from_score(score);
@@ -126,36 +129,30 @@ impl Metric for FzfV2 {
 
         let mut total_score = 0;
 
-        let mut matched_ranges = MatchedRanges::default();
-
         for condition in conditions {
-            let (score, ranges) =
-                condition.or_patterns().find_map(|pattern| {
-                    let is_case_sensitive = match self.case_sensitivity {
-                        CaseSensitivity::Sensitive => true,
-                        CaseSensitivity::Insensitive => false,
-                        CaseSensitivity::Smart => pattern.has_uppercase,
-                    };
+            let score = condition.or_patterns().find_map(|pattern| {
+                let is_case_sensitive = match self.case_sensitivity {
+                    CaseSensitivity::Sensitive => true,
+                    CaseSensitivity::Insensitive => false,
+                    CaseSensitivity::Smart => pattern.has_uppercase,
+                };
 
-                    let char_eq =
-                        utils::char_eq(is_case_sensitive, self.normalization);
+                let char_eq =
+                    utils::char_eq(is_case_sensitive, self.normalization);
 
-                    pattern.score(
-                        candidate,
-                        &self.scheme,
-                        char_eq,
-                        is_case_sensitive,
-                        self.with_matched_ranges,
-                        (&mut self.slab, is_candidate_ascii),
-                        fzf_v2,
-                    )
-                })?;
+                pattern.score(
+                    candidate,
+                    &self.scheme,
+                    char_eq,
+                    is_case_sensitive,
+                    self.with_matched_ranges,
+                    (&mut self.slab, is_candidate_ascii),
+                    &mut matched_ranges,
+                    fzf_v2,
+                )
+            })?;
 
             total_score += score;
-
-            if self.with_matched_ranges {
-                matched_ranges.join(ranges);
-            }
         }
 
         let distance = FzfDistance::from_score(total_score);
@@ -174,7 +171,8 @@ pub(super) fn fzf_v2(
     is_case_sensitive: bool,
     with_matched_ranges: bool,
     (slab, is_candidate_ascii): (&mut V2Slab, bool),
-) -> Option<(Score, MatchedRanges)> {
+    ranges: &mut MatchedRanges,
+) -> Option<Score> {
     let (matches, last_match_offset) = matches(
         &mut slab.matched_indices,
         pattern,
@@ -197,7 +195,7 @@ pub(super) fn fzf_v2(
     // After slicing the candidate we need to move all the offsets back
     // by the offsets of the first match so that they still refer to the
     // characters.
-    matches.iter_mut().for_each(|idx| *idx -= first_match);
+    matches.iter_mut().for_each(|mach| *mach -= first_match);
 
     let bonus_vector = compute_bonuses(
         &mut slab.bonus_vector,
@@ -218,23 +216,18 @@ pub(super) fn fzf_v2(
         bonus_vector,
     );
 
-    let mut ranges = MatchedRanges::default();
-
     if with_matched_ranges {
         matched_ranges(
             scores,
             consecutive,
             score_cell,
             candidate,
-            &mut ranges,
+            first_match.byte_offset,
+            ranges,
         );
-        ranges.iter_mut().for_each(|range| {
-            range.start += first_match.byte_offset;
-            range.end += first_match.byte_offset;
-        });
     };
 
-    Some((score, ranges))
+    Some(score)
 }
 
 /// TODO: docs
@@ -597,6 +590,7 @@ fn matched_ranges(
     consecutives: Matrix<usize>,
     max_score_cell: MatrixCell,
     candidate: &str,
+    start_offset: usize,
     ranges: &mut MatchedRanges,
 ) {
     let mut prefer_match = true;
@@ -642,13 +636,15 @@ fn matched_ranges(
         {
             let col = scores.col_of(cell);
 
-            let (offset, ch) = char_indices
+            let (mut offset, ch) = char_indices
                 .by_ref()
                 .find_map(|(back_idx, ch)| {
                     let idx = scores.width() - back_idx - 1;
                     (idx == col).then_some(ch)
                 })
                 .unwrap();
+
+            offset += start_offset;
 
             let char_len_utf8 = ch.len_utf8();
 

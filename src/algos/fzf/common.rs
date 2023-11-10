@@ -12,7 +12,8 @@ pub(super) fn calculate_score(
     scheme: &Scheme,
     char_eq: CharEq,
     with_matched_ranges: bool,
-) -> (Score, MatchedRanges) {
+    matched_ranges: &mut MatchedRanges,
+) -> Score {
     // TODO: docs
     let mut is_in_gap = false;
 
@@ -38,8 +39,6 @@ pub(super) fn calculate_score(
     let mut pattern_char = pattern_chars.next().expect("pattern is not empty");
 
     let mut score: Score = 0;
-
-    let mut matched_ranges = MatchedRanges::default();
 
     for (offset, candidate_ch) in candidate[range].char_indices() {
         let ch_class = char_class(candidate_ch, scheme);
@@ -106,7 +105,7 @@ pub(super) fn calculate_score(
         prev_class = ch_class;
     }
 
-    (score, matched_ranges)
+    score
 }
 
 /// TODO: docs
@@ -117,7 +116,8 @@ pub(super) fn exact_match(
     scheme: &Scheme,
     char_eq: CharEq,
     with_matched_ranges: bool,
-) -> Option<(Score, MatchedRanges)> {
+    matched_ranges: &mut MatchedRanges,
+) -> Option<Score> {
     // TODO: docs
     let mut best_bonus: i64 = -1;
 
@@ -190,22 +190,21 @@ pub(super) fn exact_match(
         end - pattern.byte_len..end
     };
 
-    let (score, _) = calculate_score(
+    let score = calculate_score(
         pattern,
         candidate,
         matched_range.clone(),
         scheme,
         char_eq,
         false,
+        matched_ranges,
     );
 
-    let mut ranges = MatchedRanges::default();
-
     if with_matched_ranges {
-        ranges.push(matched_range);
+        matched_ranges.push(matched_range);
     }
 
-    Some((score, ranges))
+    Some(score)
 }
 
 /// TODO: docs
@@ -216,7 +215,8 @@ pub(super) fn prefix_match(
     scheme: &Scheme,
     char_eq: CharEq,
     with_matched_ranges: bool,
-) -> Option<(Score, MatchedRanges)> {
+    matched_ranges: &mut MatchedRanges,
+) -> Option<Score> {
     let mut pattern_chars = pattern.chars();
 
     let ignored_leading_spaces =
@@ -237,22 +237,21 @@ pub(super) fn prefix_match(
     let matched_range =
         ignored_leading_spaces..ignored_leading_spaces + pattern.byte_len;
 
-    let (score, _) = calculate_score(
+    let score = calculate_score(
         pattern,
         candidate,
         matched_range.clone(),
         scheme,
         char_eq,
         false,
+        matched_ranges,
     );
 
-    let mut ranges = MatchedRanges::default();
-
     if with_matched_ranges {
-        ranges.push(matched_range);
+        matched_ranges.push(matched_range);
     }
 
-    Some((score, ranges))
+    Some(score)
 }
 
 /// TODO: docs
@@ -263,7 +262,8 @@ pub(super) fn suffix_match(
     scheme: &Scheme,
     char_eq: CharEq,
     with_matched_ranges: bool,
-) -> Option<(Score, MatchedRanges)> {
+    matched_ranges: &mut MatchedRanges,
+) -> Option<Score> {
     let mut pattern_chars = pattern.chars().rev();
 
     let up_to_ignored_spaces = candidate.len()
@@ -286,22 +286,21 @@ pub(super) fn suffix_match(
     let matched_range =
         up_to_ignored_spaces - pattern.byte_len..up_to_ignored_spaces;
 
-    let (score, _) = calculate_score(
+    let score = calculate_score(
         pattern,
         candidate,
         matched_range.clone(),
         scheme,
         char_eq,
         false,
+        matched_ranges,
     );
 
-    let mut ranges = MatchedRanges::default();
-
     if with_matched_ranges {
-        ranges.push(matched_range);
+        matched_ranges.push(matched_range);
     }
 
-    Some((score, ranges))
+    Some(score)
 }
 
 /// TODO: docs
@@ -312,7 +311,8 @@ pub(super) fn equal_match(
     scheme: &Scheme,
     char_eq: CharEq,
     with_matched_ranges: bool,
-) -> Option<(Score, MatchedRanges)> {
+    matched_ranges: &mut MatchedRanges,
+) -> Option<Score> {
     let ignored_leading_spaces =
         ignored_candidate_leading_spaces(pattern, candidate)?;
 
@@ -344,22 +344,21 @@ pub(super) fn equal_match(
         return None;
     }
 
-    let (score, _) = calculate_score(
+    let score = calculate_score(
         pattern,
         candidate,
         matched_range.clone(),
         scheme,
         char_eq,
         false,
+        matched_ranges,
     );
 
-    let mut ranges = MatchedRanges::default();
-
     if with_matched_ranges {
-        ranges.push(matched_range);
+        matched_ranges.push(matched_range);
     }
 
-    Some((score, ranges))
+    Some(score)
 }
 
 /// TODO: docs

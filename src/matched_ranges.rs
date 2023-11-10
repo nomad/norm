@@ -15,23 +15,8 @@ impl MatchedRanges {
 
     /// TODO: docs
     #[inline(always)]
-    pub(crate) fn iter_mut(
-        &mut self,
-    ) -> impl Iterator<Item = &mut Range<usize>> + '_ {
-        self.ranges.iter_mut()
-    }
-
-    /// TODO: docs
-    #[inline(always)]
     pub(crate) fn last_mut(&mut self) -> Option<&mut Range<usize>> {
         self.ranges.last_mut()
-    }
-
-    /// TODO: docs
-    #[inline(always)]
-    pub(crate) fn join(&mut self, other: Self) {
-        // TODO: implement this.
-        self.ranges.extend(other.ranges);
     }
 
     /// TODO: docs

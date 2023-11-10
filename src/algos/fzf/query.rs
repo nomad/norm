@@ -12,7 +12,8 @@ type FuzzyAlgo<T> = fn(
     bool,
     bool,
     T,
-) -> Option<(Score, MatchedRanges)>;
+    &mut MatchedRanges,
+) -> Option<Score>;
 
 /// TODO: docs.
 #[derive(Clone, Copy)]
@@ -304,10 +305,13 @@ impl<'a> Pattern<'a> {
         scheme: &Scheme,
         char_eq: CharEq,
         is_case_sensitive: bool,
-        with_matched_ranges: bool,
+        mut with_matched_ranges: bool,
         extras: Extras,
+        matched_ranges: &mut MatchedRanges,
         fuzzy_algo: FuzzyAlgo<Extras>,
-    ) -> Option<(Score, MatchedRanges)> {
+    ) -> Option<Score> {
+        with_matched_ranges &= !self.is_inverse;
+
         let result = match self.match_type {
             MatchType::Fuzzy => fuzzy_algo(
                 self,
@@ -317,6 +321,7 @@ impl<'a> Pattern<'a> {
                 is_case_sensitive,
                 with_matched_ranges,
                 extras,
+                matched_ranges,
             ),
 
             MatchType::Exact => exact_match(
@@ -325,6 +330,7 @@ impl<'a> Pattern<'a> {
                 scheme,
                 char_eq,
                 with_matched_ranges,
+                matched_ranges,
             ),
 
             MatchType::PrefixExact => prefix_match(
@@ -333,6 +339,7 @@ impl<'a> Pattern<'a> {
                 scheme,
                 char_eq,
                 with_matched_ranges,
+                matched_ranges,
             ),
 
             MatchType::SuffixExact => suffix_match(
@@ -341,6 +348,7 @@ impl<'a> Pattern<'a> {
                 scheme,
                 char_eq,
                 with_matched_ranges,
+                matched_ranges,
             ),
 
             MatchType::EqualExact => equal_match(
@@ -349,13 +357,14 @@ impl<'a> Pattern<'a> {
                 scheme,
                 char_eq,
                 with_matched_ranges,
+                matched_ranges,
             ),
         };
 
         match (result.is_some(), self.is_inverse) {
             (true, false) => result,
 
-            (false, true) => Some((0, MatchedRanges::default())),
+            (false, true) => Some(0),
 
             _ => None,
         }

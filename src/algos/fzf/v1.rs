@@ -94,6 +94,8 @@ impl Metric for FzfV1 {
 
         let is_candidate_ascii = candidate.is_ascii();
 
+        let mut matched_ranges = MatchedRanges::default();
+
         let conditions = match query.search_mode {
             SearchMode::NotExtended(pattern) => {
                 let is_case_sensitive = match self.case_sensitivity {
@@ -105,7 +107,7 @@ impl Metric for FzfV1 {
                 let char_eq =
                     utils::char_eq(is_case_sensitive, self.normalization);
 
-                let (score, matched_ranges) = fzf_v1(
+                let score = fzf_v1(
                     pattern,
                     candidate,
                     &self.scheme,
@@ -113,6 +115,7 @@ impl Metric for FzfV1 {
                     is_case_sensitive,
                     self.with_matched_ranges,
                     is_candidate_ascii,
+                    &mut matched_ranges,
                 )?;
 
                 let distance = FzfDistance::from_score(score);
@@ -125,36 +128,30 @@ impl Metric for FzfV1 {
 
         let mut total_score = 0;
 
-        let mut matched_ranges = MatchedRanges::default();
-
         for condition in conditions {
-            let (score, ranges) =
-                condition.or_patterns().find_map(|pattern| {
-                    let is_case_sensitive = match self.case_sensitivity {
-                        CaseSensitivity::Sensitive => true,
-                        CaseSensitivity::Insensitive => false,
-                        CaseSensitivity::Smart => pattern.has_uppercase,
-                    };
+            let score = condition.or_patterns().find_map(|pattern| {
+                let is_case_sensitive = match self.case_sensitivity {
+                    CaseSensitivity::Sensitive => true,
+                    CaseSensitivity::Insensitive => false,
+                    CaseSensitivity::Smart => pattern.has_uppercase,
+                };
 
-                    let char_eq =
-                        utils::char_eq(is_case_sensitive, self.normalization);
+                let char_eq =
+                    utils::char_eq(is_case_sensitive, self.normalization);
 
-                    pattern.score(
-                        candidate,
-                        &self.scheme,
-                        char_eq,
-                        is_case_sensitive,
-                        self.with_matched_ranges,
-                        is_candidate_ascii,
-                        fzf_v1,
-                    )
-                })?;
+                pattern.score(
+                    candidate,
+                    &self.scheme,
+                    char_eq,
+                    is_case_sensitive,
+                    self.with_matched_ranges,
+                    is_candidate_ascii,
+                    &mut matched_ranges,
+                    fzf_v1,
+                )
+            })?;
 
             total_score += score;
-
-            if self.with_matched_ranges {
-                matched_ranges.join(ranges);
-            }
         }
 
         let distance = FzfDistance::from_score(total_score);
@@ -173,7 +170,8 @@ pub(super) fn fzf_v1(
     is_case_sensitive: bool,
     with_matched_ranges: bool,
     is_candidate_ascii: bool,
-) -> Option<(Score, MatchedRanges)> {
+    matched_ranges: &mut MatchedRanges,
+) -> Option<Score> {
     let range_forward = forward_pass(
         pattern,
         candidate,
@@ -192,16 +190,17 @@ pub(super) fn fzf_v1(
 
     let range = range_forward.start + start_backward..range_forward.end;
 
-    let (score, matched_ranges) = calculate_score(
+    let score = calculate_score(
         pattern,
         candidate,
         range,
         scheme,
         char_eq,
         with_matched_ranges,
+        matched_ranges,
     );
 
-    Some((score, matched_ranges))
+    Some(score)
 }
 
 /// TODO: docs
