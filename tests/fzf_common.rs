@@ -362,6 +362,109 @@ pub fn upstream_exact_6<F: Fzf>() {
     assert_eq!(m.matched_ranges().sorted(), [8..13]);
 }
 
+pub fn upstream_exact_7<F: Fzf>() {
+    let (_, m) = fzf::<F>(Insensitive, "'oo", "foobar foo");
+
+    let m = m.unwrap();
+
+    assert_eq!(
+        m.distance().into_score(),
+        2 * bonus::MATCH + bonus::CONSECUTIVE
+    );
+
+    assert_eq!(m.matched_ranges().sorted(), [1..3]);
+}
+
+pub fn upstream_prefix_1<F: Fzf>() {
+    let (_, m) = fzf::<F>(Sensitive, "^Foo", "fooBarbaz");
+    assert!(m.is_none());
+}
+
+pub fn upstream_prefix_2<F: Fzf>() {
+    let (_, m) = fzf::<F>(Sensitive, "^baz", "fooBarBaz");
+    assert!(m.is_none());
+}
+
+pub fn upstream_prefix_3<F: Fzf>() {
+    let (fzf, m) = fzf::<F>(Insensitive, "^Foo", "fooBarbaz");
+
+    let m = m.unwrap();
+
+    assert_eq!(
+        m.distance().into_score(),
+        3 * bonus::MATCH
+            + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 2)
+                * fzf.scheme().bonus_boundary_white
+    );
+
+    assert_eq!(m.matched_ranges().sorted(), [0..3]);
+}
+
+pub fn upstream_prefix_4<F: Fzf>() {
+    let (fzf, m) = fzf::<F>(Insensitive, "^foo", "foOBarBaZ");
+
+    let m = m.unwrap();
+
+    assert_eq!(
+        m.distance().into_score(),
+        3 * bonus::MATCH
+            + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 2)
+                * fzf.scheme().bonus_boundary_white
+    );
+
+    assert_eq!(m.matched_ranges().sorted(), [0..3]);
+}
+
+pub fn upstream_prefix_5<F: Fzf>() {
+    let (fzf, m) = fzf::<F>(Insensitive, "^f-o", "f-oBarbaz");
+
+    let m = m.unwrap();
+
+    assert_eq!(
+        m.distance().into_score(),
+        3 * bonus::MATCH
+            + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 2)
+                * fzf.scheme().bonus_boundary_white
+    );
+
+    assert_eq!(m.matched_ranges().sorted(), [0..3]);
+}
+
+pub fn upstream_prefix_6<F: Fzf>() {
+    let (fzf, m) = fzf::<F>(Insensitive, "^foo", " fooBar");
+
+    let m = m.unwrap();
+
+    assert_eq!(
+        m.distance().into_score(),
+        3 * bonus::MATCH
+            + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 2)
+                * fzf.scheme().bonus_boundary_white
+    );
+
+    assert_eq!(m.matched_ranges().sorted(), [1..4]);
+}
+
+pub fn upstream_prefix_7<F: Fzf>() {
+    let (fzf, m) = fzf::<F>(Insensitive, "\\ fo", " fooBar");
+
+    let m = m.unwrap();
+
+    assert_eq!(
+        m.distance().into_score(),
+        3 * bonus::MATCH
+            + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 2)
+                * fzf.scheme().bonus_boundary_white
+    );
+
+    assert_eq!(m.matched_ranges().sorted(), [0..3]);
+}
+
+pub fn upstream_prefix_8<F: Fzf>() {
+    let (_, m) = fzf::<F>(Insensitive, "^foo", "     fo");
+    assert!(m.is_none());
+}
+
 pub use utils::*;
 
 mod utils {

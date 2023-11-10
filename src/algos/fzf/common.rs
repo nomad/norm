@@ -222,8 +222,8 @@ pub(super) fn prefix_match(
     let ignored_leading_spaces =
         ignored_candidate_leading_spaces(pattern, candidate)?;
 
-    for (pattern_ch, candidate_ch) in
-        pattern_chars.by_ref().zip(candidate[ignored_leading_spaces..].chars())
+    for (candidate_ch, pattern_ch) in
+        candidate[ignored_leading_spaces..].chars().zip(pattern_chars.by_ref())
     {
         if !char_eq(pattern_ch, candidate_ch) {
             return None;
@@ -269,8 +269,8 @@ pub(super) fn suffix_match(
     let up_to_ignored_spaces = candidate.len()
         - ignored_candidate_trailing_spaces(pattern, candidate)?;
 
-    for (pattern_ch, candidate_ch) in
-        pattern_chars.by_ref().zip(candidate[..up_to_ignored_spaces].chars())
+    for (candidate_ch, pattern_ch) in
+        candidate[..up_to_ignored_spaces].chars().zip(pattern_chars.by_ref())
     {
         if !char_eq(pattern_ch, candidate_ch) {
             return None;

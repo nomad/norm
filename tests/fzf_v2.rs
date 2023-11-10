@@ -43,6 +43,11 @@ fn fzf_v2_upstream_exact_6() {
 }
 
 #[test]
+fn fzf_v2_upstream_exact_7() {
+    common::upstream_exact_7::<FzfV2>()
+}
+
+#[test]
 fn fzf_v2_upstream_fuzzy_1() {
     common::upstream_fuzzy_1::<FzfV2>();
 }
@@ -140,6 +145,46 @@ fn fzf_v2_upstream_fuzzy_19() {
 #[test]
 fn fzf_v2_upstream_fuzzy_20() {
     common::upstream_fuzzy_20::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_prefix_1() {
+    common::upstream_prefix_1::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_prefix_2() {
+    common::upstream_prefix_2::<FzfV2>();
+}
+
+#[test]
+fn fzf_v2_upstream_prefix_3() {
+    common::upstream_prefix_3::<FzfV2>()
+}
+
+#[test]
+fn fzf_v2_upstream_prefix_4() {
+    common::upstream_prefix_4::<FzfV2>()
+}
+
+#[test]
+fn fzf_v2_upstream_prefix_5() {
+    common::upstream_prefix_5::<FzfV2>()
+}
+
+#[test]
+fn fzf_v2_upstream_prefix_6() {
+    common::upstream_prefix_6::<FzfV2>()
+}
+
+#[test]
+fn fzf_v2_upstream_prefix_7() {
+    common::upstream_prefix_7::<FzfV2>()
+}
+
+#[test]
+fn fzf_v2_upstream_prefix_8() {
+    common::upstream_prefix_8::<FzfV2>()
 }
 
 #[test]
