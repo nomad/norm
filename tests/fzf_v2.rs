@@ -8,8 +8,8 @@ use norm::fzf::{bonus, FzfParser, FzfV2};
 use norm::{CaseSensitivity, Metric};
 
 #[test]
-fn fzf_v2_empty_query() {
-    common::empty_query::<FzfV2>();
+fn fzf_v2_upstream_empty() {
+    common::upstream_empty::<FzfV2>();
 }
 
 #[test]

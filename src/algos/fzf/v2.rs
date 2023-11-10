@@ -90,7 +90,7 @@ impl Metric for FzfV2 {
         candidate: &str,
     ) -> Option<Match<Self::Distance>> {
         if query.is_empty() {
-            return None;
+            return Some(Match::default());
         }
 
         let is_candidate_ascii = candidate.is_ascii();

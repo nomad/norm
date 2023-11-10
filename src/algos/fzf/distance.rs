@@ -4,6 +4,13 @@ use super::{Distance, Score};
 #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
 pub struct FzfDistance(Distance);
 
+impl Default for FzfDistance {
+    #[inline]
+    fn default() -> Self {
+        Self::from_score(0)
+    }
+}
+
 impl FzfDistance {
     /// TODO: docs
     #[inline]

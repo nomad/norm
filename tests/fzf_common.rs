@@ -4,9 +4,14 @@ use norm::fzf::{bonus, penalty};
 use norm::CaseSensitivity;
 use CaseSensitivity::*;
 
-pub fn empty_query<F: Fzf>() {
+pub fn upstream_empty<F: Fzf>() {
     let (_, m) = fzf::<F>(Insensitive, "", "foo");
-    assert!(m.is_none());
+
+    let m = m.unwrap();
+
+    assert_eq!(m.distance().into_score(), 0);
+
+    assert!(m.matched_ranges().is_empty());
 }
 
 pub fn upstream_fuzzy_1<F: Fzf>() {

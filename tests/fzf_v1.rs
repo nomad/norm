@@ -6,8 +6,8 @@ use fzf_common as common;
 use norm::fzf::FzfV1;
 
 #[test]
-fn fzf_v1_empty_query() {
-    common::empty_query::<FzfV1>();
+fn fzf_v1_upstream_empty() {
+    common::upstream_empty::<FzfV1>();
 }
 
 #[test]

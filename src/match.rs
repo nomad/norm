@@ -3,6 +3,7 @@ use core::ops::Range;
 use crate::MatchedRanges;
 
 /// TODO: docs
+#[derive(Default)]
 pub struct Match<D: Copy> {
     /// TODO: docs
     distance: D,
