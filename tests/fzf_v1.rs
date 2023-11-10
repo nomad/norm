@@ -11,6 +11,36 @@ fn fzf_v1_empty_query() {
 }
 
 #[test]
+fn fzf_v1_upstream_exact_1() {
+    common::upstream_exact_1::<FzfV1>();
+}
+
+#[test]
+fn fzf_v1_upstream_exact_2() {
+    common::upstream_exact_2::<FzfV1>();
+}
+
+#[test]
+fn fzf_v1_upstream_exact_3() {
+    common::upstream_exact_3::<FzfV1>()
+}
+
+#[test]
+fn fzf_v1_upstream_exact_4() {
+    common::upstream_exact_4::<FzfV1>()
+}
+
+#[test]
+fn fzf_v1_upstream_exact_5() {
+    common::upstream_exact_5::<FzfV1>()
+}
+
+#[test]
+fn fzf_v1_upstream_exact_6() {
+    common::upstream_exact_6::<FzfV1>()
+}
+
+#[test]
 fn fzf_v1_upstream_fuzzy_1() {
     common::upstream_fuzzy_1::<FzfV1>();
 }

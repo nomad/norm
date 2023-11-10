@@ -296,6 +296,72 @@ pub fn upstream_fuzzy_20<F: Fzf>() {
     assert!(m.is_none());
 }
 
+pub fn upstream_exact_1<F: Fzf>() {
+    let (_, m) = fzf::<F>(Sensitive, "'oBA", "fooBarbaz");
+    assert!(m.is_none());
+}
+
+pub fn upstream_exact_2<F: Fzf>() {
+    let (_, m) = fzf::<F>(Sensitive, "'fooBarbazz", "fooBarbaz");
+    assert!(m.is_none());
+}
+
+pub fn upstream_exact_3<F: Fzf>() {
+    let (_, m) = fzf::<F>(Insensitive, "'oBA", "fooBarbaz");
+
+    let m = m.unwrap();
+
+    assert_eq!(
+        m.distance().into_score(),
+        3 * bonus::MATCH + bonus::CAMEL_123 + bonus::CONSECUTIVE
+    );
+
+    assert_eq!(m.matched_ranges().sorted(), [2..5]);
+}
+
+pub fn upstream_exact_4<F: Fzf>() {
+    let (_, m) = fzf::<F>(Insensitive, "'rdoc", "/AutomatorDocument.icns");
+
+    let m = m.unwrap();
+
+    assert_eq!(
+        m.distance().into_score(),
+        4 * bonus::MATCH + bonus::CAMEL_123 + 2 * bonus::CONSECUTIVE
+    );
+
+    assert_eq!(m.matched_ranges().sorted(), [9..13]);
+}
+
+pub fn upstream_exact_5<F: Fzf>() {
+    let (fzf, m) = fzf::<F>(Insensitive, "'zshc", "/man1/zshcompctl.1");
+
+    let m = m.unwrap();
+
+    assert_eq!(
+        m.distance().into_score(),
+        4 * bonus::MATCH
+            + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 3)
+                * fzf.scheme().bonus_boundary_delimiter
+    );
+
+    assert_eq!(m.matched_ranges().sorted(), [6..10]);
+}
+
+pub fn upstream_exact_6<F: Fzf>() {
+    let (fzf, m) = fzf::<F>(Insensitive, "'zsh/c", "/.oh-my-zsh/cache");
+
+    let m = m.unwrap();
+
+    assert_eq!(
+        m.distance().into_score(),
+        5 * bonus::MATCH
+            + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 3) * bonus::BOUNDARY
+            + fzf.scheme().bonus_boundary_delimiter
+    );
+
+    assert_eq!(m.matched_ranges().sorted(), [8..13]);
+}
+
 pub use utils::*;
 
 mod utils {

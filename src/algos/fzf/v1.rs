@@ -94,50 +94,114 @@ impl Metric for FzfV1 {
 
         let is_candidate_ascii = candidate.is_ascii();
 
-        let pattern = match query.search_mode {
-            SearchMode::NotExtended(pattern) => pattern,
-            SearchMode::Extended(_) => todo!(),
+        let conditions = match query.search_mode {
+            SearchMode::NotExtended(pattern) => {
+                let is_case_sensitive = match self.case_sensitivity {
+                    CaseSensitivity::Sensitive => true,
+                    CaseSensitivity::Insensitive => false,
+                    CaseSensitivity::Smart => pattern.has_uppercase,
+                };
+
+                let char_eq =
+                    utils::char_eq(is_case_sensitive, self.normalization);
+
+                let (score, matched_ranges) = fzf_v1(
+                    pattern,
+                    candidate,
+                    &self.scheme,
+                    char_eq,
+                    is_case_sensitive,
+                    self.with_matched_ranges,
+                    is_candidate_ascii,
+                )?;
+
+                let distance = FzfDistance::from_score(score);
+
+                return Some(Match::new(distance, matched_ranges));
+            },
+
+            SearchMode::Extended(conditions) => conditions,
         };
 
-        let is_case_sensitive = match self.case_sensitivity {
-            CaseSensitivity::Sensitive => true,
-            CaseSensitivity::Insensitive => false,
-            CaseSensitivity::Smart => pattern.has_uppercase,
-        };
+        let mut total_score = 0;
 
-        let char_eq = utils::char_eq(is_case_sensitive, self.normalization);
+        let mut matched_ranges = MatchedRanges::default();
 
-        let range_forward = forward_pass(
-            pattern,
-            candidate,
-            is_candidate_ascii,
-            is_case_sensitive,
-            char_eq,
-        )?;
+        for condition in conditions {
+            let (score, ranges) =
+                condition.or_patterns().find_map(|pattern| {
+                    let is_case_sensitive = match self.case_sensitivity {
+                        CaseSensitivity::Sensitive => true,
+                        CaseSensitivity::Insensitive => false,
+                        CaseSensitivity::Smart => pattern.has_uppercase,
+                    };
 
-        let start_backward = backward_pass(
-            pattern,
-            &candidate[range_forward.clone()],
-            is_candidate_ascii,
-            is_case_sensitive,
-            char_eq,
-        );
+                    let char_eq =
+                        utils::char_eq(is_case_sensitive, self.normalization);
 
-        let range = range_forward.start + start_backward..range_forward.end;
+                    pattern.score(
+                        candidate,
+                        &self.scheme,
+                        char_eq,
+                        is_case_sensitive,
+                        self.with_matched_ranges,
+                        is_candidate_ascii,
+                        fzf_v1,
+                    )
+                })?;
 
-        let (score, matched_ranges) = calculate_score(
-            pattern,
-            candidate,
-            range,
-            &self.scheme,
-            char_eq,
-            self.with_matched_ranges,
-        );
+            total_score += score;
 
-        let distance = FzfDistance::from_score(score);
+            if self.with_matched_ranges {
+                matched_ranges.join(ranges);
+            }
+        }
+
+        let distance = FzfDistance::from_score(total_score);
 
         Some(Match::new(distance, matched_ranges))
     }
+}
+
+/// TODO: docs
+#[inline]
+pub(super) fn fzf_v1(
+    pattern: Pattern,
+    candidate: &str,
+    scheme: &Scheme,
+    char_eq: CharEq,
+    is_case_sensitive: bool,
+    with_matched_ranges: bool,
+    is_candidate_ascii: bool,
+) -> Option<(Score, MatchedRanges)> {
+    let range_forward = forward_pass(
+        pattern,
+        candidate,
+        is_candidate_ascii,
+        is_case_sensitive,
+        char_eq,
+    )?;
+
+    let start_backward = backward_pass(
+        pattern,
+        &candidate[range_forward.clone()],
+        is_candidate_ascii,
+        is_case_sensitive,
+        char_eq,
+    );
+
+    let range = range_forward.start + start_backward..range_forward.end;
+
+    let (score, matched_ranges) = calculate_score(
+        pattern,
+        candidate,
+        range,
+        scheme,
+        char_eq,
+        with_matched_ranges,
+    );
+
+    Some((score, matched_ranges))
 }
 
 /// TODO: docs

@@ -119,7 +119,7 @@ pub(super) fn exact_match(
     with_matched_ranges: bool,
 ) -> Option<(Score, MatchedRanges)> {
     // TODO: docs
-    let mut best_bonus: Score = 0;
+    let mut best_bonus: i64 = -1;
 
     // TODO: docs
     let mut best_bonus_byte_offset = 0;
@@ -127,46 +127,58 @@ pub(super) fn exact_match(
     // TODO: docs
     let mut matched = false;
 
-    let mut pattern_char_idx = 0;
-
     let mut prev_char_class = scheme.initial_char_class;
 
-    let mut current_bonus: Score = 0;
+    let mut start_offset = 0;
 
-    for (byte_offset, candidate_ch) in candidate.char_indices() {
-        let pattern_ch = pattern.char(pattern_char_idx);
+    'outer: loop {
+        let current_start_offset = start_offset;
+        let candidate = &candidate[start_offset..];
+        let mut current_bonus: Score = 0;
+        let mut pattern_char_idx = 0;
 
-        let char_class = char_class(candidate_ch, scheme);
+        let mut char_indices = candidate.char_indices();
 
-        if char_eq(pattern_ch, candidate_ch) {
-            if pattern_char_idx == 0 {
-                current_bonus = bonus(prev_char_class, char_class, scheme);
-            }
+        for (byte_offset, candidate_ch) in char_indices.by_ref() {
+            let pattern_ch = pattern.char(pattern_char_idx);
 
-            pattern_char_idx += 1;
+            let char_class = char_class(candidate_ch, scheme);
 
-            if pattern_char_idx == pattern.char_len() {
-                matched = true;
-
-                if current_bonus > best_bonus {
-                    best_bonus = current_bonus;
-                    best_bonus_byte_offset =
-                        byte_offset + candidate_ch.len_utf8();
+            if char_eq(pattern_ch, candidate_ch) {
+                if pattern_char_idx == 0 {
+                    start_offset += byte_offset + candidate_ch.len_utf8();
+                    current_bonus = bonus(prev_char_class, char_class, scheme);
                 }
 
-                if current_bonus >= bonus::BOUNDARY {
+                pattern_char_idx += 1;
+
+                if pattern_char_idx == pattern.char_len() {
+                    matched = true;
+
+                    if current_bonus as i64 > best_bonus {
+                        best_bonus = current_bonus as _;
+
+                        best_bonus_byte_offset = current_start_offset
+                            + byte_offset
+                            + candidate_ch.len_utf8();
+                    }
+
+                    if current_bonus >= bonus::BOUNDARY {
+                        break 'outer;
+                    }
+
                     break;
                 }
-
-                pattern_char_idx = 0;
-                current_bonus = 0;
+            } else if pattern_char_idx > 0 {
+                break;
             }
-        } else {
-            pattern_char_idx = 0;
-            current_bonus = 0;
+
+            prev_char_class = char_class;
         }
 
-        prev_char_class = char_class;
+        if char_indices.next().is_none() {
+            break;
+        }
     }
 
     if !matched {
@@ -195,6 +207,7 @@ pub(super) fn exact_match(
 
     Some((score, ranges))
 }
+
 /// TODO: docs
 #[inline]
 pub(super) fn prefix_match(
