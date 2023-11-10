@@ -225,7 +225,7 @@ pub(super) fn fzf_v2(
             scores,
             consecutive,
             score_cell,
-            slab.candidate.alloc(candidate),
+            candidate,
             &mut ranges,
         );
         ranges.iter_mut().for_each(|range| {
@@ -596,12 +596,14 @@ fn matched_ranges(
     scores: Matrix<Score>,
     consecutives: Matrix<usize>,
     max_score_cell: MatrixCell,
-    candidate: Candidate,
+    candidate: &str,
     ranges: &mut MatchedRanges,
 ) {
     let mut prefer_match = true;
 
     let mut cell = max_score_cell;
+
+    let mut char_indices = candidate.char_indices().rev().enumerate();
 
     loop {
         let score = scores[cell];
@@ -640,9 +642,15 @@ fn matched_ranges(
         {
             let col = scores.col_of(cell);
 
-            let offset = candidate.nth_char_offset(col);
+            let (offset, ch) = char_indices
+                .by_ref()
+                .find_map(|(back_idx, ch)| {
+                    let idx = scores.width() - back_idx - 1;
+                    (idx == col).then_some(ch)
+                })
+                .unwrap();
 
-            let char_len_utf8 = candidate.nth_char_offset(col + 1) - offset;
+            let char_len_utf8 = ch.len_utf8();
 
             match ranges.last_mut() {
                 Some(last) if last.start == offset + char_len_utf8 => {

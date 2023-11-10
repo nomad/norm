@@ -9,9 +9,6 @@ pub(super) struct V2Slab {
     pub(super) bonus_vector: BonusVectorSlab,
 
     /// TODO: docs
-    pub(super) candidate: CandidateSlab,
-
-    /// TODO: docs
     pub(super) consecutive_matrix: MatrixSlab<usize>,
 
     /// TODO: docs
@@ -19,112 +16,6 @@ pub(super) struct V2Slab {
 
     /// TODO: docs
     pub(super) scoring_matrix: MatrixSlab<Score>,
-}
-
-/// TODO: docs
-#[derive(Clone)]
-pub(super) struct CandidateSlab {
-    chars: Vec<char>,
-    char_offsets: Vec<usize>,
-}
-
-impl Default for CandidateSlab {
-    #[inline]
-    fn default() -> Self {
-        let chars = vec!['\0'; 64];
-        let char_indices = vec![0; 64];
-        Self { chars, char_offsets: char_indices }
-    }
-}
-
-impl CandidateSlab {
-    /// TODO: docs
-    #[inline]
-    pub fn alloc<'a>(&'a mut self, candidate: &str) -> Candidate<'a> {
-        // Here we compare the byte length of the candidate string with the
-        // current char length of the slab. This is fine since the byte length
-        // is always greater than or equal to the char length.
-        //
-        // The worst case scenario is that we allocate more space than we need
-        // to, but that's fine since we'll reuse the space later.
-        if candidate.len() > self.chars.len() {
-            self.chars.resize(candidate.len(), '\0');
-            self.char_offsets.resize(candidate.len(), 0);
-        }
-
-        let mut len = 0;
-
-        for (offset, char) in candidate.char_indices() {
-            self.chars[len] = char;
-            self.char_offsets[len] = offset;
-            len += 1;
-        }
-
-        Candidate {
-            chars: &self.chars[..len],
-            char_offsets: &self.char_offsets[..len],
-            byte_len: candidate.len(),
-        }
-    }
-}
-
-/// TODO: docs
-#[derive(Clone, Copy)]
-pub(super) struct Candidate<'a> {
-    chars: &'a [char],
-    char_offsets: &'a [usize],
-    byte_len: usize,
-}
-
-impl core::fmt::Debug for Candidate<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.chars.iter().collect::<String>().fmt(f)
-    }
-}
-
-/// TODO: docs
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct CandidateCharIdx(pub usize);
-
-impl AddAssign<Self> for CandidateCharIdx {
-    #[inline]
-    fn add_assign(&mut self, rhs: Self) {
-        self.0 += rhs.0;
-    }
-}
-
-impl<'a> Candidate<'a> {
-    /// TODO: docs
-    #[inline]
-    pub fn nth_char_offset(&self, n: usize) -> usize {
-        if n == self.char_offsets.len() {
-            self.byte_len
-        } else {
-            self.char_offsets[n]
-        }
-    }
-}
-
-/// TODO: docs
-pub(super) struct CandidateCharIdxs<'a> {
-    chars: &'a [char],
-    next_idx: CandidateCharIdx,
-}
-
-impl Iterator for CandidateCharIdxs<'_> {
-    type Item = (CandidateCharIdx, char);
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.chars.is_empty() {
-            return None;
-        }
-        let char = self.chars[0];
-        let idx = self.next_idx;
-        self.chars = &self.chars[1..];
-        self.next_idx.0 += 1;
-        Some((idx, char))
-    }
 }
 
 /// TODO: docs
