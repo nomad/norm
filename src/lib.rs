@@ -15,6 +15,7 @@ mod r#match;
 mod matched_ranges;
 mod metric;
 mod normalize;
+mod tiny_vec;
 mod utils;
 
 pub use algos::*;

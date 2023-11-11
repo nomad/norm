@@ -1,14 +1,16 @@
 use core::ops::Range;
 
+use crate::tiny_vec::TinyVec;
+
 /// TODO: docs
 #[derive(Default)]
 pub(crate) struct MatchedRanges {
-    ranges: Vec<Range<usize>>,
+    ranges: TinyVec<8, Range<usize>>,
 }
 
 impl core::fmt::Debug for MatchedRanges {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_list().entries(self.ranges.iter()).finish()
+        self.ranges.fmt(f)
     }
 }
 
