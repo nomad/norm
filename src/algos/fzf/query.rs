@@ -63,7 +63,7 @@ impl<'a> FzfQuery<'a> {
         // If there's only one condition with a single pattern, and that
         // pattern is fuzzy, then we can use the non-extended search mode.
         if conditions.len() == 1 {
-            let mut patterns = conditions[0].or_patterns();
+            let mut patterns = conditions[0].iter();
 
             let first_pattern = patterns
                 .next()
@@ -101,7 +101,7 @@ impl core::fmt::Debug for Condition<'_> {
 
                 let len = self.or_patterns.len();
 
-                for (idx, pattern) in self.or_patterns().enumerate() {
+                for (idx, pattern) in self.iter().enumerate() {
                     let is_last = idx + 1 == len;
 
                     pattern.into_string().fmt(f)?;
@@ -118,16 +118,21 @@ impl core::fmt::Debug for Condition<'_> {
 }
 
 impl<'a> Condition<'a> {
-    #[inline]
-    pub(super) fn new(or_patterns: &'a [Pattern<'a>]) -> Self {
-        Self { or_patterns }
+    #[cfg(test)]
+    pub(super) fn or_patterns(&self) -> &'a [Pattern<'a>] {
+        self.or_patterns
     }
 
     #[inline]
-    pub(super) fn or_patterns(
+    pub(super) fn iter(
         &self,
     ) -> impl Iterator<Item = Pattern<'a>> + ExactSizeIterator + '_ {
         self.or_patterns.iter().copied()
+    }
+
+    #[inline]
+    pub(super) fn new(or_patterns: &'a [Pattern<'a>]) -> Self {
+        Self { or_patterns }
     }
 }
 

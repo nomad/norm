@@ -130,7 +130,7 @@ impl Metric for FzfV2 {
         let mut total_score = 0;
 
         for condition in conditions {
-            let score = condition.or_patterns().find_map(|pattern| {
+            let score = condition.iter().find_map(|pattern| {
                 let is_case_sensitive = match self.case_sensitivity {
                     CaseSensitivity::Sensitive => true,
                     CaseSensitivity::Insensitive => false,

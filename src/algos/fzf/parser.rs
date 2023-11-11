@@ -339,6 +339,72 @@ mod parse_tests {
 
         assert_eq!(pattern.match_type, MatchType::Fuzzy);
     }
+
+    #[test]
+    fn parse_query_upstream_extended() {
+        let query = parse(
+            "aaa 'bbb ^ccc ddd$ !eee !'fff !^ggg !hhh$ | ^iii$ ^xxx | 'yyy | \
+             zzz$ | !ZZZ |",
+        );
+
+        let SearchMode::Extended(conditions) = query.search_mode else {
+            panic!();
+        };
+
+        assert_eq!(conditions.len(), 9);
+
+        let pattern = conditions[0].or_patterns()[0];
+        assert_eq!(pattern.match_type, MatchType::Fuzzy);
+        assert!(!pattern.is_inverse);
+
+        let pattern = conditions[1].or_patterns()[0];
+        assert_eq!(pattern.match_type, MatchType::Exact);
+        assert!(!pattern.is_inverse);
+
+        let pattern = conditions[2].or_patterns()[0];
+        assert_eq!(pattern.match_type, MatchType::PrefixExact);
+        assert!(!pattern.is_inverse);
+
+        let pattern = conditions[3].or_patterns()[0];
+        assert_eq!(pattern.match_type, MatchType::SuffixExact);
+        assert!(!pattern.is_inverse);
+
+        let pattern = conditions[4].or_patterns()[0];
+        assert_eq!(pattern.match_type, MatchType::Exact);
+        assert!(pattern.is_inverse);
+
+        let pattern = conditions[5].or_patterns()[0];
+        assert_eq!(pattern.match_type, MatchType::Fuzzy);
+        assert!(pattern.is_inverse);
+
+        let pattern = conditions[6].or_patterns()[0];
+        assert_eq!(pattern.match_type, MatchType::PrefixExact);
+        assert!(pattern.is_inverse);
+
+        let pattern = conditions[7].or_patterns()[0];
+        assert_eq!(pattern.match_type, MatchType::SuffixExact);
+        assert!(pattern.is_inverse);
+
+        let pattern = conditions[7].or_patterns()[1];
+        assert_eq!(pattern.match_type, MatchType::EqualExact);
+        assert!(!pattern.is_inverse);
+
+        let pattern = conditions[8].or_patterns()[0];
+        assert_eq!(pattern.match_type, MatchType::PrefixExact);
+        assert!(!pattern.is_inverse);
+
+        let pattern = conditions[8].or_patterns()[1];
+        assert_eq!(pattern.match_type, MatchType::Exact);
+        assert!(!pattern.is_inverse);
+
+        let pattern = conditions[8].or_patterns()[2];
+        assert_eq!(pattern.match_type, MatchType::SuffixExact);
+        assert!(!pattern.is_inverse);
+
+        let pattern = conditions[8].or_patterns()[3];
+        assert_eq!(pattern.match_type, MatchType::Exact);
+        assert!(pattern.is_inverse);
+    }
 }
 
 #[cfg(test)]
