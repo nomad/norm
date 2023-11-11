@@ -64,17 +64,9 @@ pub(super) fn calculate_score(
             };
 
             if with_matched_ranges {
-                if consecutive == 0 {
-                    let start = range_start + offset;
-                    let end = start + candidate_ch.len_utf8();
-                    matched_ranges.push(start..end);
-                } else if let Some(last_range) = matched_ranges.last_mut() {
-                    last_range.end += candidate_ch.len_utf8();
-                } else {
-                    unreachable!(
-                        "if consecutive is > 0 we've already pushed a range"
-                    );
-                }
+                let start = range_start + offset;
+                let end = start + candidate_ch.len_utf8();
+                matched_ranges.insert(start..end);
             }
 
             is_in_gap = false;
@@ -201,7 +193,7 @@ pub(super) fn exact_match(
     );
 
     if with_matched_ranges {
-        matched_ranges.push(matched_range);
+        matched_ranges.insert(matched_range);
     }
 
     Some(score)
@@ -248,7 +240,7 @@ pub(super) fn prefix_match(
     );
 
     if with_matched_ranges {
-        matched_ranges.push(matched_range);
+        matched_ranges.insert(matched_range);
     }
 
     Some(score)
@@ -297,7 +289,7 @@ pub(super) fn suffix_match(
     );
 
     if with_matched_ranges {
-        matched_ranges.push(matched_range);
+        matched_ranges.insert(matched_range);
     }
 
     Some(score)
@@ -355,7 +347,7 @@ pub(super) fn equal_match(
     );
 
     if with_matched_ranges {
-        matched_ranges.push(matched_range);
+        matched_ranges.insert(matched_range);
     }
 
     Some(score)

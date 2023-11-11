@@ -646,16 +646,7 @@ fn matched_ranges(
 
             offset += start_offset;
 
-            let char_len_utf8 = ch.len_utf8();
-
-            match ranges.last_mut() {
-                Some(last) if last.start == offset + char_len_utf8 => {
-                    last.start = offset;
-                },
-                _ => {
-                    ranges.push(offset..offset + char_len_utf8);
-                },
-            }
+            ranges.insert(offset..offset + ch.len_utf8());
 
             if let Some(up_left) = cell_up_left {
                 cell = up_left;
