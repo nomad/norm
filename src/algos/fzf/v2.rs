@@ -409,8 +409,8 @@ fn score_first_row(
         let Some((byte_idx, matched_char)) = utils::find_first(
             query_first_char,
             candidate,
-            is_case_sensitive,
             is_candidate_ascii,
+            is_case_sensitive,
             char_eq,
         ) else {
             for col in col..scores_first_row.len() {
@@ -502,8 +502,8 @@ fn score_remaining_rows(
             let Some((byte_offset, matched_char)) = utils::find_first(
                 query_char,
                 candidate,
-                is_case_sensitive,
                 is_candidate_ascii,
+                is_case_sensitive,
                 char_eq,
             ) else {
                 for col in column..matrix_width {
