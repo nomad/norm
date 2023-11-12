@@ -104,6 +104,21 @@ fn bench<'a, M, C>(
     });
 }
 
+const MEDIUM_TEXT: &str =
+    "Far far away, behind the word mountains, far from the countries Vokalia \
+     and Consonantia, there live the blind texts. Separated they live in \
+     Bookmarksgrove right at the coast of the Semantics, a large.";
+
+const LONG_TEXT: &str =
+    "Far far away, behind the word mountains, far from the countries Vokalia \
+     and Consonantia, there live the blind texts. Separated they live in \
+     Bookmarksgrove right at the coast of the Semantics, a large language \
+     ocean. A small river named Duden flows by their place and supplies it \
+     with the necessary regelialia. It is a paradisematic country, in which \
+     roasted parts of sentences fly into your mouth. Even the all-powerful \
+     Pointing has no control about the blind texts it is an almost \
+     unorthographic life";
+
 // TODO: docs
 pub fn short<M: Metric>(
     metric: M,
@@ -113,8 +128,98 @@ pub fn short<M: Metric>(
     M: Metric,
 {
     for_all_cases_and_ranges(metric, "short", suffix, |metric, id| {
-        let query = "jelly";
-        let candidates = core::iter::once("jellyfish");
+        let query = "paradise";
+        let candidates = core::iter::once("paradisematic");
+        bench(&mut group, id, metric, query, candidates);
+    })
+}
+
+// TODO: docs
+pub fn medium_start<M: Metric>(
+    metric: M,
+    suffix: Option<&str>,
+    mut group: BenchmarkGroup<WallTime>,
+) where
+    M: Metric,
+{
+    for_all_cases_and_ranges(metric, "medium_start", suffix, |metric, id| {
+        let query = "away";
+        let candidates = core::iter::once(MEDIUM_TEXT);
+        bench(&mut group, id, metric, query, candidates);
+    })
+}
+
+// TODO: docs
+pub fn medium_middle<M: Metric>(
+    metric: M,
+    suffix: Option<&str>,
+    mut group: BenchmarkGroup<WallTime>,
+) where
+    M: Metric,
+{
+    for_all_cases_and_ranges(metric, "medium_middle", suffix, |metric, id| {
+        let query = "blind";
+        let candidates = core::iter::once(MEDIUM_TEXT);
+        bench(&mut group, id, metric, query, candidates);
+    })
+}
+
+// TODO: docs
+pub fn medium_end<M: Metric>(
+    metric: M,
+    suffix: Option<&str>,
+    mut group: BenchmarkGroup<WallTime>,
+) where
+    M: Metric,
+{
+    for_all_cases_and_ranges(metric, "medium_end", suffix, |metric, id| {
+        let query = "Semantics";
+        let candidates = core::iter::once(MEDIUM_TEXT);
+        bench(&mut group, id, metric, query, candidates);
+    })
+}
+
+// TODO: docs
+pub fn long_start<M: Metric>(
+    metric: M,
+    suffix: Option<&str>,
+    mut group: BenchmarkGroup<WallTime>,
+) where
+    M: Metric,
+{
+    for_all_cases_and_ranges(metric, "long_start", suffix, |metric, id| {
+        let query = "mountains";
+        let candidates = core::iter::once(LONG_TEXT);
+        bench(&mut group, id, metric, query, candidates);
+    })
+}
+
+// TODO: docs
+pub fn long_middle<M: Metric>(
+    metric: M,
+    suffix: Option<&str>,
+    mut group: BenchmarkGroup<WallTime>,
+) where
+    M: Metric,
+{
+    for_all_cases_and_ranges(metric, "long_middle", suffix, |metric, id| {
+        let query = "Duden";
+        let candidates = core::iter::once(LONG_TEXT);
+        bench(&mut group, id, metric, query, candidates);
+    })
+}
+
+// TODO: docs
+pub fn long_end<M: Metric>(
+    metric: M,
+    suffix: Option<&str>,
+    mut group: BenchmarkGroup<WallTime>,
+) where
+    M: Metric,
+{
+    for_all_cases_and_ranges(metric, "long_end", suffix, |metric, id| {
+        let query = "unorthographic";
+        let candidates = core::iter::once(LONG_TEXT);
         bench(&mut group, id, metric, query, candidates);
     })
 }

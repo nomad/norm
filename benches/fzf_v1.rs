@@ -45,5 +45,38 @@ fn short(c: &mut Criterion) {
     bench::short(FzfV1::new(), None, group(c));
 }
 
-criterion_group!(benches, short);
+fn medium_start(c: &mut Criterion) {
+    bench::medium_start(FzfV1::new(), None, group(c));
+}
+
+fn medium_middle(c: &mut Criterion) {
+    bench::medium_middle(FzfV1::new(), None, group(c));
+}
+
+fn medium_end(c: &mut Criterion) {
+    bench::medium_end(FzfV1::new(), None, group(c));
+}
+
+fn long_start(c: &mut Criterion) {
+    bench::long_start(FzfV1::new(), None, group(c));
+}
+
+fn long_middle(c: &mut Criterion) {
+    bench::long_middle(FzfV1::new(), None, group(c));
+}
+
+fn long_end(c: &mut Criterion) {
+    bench::long_end(FzfV1::new(), None, group(c));
+}
+
+criterion_group!(
+    benches,
+    short,
+    medium_start,
+    medium_middle,
+    medium_end,
+    long_start,
+    long_middle,
+    long_end,
+);
 criterion_main!(benches);
