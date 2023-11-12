@@ -250,14 +250,10 @@ fn matches<'idx>(
 
     let mut last_matched_idx = MatchedIdx::default();
 
-    let mut byte_offset;
-
-    let mut matched_char;
-
     loop {
         let query_char = pattern.char(query_char_idx);
 
-        (byte_offset, matched_char) = utils::find_first(
+        let (byte_offset, matched_char) = utils::find_first(
             query_char,
             candidate,
             is_candidate_ascii,
@@ -283,30 +279,30 @@ fn matches<'idx>(
             candidate.get_unchecked(byte_offset + matched_char_byte_len..)
         };
 
+        last_matched_idx +=
+            MatchedIdx { byte_offset: matched_char_byte_len, char_offset: 1 };
+
         if query_char_idx + 1 < pattern.char_len() {
-            last_matched_idx += MatchedIdx {
-                byte_offset: matched_char_byte_len,
-                char_offset: 1,
-            };
             query_char_idx += 1;
         } else {
             break;
         }
     }
 
-    (byte_offset, matched_char) = utils::find_last(
-        pattern.char(query_char_idx),
-        candidate,
-        is_candidate_ascii,
-        is_case_sensitive,
-        char_eq,
-    )
-    .unwrap_or((0, matched_char));
+    let last_char_offset_inclusive = last_matched_idx.byte_offset
+        + if let Some((byte_offset, matched_char)) = utils::find_last(
+            pattern.char(query_char_idx),
+            candidate,
+            is_candidate_ascii,
+            is_case_sensitive,
+            char_eq,
+        ) {
+            byte_offset + matched_char.len_utf8()
+        } else {
+            0
+        };
 
-    Some((
-        matched_idxs,
-        last_matched_idx.byte_offset + byte_offset + matched_char.len_utf8(),
-    ))
+    Some((matched_idxs, last_char_offset_inclusive))
 }
 
 /// TODO: docs

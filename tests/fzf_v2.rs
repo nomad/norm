@@ -262,7 +262,7 @@ fn fzf_v2_score_3() {
     let mach =
         fzf.distance(parser.parse("\0\0"), "\0#B\0\u{364}\0\0").unwrap();
 
-    assert_eq!(mach.matched_ranges().sorted(), [3..4, 6..7]);
+    assert_eq!(mach.matched_ranges().sorted(), [6..8]);
 }
 
 #[test]
@@ -277,4 +277,18 @@ fn fzf_v2_score_4() {
     let mach = fzf.distance(parser.parse("e !"), " !I\\hh+\u{364}").unwrap();
 
     assert_eq!(mach.matched_ranges(), [1..2, 7..9]);
+}
+
+#[test]
+fn fzf_v2_score_5() {
+    let mut fzf = FzfV2::new()
+        .with_case_sensitivity(CaseSensitivity::Insensitive)
+        .with_matched_ranges(true)
+        .with_normalization(true);
+
+    let mut parser = FzfParser::new();
+
+    let mach = fzf.distance(parser.parse("E"), "\u{364}E").unwrap();
+
+    assert_eq!(mach.matched_ranges(), [0..2]);
 }
