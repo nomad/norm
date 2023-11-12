@@ -390,6 +390,88 @@ mod tests {
     use super::*;
 
     #[test]
+    fn equal_match_1() {
+        let pattern =
+            Pattern::parse("^AbC$".chars().collect::<Vec<_>>().leak());
+
+        let mut matched_ranges = MatchedRanges::default();
+
+        assert!(exact_match(
+            pattern,
+            "ABC",
+            &Scheme::default(),
+            utils::char_eq(true, false),
+            true,
+            &mut matched_ranges
+        )
+        .is_none());
+
+        {
+            matched_ranges = MatchedRanges::default();
+
+            assert!(exact_match(
+                pattern,
+                "AbC",
+                &Scheme::default(),
+                utils::char_eq(true, false),
+                true,
+                &mut matched_ranges
+            )
+            .is_some());
+
+            assert_eq!(matched_ranges.as_slice(), [0..3]);
+        }
+
+        {
+            matched_ranges = MatchedRanges::default();
+
+            assert!(exact_match(
+                pattern,
+                "AbC ",
+                &Scheme::default(),
+                utils::char_eq(true, false),
+                true,
+                &mut matched_ranges
+            )
+            .is_some());
+
+            assert_eq!(matched_ranges.as_slice(), [0..3]);
+        }
+
+        {
+            matched_ranges = MatchedRanges::default();
+
+            assert!(exact_match(
+                pattern,
+                " AbC ",
+                &Scheme::default(),
+                utils::char_eq(true, false),
+                true,
+                &mut matched_ranges
+            )
+            .is_some());
+
+            assert_eq!(matched_ranges.as_slice(), [1..4]);
+        }
+
+        {
+            matched_ranges = MatchedRanges::default();
+
+            assert!(exact_match(
+                pattern,
+                "  AbC",
+                &Scheme::default(),
+                utils::char_eq(true, false),
+                true,
+                &mut matched_ranges
+            )
+            .is_some());
+
+            assert_eq!(matched_ranges.as_slice(), [2..5]);
+        }
+    }
+
+    #[test]
     fn exact_match_1() {
         let pattern = Pattern::parse("abc".chars().collect::<Vec<_>>().leak());
 
