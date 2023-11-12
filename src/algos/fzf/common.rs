@@ -382,3 +382,29 @@ fn ignored_candidate_trailing_spaces(
         Some(candidate_trailing_spaces - pattern.trailing_spaces())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::single_range_in_vec_init)]
+
+    use super::*;
+
+    #[test]
+    fn exact_match_1() {
+        let pattern = Pattern::parse("abc".chars().collect::<Vec<_>>().leak());
+
+        let mut matched_ranges = MatchedRanges::default();
+
+        assert!(exact_match(
+            pattern,
+            "aabbcc abc",
+            &Scheme::default(),
+            utils::char_eq(true, false),
+            true,
+            &mut matched_ranges
+        )
+        .is_some());
+
+        assert_eq!(matched_ranges.as_slice(), [7..10]);
+    }
+}
