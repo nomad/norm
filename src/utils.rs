@@ -157,6 +157,7 @@ fn find_last_unicode(
 ) -> Option<(usize, char)> {
     haystack
         .char_indices()
+        .rev()
         .find_map(|(offset, ch)| char_eq(needle, ch).then_some((offset, ch)))
 }
 

@@ -3,7 +3,8 @@
 mod fzf_common;
 
 use fzf_common as common;
-use norm::fzf::FzfV1;
+use norm::fzf::{FzfParser, FzfV1};
+use norm::{CaseSensitivity, Metric};
 
 #[test]
 fn fzf_v1_upstream_empty() {
@@ -213,4 +214,17 @@ fn fzf_v1_upstream_suffix_5() {
 #[test]
 fn fzf_v1_upstream_suffix_6() {
     common::upstream_suffix_6::<FzfV1>()
+}
+
+#[test]
+fn fzf_v1_score_1() {
+    let mut fzf = FzfV1::new()
+        .with_case_sensitivity(CaseSensitivity::Sensitive)
+        .with_matched_ranges(true);
+
+    let mut parser = FzfParser::new();
+
+    let mach = fzf.distance(parser.parse("ZZ"), "ӥZZZ").unwrap();
+
+    assert_eq!(mach.matched_ranges(), [2..4]);
 }
