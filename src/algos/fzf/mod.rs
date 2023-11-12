@@ -14,6 +14,7 @@ mod v2;
 
 use common::*;
 pub use distance::FzfDistance;
+use distance::*;
 pub use parser::*;
 pub use query::FzfQuery;
 pub use scheme::FzfScheme;

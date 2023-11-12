@@ -1,9 +1,5 @@
 use super::*;
 
-pub(super) type Distance = u32;
-
-pub(super) type Score = Distance;
-
 /// TODO: docs
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum CharClass {

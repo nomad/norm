@@ -254,3 +254,20 @@ fn fzf_v1_score_3() {
 
     assert!(fzf.distance(query, " ").is_none());
 }
+
+#[test]
+fn fzf_v1_score_4() {
+    let mut fzf = FzfV1::new()
+        .with_case_sensitivity(CaseSensitivity::Insensitive)
+        .with_matched_ranges(true);
+
+    let mut parser = FzfParser::new();
+
+    let query = parser.parse("z\n");
+
+    let candidate = "ZZ\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\u{65e}\nZ\u{65e}";
+
+    let mach = fzf.distance(query, candidate).unwrap();
+
+    assert_eq!(mach.matched_ranges(), [1..2, 21..22]);
+}

@@ -21,7 +21,7 @@ pub(super) fn calculate_score(
     let mut is_first_pattern_char = true;
 
     // TODO: docs
-    let mut first_bonus = 0u32;
+    let mut first_bonus: Score = 0;
 
     // TODO: docs
     let mut consecutive = 0u32;
