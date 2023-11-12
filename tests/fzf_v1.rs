@@ -241,3 +241,16 @@ fn fzf_v1_score_2() {
 
     assert!(fzf.distance(query, "\0").is_none());
 }
+
+#[test]
+fn fzf_v1_score_3() {
+    let mut fzf = FzfV1::new()
+        .with_case_sensitivity(CaseSensitivity::Sensitive)
+        .with_matched_ranges(true);
+
+    let mut parser = FzfParser::new();
+
+    let query = parser.parse("^\\$");
+
+    assert!(fzf.distance(query, " ").is_none());
+}

@@ -324,6 +324,11 @@ pub(super) fn equal_match(
     let ignored_leading_spaces =
         ignored_candidate_leading_spaces(pattern, candidate)?;
 
+    // The candidate contains only spaces.
+    if ignored_leading_spaces == candidate.len() {
+        return None;
+    }
+
     let ignored_trailing_spaces =
         ignored_candidate_trailing_spaces(pattern, candidate)?;
 
