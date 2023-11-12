@@ -143,9 +143,6 @@ pub(super) struct Pattern<'a> {
     /// TODO: docs
     text: &'a [char],
 
-    /// TODO: docs
-    pub(super) byte_len: usize,
-
     /// Whether any of the characters in [`Self::text`] are uppercase.
     pub(super) has_uppercase: bool,
 
@@ -221,7 +218,6 @@ impl<'a> Pattern<'a> {
         if text.len() == 1 {
             return Self {
                 text,
-                byte_len: first_char.len_utf8(),
                 has_uppercase: first_char.is_uppercase(),
                 match_type: MatchType::Fuzzy,
                 is_inverse: false,
@@ -294,7 +290,6 @@ impl<'a> Pattern<'a> {
         Self {
             leading_spaces,
             trailing_spaces,
-            byte_len: text.iter().copied().map(char::len_utf8).sum(),
             has_uppercase: text.iter().copied().any(char::is_uppercase),
             text,
             match_type,

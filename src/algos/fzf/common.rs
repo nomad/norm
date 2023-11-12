@@ -118,7 +118,10 @@ pub(super) fn exact_match(
     let mut best_bonus: i64 = -1;
 
     // TODO: docs
-    let mut best_bonus_byte_offset = 0;
+    let mut best_bonus_start = 0;
+
+    // TODO: docs
+    let mut best_bonus_end = 0;
 
     // TODO: docs
     let mut matched = false;
@@ -130,6 +133,7 @@ pub(super) fn exact_match(
     'outer: loop {
         let current_start_offset = start_offset;
         let candidate = &candidate[start_offset..];
+        let mut bonus_start = 0;
         let mut current_bonus: Score = 0;
         let mut pattern_char_idx = 0;
 
@@ -142,6 +146,7 @@ pub(super) fn exact_match(
 
             if char_eq(pattern_ch, candidate_ch) {
                 if pattern_char_idx == 0 {
+                    bonus_start = current_start_offset + byte_offset;
                     start_offset += byte_offset + candidate_ch.len_utf8();
                     current_bonus = bonus(prev_char_class, char_class, scheme);
                 }
@@ -154,7 +159,9 @@ pub(super) fn exact_match(
                     if current_bonus as i64 > best_bonus {
                         best_bonus = current_bonus as _;
 
-                        best_bonus_byte_offset = current_start_offset
+                        best_bonus_start = bonus_start;
+
+                        best_bonus_end = current_start_offset
                             + byte_offset
                             + candidate_ch.len_utf8();
                     }
@@ -181,10 +188,7 @@ pub(super) fn exact_match(
         return None;
     }
 
-    let matched_range = {
-        let end = best_bonus_byte_offset;
-        end - pattern.byte_len..end
-    };
+    let matched_range = best_bonus_start..best_bonus_end;
 
     let score = calculate_score(
         pattern,
@@ -222,12 +226,15 @@ pub(super) fn prefix_match(
     let ignored_leading_spaces =
         ignored_candidate_leading_spaces(pattern, candidate)?;
 
+    let mut match_byte_len = 0;
+
     for (candidate_ch, pattern_ch) in
         candidate[ignored_leading_spaces..].chars().zip(pattern_chars.by_ref())
     {
         if !char_eq(pattern_ch, candidate_ch) {
             return None;
         }
+        match_byte_len += candidate_ch.len_utf8();
     }
 
     if pattern_chars.next().is_some() {
@@ -235,7 +242,7 @@ pub(super) fn prefix_match(
     }
 
     let matched_range =
-        ignored_leading_spaces..ignored_leading_spaces + pattern.byte_len;
+        ignored_leading_spaces..ignored_leading_spaces + match_byte_len;
 
     let score = calculate_score(
         pattern,
@@ -273,6 +280,8 @@ pub(super) fn suffix_match(
     let up_to_ignored_spaces = candidate.len()
         - ignored_candidate_trailing_spaces(pattern, candidate)?;
 
+    let mut match_byte_len = 0;
+
     for (candidate_ch, pattern_ch) in candidate[..up_to_ignored_spaces]
         .chars()
         .rev()
@@ -281,6 +290,7 @@ pub(super) fn suffix_match(
         if !char_eq(pattern_ch, candidate_ch) {
             return None;
         }
+        match_byte_len += candidate_ch.len_utf8();
     }
 
     if pattern_chars.next().is_some() {
@@ -288,7 +298,7 @@ pub(super) fn suffix_match(
     }
 
     let matched_range =
-        up_to_ignored_spaces - pattern.byte_len..up_to_ignored_spaces;
+        up_to_ignored_spaces - match_byte_len..up_to_ignored_spaces;
 
     let score = calculate_score(
         pattern,

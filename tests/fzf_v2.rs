@@ -292,3 +292,17 @@ fn fzf_v2_score_5() {
 
     assert_eq!(mach.matched_ranges(), [0..2]);
 }
+
+#[test]
+fn fzf_v2_score_6() {
+    let mut fzf = FzfV2::new()
+        .with_case_sensitivity(CaseSensitivity::Insensitive)
+        .with_matched_ranges(true)
+        .with_normalization(true);
+
+    let mut parser = FzfParser::new();
+
+    let query = parser.parse("!2\t\0\0\0WWHHWHWWWWWWWZ !I");
+
+    assert!(fzf.distance(query, "\u{6}\0\0 N\u{364}\u{e}\u{365}+").is_none());
+}
