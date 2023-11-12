@@ -250,10 +250,14 @@ fn matches<'idx>(
 
     let mut last_matched_idx = MatchedIdx::default();
 
+    let mut byte_offset;
+
+    let mut matched_char;
+
     loop {
         let query_char = pattern.char(query_char_idx);
 
-        let (byte_offset, matched_char) = utils::find_first(
+        (byte_offset, matched_char) = utils::find_first(
             query_char,
             candidate,
             is_candidate_ascii,
@@ -290,16 +294,14 @@ fn matches<'idx>(
         }
     }
 
-    let last_query_char = pattern.char(query_char_idx);
-
-    let (byte_offset, matched_char) = utils::find_last(
-        last_query_char,
+    (byte_offset, matched_char) = utils::find_last(
+        pattern.char(query_char_idx),
         candidate,
         is_candidate_ascii,
         is_case_sensitive,
         char_eq,
     )
-    .unwrap_or((0, last_query_char));
+    .unwrap_or((0, matched_char));
 
     Some((
         matched_idxs,

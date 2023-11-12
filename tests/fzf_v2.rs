@@ -264,3 +264,17 @@ fn fzf_v2_score_3() {
 
     assert_eq!(mach.matched_ranges().sorted(), [3..4, 6..7]);
 }
+
+#[test]
+fn fzf_v2_score_4() {
+    let mut fzf = FzfV2::new()
+        .with_case_sensitivity(CaseSensitivity::Sensitive)
+        .with_matched_ranges(true)
+        .with_normalization(true);
+
+    let mut parser = FzfParser::new();
+
+    let mach = fzf.distance(parser.parse("e !"), " !I\\hh+\u{364}").unwrap();
+
+    assert_eq!(mach.matched_ranges(), [1..2, 7..9]);
+}
