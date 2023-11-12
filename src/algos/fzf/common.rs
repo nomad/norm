@@ -344,7 +344,7 @@ pub(super) fn equal_match(
         pattern_chars.by_ref().zip(candidate_chars.by_ref())
     {
         if !char_eq(pattern_ch, candidate_ch) {
-            break;
+            return None;
         }
     }
 

@@ -228,3 +228,16 @@ fn fzf_v1_score_1() {
 
     assert_eq!(mach.matched_ranges(), [2..4]);
 }
+
+#[test]
+fn fzf_v1_score_2() {
+    let mut fzf = FzfV1::new()
+        .with_case_sensitivity(CaseSensitivity::Sensitive)
+        .with_matched_ranges(true);
+
+    let mut parser = FzfParser::new();
+
+    let query = parser.parse("^\\$ ]]%]]'\0\0\0\0\0\0");
+
+    assert!(fzf.distance(query, "\0").is_none());
+}
