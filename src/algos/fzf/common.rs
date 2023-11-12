@@ -110,6 +110,10 @@ pub(super) fn exact_match(
     with_matched_ranges: bool,
     matched_ranges: &mut MatchedRanges,
 ) -> Option<Score> {
+    if pattern.is_empty() {
+        return Some(0);
+    }
+
     // TODO: docs
     let mut best_bonus: i64 = -1;
 
@@ -209,6 +213,10 @@ pub(super) fn prefix_match(
     with_matched_ranges: bool,
     matched_ranges: &mut MatchedRanges,
 ) -> Option<Score> {
+    if pattern.is_empty() {
+        return Some(0);
+    }
+
     let mut pattern_chars = pattern.chars();
 
     let ignored_leading_spaces =
@@ -256,6 +264,10 @@ pub(super) fn suffix_match(
     with_matched_ranges: bool,
     matched_ranges: &mut MatchedRanges,
 ) -> Option<Score> {
+    if pattern.is_empty() {
+        return Some(0);
+    }
+
     let mut pattern_chars = pattern.chars().rev();
 
     let up_to_ignored_spaces = candidate.len()
@@ -305,6 +317,10 @@ pub(super) fn equal_match(
     with_matched_ranges: bool,
     matched_ranges: &mut MatchedRanges,
 ) -> Option<Score> {
+    if pattern.is_empty() {
+        return Some(0);
+    }
+
     let ignored_leading_spaces =
         ignored_candidate_leading_spaces(pattern, candidate)?;
 

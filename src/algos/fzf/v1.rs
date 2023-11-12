@@ -172,6 +172,10 @@ pub(super) fn fzf_v1(
     is_candidate_ascii: bool,
     matched_ranges: &mut MatchedRanges,
 ) -> Option<Score> {
+    if pattern.is_empty() {
+        return Some(0);
+    }
+
     let range_forward = forward_pass(
         pattern,
         candidate,

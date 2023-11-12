@@ -237,3 +237,16 @@ fn fzf_v2_score_1() {
 
     assert_eq!(mach.matched_ranges().sorted(), [0..5]);
 }
+
+#[test]
+fn fzf_v2_score_2() {
+    let mut fzf = FzfV2::new()
+        .with_case_sensitivity(CaseSensitivity::Sensitive)
+        .with_matched_ranges(true);
+
+    let mut parser = FzfParser::new();
+
+    let mach = fzf.distance(parser.parse("!$"), "$$2");
+
+    assert!(mach.is_none());
+}

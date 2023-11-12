@@ -173,6 +173,10 @@ pub(super) fn fzf_v2(
     (slab, is_candidate_ascii): (&mut V2Slab, bool),
     ranges: &mut MatchedRanges,
 ) -> Option<Score> {
+    if pattern.is_empty() {
+        return Some(0);
+    }
+
     let (matches, last_match_offset) = matches(
         &mut slab.matched_indices,
         pattern,
