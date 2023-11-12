@@ -278,14 +278,14 @@ fn backward_pass(
 ) -> usize {
     // The candidate must start with the first character of the query.
     debug_assert!(char_eq(
+        pattern.chars().next().unwrap(),
         candidate.chars().next().unwrap(),
-        pattern.chars().next().unwrap()
     ));
 
     // The candidate must end with the last character of the query.
     debug_assert!(char_eq(
+        pattern.chars().next_back().unwrap(),
         candidate.chars().next_back().unwrap(),
-        pattern.chars().next_back().unwrap()
     ));
 
     let mut pattern_chars = pattern.chars().rev();
