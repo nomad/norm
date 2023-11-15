@@ -37,7 +37,7 @@ impl FzfDistance {
     }
 
     /// TODO: docs
-    #[cfg(feature = "tests")]
+    #[cfg(any(feature = "into-score", feature = "tests"))]
     #[inline(always)]
     pub fn into_score(self) -> Score {
         self.0
