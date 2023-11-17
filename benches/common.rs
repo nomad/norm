@@ -12,8 +12,13 @@ pub trait Metric {
     type Parser: Parser<Self>;
 
     fn dist(&mut self, query: Self::Query<'_>, candidate: &str);
-    fn with_case_sensitivity(self, case_sensitivity: CaseSensitivity) -> Self;
-    fn with_matched_ranges(self, matched_ranges: bool) -> Self;
+
+    fn with_case_sensitivity(
+        &mut self,
+        case_sensitivity: CaseSensitivity,
+    ) -> &mut Self;
+
+    fn with_matched_ranges(&mut self, matched_ranges: bool) -> &mut Self;
 }
 
 pub trait Parser<M: Metric + ?Sized>: Default {
@@ -64,7 +69,7 @@ fn for_all_cases_and_ranges<M, F>(
         CaseSensitivity::Smart,
     ] {
         for with_ranges in [true, false] {
-            metric = metric
+            metric
                 .with_case_sensitivity(case)
                 .with_matched_ranges(with_ranges);
 

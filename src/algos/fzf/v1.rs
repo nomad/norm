@@ -48,30 +48,30 @@ impl FzfV1 {
     /// TODO: docs
     #[inline]
     pub fn with_case_sensitivity(
-        mut self,
+        &mut self,
         case_sensitivity: CaseSensitivity,
-    ) -> Self {
+    ) -> &mut Self {
         self.case_sensitivity = case_sensitivity;
         self
     }
 
     /// TODO: docs
     #[inline]
-    pub fn with_matched_ranges(mut self, matched_ranges: bool) -> Self {
+    pub fn with_matched_ranges(&mut self, matched_ranges: bool) -> &mut Self {
         self.with_matched_ranges = matched_ranges;
         self
     }
 
     /// TODO: docs
     #[inline]
-    pub fn with_normalization(mut self, normalization: bool) -> Self {
+    pub fn with_normalization(&mut self, normalization: bool) -> &mut Self {
         self.normalization = normalization;
         self
     }
 
     /// TODO: docs
     #[inline]
-    pub fn with_scoring_scheme(mut self, scheme: FzfScheme) -> Self {
+    pub fn with_scoring_scheme(&mut self, scheme: FzfScheme) -> &mut Self {
         self.scheme = scheme.into_inner();
         self
     }

@@ -218,48 +218,54 @@ fn fzf_v1_upstream_suffix_6() {
 
 #[test]
 fn fzf_v1_score_1() {
-    let mut fzf = FzfV1::new()
-        .with_case_sensitivity(CaseSensitivity::Sensitive)
-        .with_matched_ranges(true);
+    let mut fzf = FzfV1::new();
 
     let mut parser = FzfParser::new();
 
-    let mach = fzf.distance(parser.parse("ZZ"), "ӥZZZ").unwrap();
+    let mach = fzf
+        .with_case_sensitivity(CaseSensitivity::Sensitive)
+        .with_matched_ranges(true)
+        .distance(parser.parse("ZZ"), "ӥZZZ")
+        .unwrap();
 
     assert_eq!(mach.matched_ranges(), [2..4]);
 }
 
 #[test]
 fn fzf_v1_score_2() {
-    let mut fzf = FzfV1::new()
-        .with_case_sensitivity(CaseSensitivity::Sensitive)
-        .with_matched_ranges(true);
+    let mut fzf = FzfV1::new();
 
     let mut parser = FzfParser::new();
 
     let query = parser.parse("^\\$ ]]%]]'\0\0\0\0\0\0");
 
-    assert!(fzf.distance(query, "\0").is_none());
+    let mach = fzf
+        .with_case_sensitivity(CaseSensitivity::Sensitive)
+        .with_matched_ranges(true)
+        .distance(query, "\0");
+
+    assert!(mach.is_none());
 }
 
 #[test]
 fn fzf_v1_score_3() {
-    let mut fzf = FzfV1::new()
-        .with_case_sensitivity(CaseSensitivity::Sensitive)
-        .with_matched_ranges(true);
+    let mut fzf = FzfV1::new();
 
     let mut parser = FzfParser::new();
 
     let query = parser.parse("^\\$");
 
-    assert!(fzf.distance(query, " ").is_none());
+    let mach = fzf
+        .with_case_sensitivity(CaseSensitivity::Sensitive)
+        .with_matched_ranges(true)
+        .distance(query, " ");
+
+    assert!(mach.is_none());
 }
 
 #[test]
 fn fzf_v1_score_4() {
-    let mut fzf = FzfV1::new()
-        .with_case_sensitivity(CaseSensitivity::Insensitive)
-        .with_matched_ranges(true);
+    let mut fzf = FzfV1::new();
 
     let mut parser = FzfParser::new();
 
@@ -267,21 +273,27 @@ fn fzf_v1_score_4() {
 
     let candidate = "ZZ\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\u{65e}\nZ\u{65e}";
 
-    let mach = fzf.distance(query, candidate).unwrap();
+    let mach = fzf
+        .with_case_sensitivity(CaseSensitivity::Insensitive)
+        .with_matched_ranges(true)
+        .distance(query, candidate)
+        .unwrap();
 
     assert_eq!(mach.matched_ranges(), [1..2, 21..22]);
 }
 
 #[test]
 fn fzf_v1_score_5() {
-    let mut fzf = FzfV1::new()
-        .with_case_sensitivity(CaseSensitivity::Sensitive)
-        .with_matched_ranges(true)
-        .with_normalization(true);
+    let mut fzf = FzfV1::new();
 
     let mut parser = FzfParser::new();
 
-    let mach = fzf.distance(parser.parse("e !"), " !I\\hh+\u{364}").unwrap();
+    let mach = fzf
+        .with_case_sensitivity(CaseSensitivity::Sensitive)
+        .with_matched_ranges(true)
+        .with_normalization(true)
+        .distance(parser.parse("e !"), " !I\\hh+\u{364}")
+        .unwrap();
 
     assert_eq!(mach.matched_ranges(), [1..2, 7..9]);
 }

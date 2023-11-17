@@ -29,10 +29,13 @@ impl bench::Metric for FzfV2 {
     fn dist(&mut self, query: FzfQuery, candidate: &str) {
         self.distance(query, candidate);
     }
-    fn with_case_sensitivity(self, case_sensitivity: CaseSensitivity) -> Self {
+    fn with_case_sensitivity(
+        &mut self,
+        case_sensitivity: CaseSensitivity,
+    ) -> &mut Self {
         self.with_case_sensitivity(case_sensitivity)
     }
-    fn with_matched_ranges(self, matched_ranges: bool) -> Self {
+    fn with_matched_ranges(&mut self, matched_ranges: bool) -> &mut Self {
         self.with_matched_ranges(matched_ranges)
     }
 }

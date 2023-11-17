@@ -561,24 +561,24 @@ mod utils {
         + for<'a> Metric<Query<'a> = FzfQuery<'a>, Distance = FzfDistance>
     {
         fn with_case_sensitivity(
-            self,
+            &mut self,
             case_sensitivity: CaseSensitivity,
-        ) -> Self;
+        ) -> &mut Self;
 
-        fn with_matched_ranges(self, matched_ranges: bool) -> Self;
+        fn with_matched_ranges(&mut self, matched_ranges: bool) -> &mut Self;
 
         fn scheme(&self) -> &norm::fzf::Scheme;
     }
 
     impl Fzf for FzfV1 {
         fn with_case_sensitivity(
-            self,
+            &mut self,
             case_sensitivity: CaseSensitivity,
-        ) -> Self {
+        ) -> &mut Self {
             self.with_case_sensitivity(case_sensitivity)
         }
 
-        fn with_matched_ranges(self, matched_ranges: bool) -> Self {
+        fn with_matched_ranges(&mut self, matched_ranges: bool) -> &mut Self {
             self.with_matched_ranges(matched_ranges)
         }
 
@@ -597,13 +597,13 @@ mod utils {
 
     impl Fzf for FzfV2 {
         fn with_case_sensitivity(
-            self,
+            &mut self,
             case_sensitivity: CaseSensitivity,
-        ) -> Self {
+        ) -> &mut Self {
             self.with_case_sensitivity(case_sensitivity)
         }
 
-        fn with_matched_ranges(self, matched_ranges: bool) -> Self {
+        fn with_matched_ranges(&mut self, matched_ranges: bool) -> &mut Self {
             self.with_matched_ranges(matched_ranges)
         }
 
@@ -625,9 +625,9 @@ mod utils {
         query: &str,
         candidate: &str,
     ) -> (F, Option<Match<FzfDistance>>) {
-        let mut fzf = F::default()
-            .with_case_sensitivity(case_sensitivity)
-            .with_matched_ranges(true);
+        let mut fzf = F::default();
+
+        fzf.with_case_sensitivity(case_sensitivity).with_matched_ranges(true);
 
         let mut parser = FzfParser::new();
 

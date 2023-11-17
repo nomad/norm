@@ -42,23 +42,25 @@ fuzz_target!(|data: (Query, Candidate)| {
     let mut fzf_v2 = FzfV2::new();
 
     with_opts(|case_sensitivity, normalization, scheme| {
-        fzf_v1 = core::mem::take(&mut fzf_v1)
+        let mach = fzf_v1
             .with_case_sensitivity(case_sensitivity)
             .with_normalization(normalization)
-            .with_scoring_scheme(scheme);
+            .with_scoring_scheme(scheme)
+            .distance(query, candidate);
 
-        if let Some(mach) = fzf_v1.distance(query, candidate) {
+        if let Some(mach) = mach {
             for range in mach.matched_ranges() {
                 let _s = &candidate[range.clone()];
             }
         }
 
-        fzf_v2 = core::mem::take(&mut fzf_v2)
+        let mach = fzf_v2
             .with_case_sensitivity(case_sensitivity)
             .with_normalization(normalization)
-            .with_scoring_scheme(scheme);
+            .with_scoring_scheme(scheme)
+            .distance(query, candidate);
 
-        if let Some(mach) = fzf_v2.distance(query, candidate) {
+        if let Some(mach) = mach {
             for range in mach.matched_ranges() {
                 let _s = &candidate[range.clone()];
             }
