@@ -1,16 +1,23 @@
 use super::{bonus, CharClass, Score};
 
-/// TODO: docs
+/// A distance scheme to tweak the distance algorithm.
+///
+/// This struct can be passed to both [`FzfV1`](super::FzfV1) and
+/// [`FzfV2`](super::FzfV2) to tweak the distance algorithm based on the type
+/// of candidates being searched.
 #[derive(Debug, Default, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
 pub enum FzfScheme {
-    /// TODO: docs
+    /// A generic distance scheme that works well for any type of input.
     #[default]
     Default,
 
-    /// TODO: docs
+    /// A distance scheme tailored for searching file paths. It assigns
+    /// additional bonus points to the character immediately following a path
+    /// separator (i.e. `/` on Unix-like systems and `\` on Windows).
     Path,
 
-    /// TODO: docs
+    /// A distance scheme tailored for searching shell command history which
+    /// doesn't assign any additional bonus points.
     History,
 }
 
