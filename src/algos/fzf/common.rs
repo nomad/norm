@@ -8,11 +8,10 @@ use crate::*;
 pub(super) fn calculate_score(
     pattern: Pattern,
     candidate: &str,
-    range: Range<usize>,
+    candidate_range: Range<usize>,
+    opts: impl Opts,
     scheme: &Scheme,
-    char_eq: CharEq,
-    with_matched_ranges: bool,
-    matched_ranges: &mut MatchedRanges,
+    mut ranges_buf: Option<&mut MatchedRanges>,
 ) -> Score {
     // TODO: docs
     let mut is_in_gap = false;
@@ -26,9 +25,9 @@ pub(super) fn calculate_score(
     // TODO: docs
     let mut consecutive = 0u32;
 
-    let range_start = range.start;
+    let range_start = candidate_range.start;
 
-    let mut prev_class = candidate[..range.start]
+    let mut prev_class = candidate[..candidate_range.start]
         .chars()
         .next_back()
         .map(|ch| char_class(ch, scheme))
@@ -40,10 +39,10 @@ pub(super) fn calculate_score(
 
     let mut score: Score = 0;
 
-    for (offset, candidate_ch) in candidate[range].char_indices() {
+    for (offset, candidate_ch) in candidate[candidate_range].char_indices() {
         let ch_class = char_class(candidate_ch, scheme);
 
-        if char_eq(pattern_char, candidate_ch) {
+        if opts.char_eq(pattern_char, candidate_ch) {
             score += bonus::MATCH;
 
             let mut bonus = bonus(prev_class, ch_class, scheme);
@@ -63,10 +62,10 @@ pub(super) fn calculate_score(
                 bonus
             };
 
-            if with_matched_ranges {
+            if let Some(ranges) = &mut ranges_buf {
                 let start = range_start + offset;
                 let end = start + candidate_ch.len_utf8();
-                matched_ranges.insert(start..end);
+                ranges.insert(start..end);
             }
 
             is_in_gap = false;
@@ -105,10 +104,9 @@ pub(super) fn calculate_score(
 pub(super) fn exact_match(
     pattern: Pattern,
     candidate: &str,
+    opts: impl Opts,
     scheme: &Scheme,
-    char_eq: CharEq,
-    with_matched_ranges: bool,
-    matched_ranges: &mut MatchedRanges,
+    ranges_buf: Option<&mut MatchedRanges>,
 ) -> Option<Score> {
     if pattern.is_empty() {
         return Some(0);
@@ -144,7 +142,7 @@ pub(super) fn exact_match(
 
             let char_class = char_class(candidate_ch, scheme);
 
-            if char_eq(pattern_ch, candidate_ch) {
+            if opts.char_eq(pattern_ch, candidate_ch) {
                 if pattern_char_idx == 0 {
                     bonus_start = current_start_offset + byte_offset;
                     start_offset += byte_offset + candidate_ch.len_utf8();
@@ -194,14 +192,13 @@ pub(super) fn exact_match(
         pattern,
         candidate,
         matched_range.clone(),
+        opts,
         scheme,
-        char_eq,
-        false,
-        matched_ranges,
+        None,
     );
 
-    if with_matched_ranges {
-        matched_ranges.insert(matched_range);
+    if let Some(ranges) = ranges_buf {
+        ranges.insert(matched_range);
     }
 
     Some(score)
@@ -212,10 +209,9 @@ pub(super) fn exact_match(
 pub(super) fn prefix_match(
     pattern: Pattern,
     candidate: &str,
+    opts: impl Opts,
     scheme: &Scheme,
-    char_eq: CharEq,
-    with_matched_ranges: bool,
-    matched_ranges: &mut MatchedRanges,
+    ranges_buf: Option<&mut MatchedRanges>,
 ) -> Option<Score> {
     if pattern.is_empty() {
         return Some(0);
@@ -231,7 +227,7 @@ pub(super) fn prefix_match(
     for (candidate_ch, pattern_ch) in
         candidate[ignored_leading_spaces..].chars().zip(pattern_chars.by_ref())
     {
-        if !char_eq(pattern_ch, candidate_ch) {
+        if !opts.char_eq(pattern_ch, candidate_ch) {
             return None;
         }
         match_byte_len += candidate_ch.len_utf8();
@@ -248,14 +244,13 @@ pub(super) fn prefix_match(
         pattern,
         candidate,
         matched_range.clone(),
+        opts,
         scheme,
-        char_eq,
-        false,
-        matched_ranges,
+        None,
     );
 
-    if with_matched_ranges {
-        matched_ranges.insert(matched_range);
+    if let Some(ranges) = ranges_buf {
+        ranges.insert(matched_range);
     }
 
     Some(score)
@@ -266,10 +261,9 @@ pub(super) fn prefix_match(
 pub(super) fn suffix_match(
     pattern: Pattern,
     candidate: &str,
+    opts: impl Opts,
     scheme: &Scheme,
-    char_eq: CharEq,
-    with_matched_ranges: bool,
-    matched_ranges: &mut MatchedRanges,
+    ranges_buf: Option<&mut MatchedRanges>,
 ) -> Option<Score> {
     if pattern.is_empty() {
         return Some(0);
@@ -287,7 +281,7 @@ pub(super) fn suffix_match(
         .rev()
         .zip(pattern_chars.by_ref())
     {
-        if !char_eq(pattern_ch, candidate_ch) {
+        if !opts.char_eq(pattern_ch, candidate_ch) {
             return None;
         }
         match_byte_len += candidate_ch.len_utf8();
@@ -304,14 +298,13 @@ pub(super) fn suffix_match(
         pattern,
         candidate,
         matched_range.clone(),
+        opts,
         scheme,
-        char_eq,
-        false,
-        matched_ranges,
+        None,
     );
 
-    if with_matched_ranges {
-        matched_ranges.insert(matched_range);
+    if let Some(ranges) = ranges_buf {
+        ranges.insert(matched_range);
     }
 
     Some(score)
@@ -322,10 +315,9 @@ pub(super) fn suffix_match(
 pub(super) fn equal_match(
     pattern: Pattern,
     candidate: &str,
+    opts: impl Opts,
     scheme: &Scheme,
-    char_eq: CharEq,
-    with_matched_ranges: bool,
-    matched_ranges: &mut MatchedRanges,
+    ranges_buf: Option<&mut MatchedRanges>,
 ) -> Option<Score> {
     if pattern.is_empty() {
         return Some(0);
@@ -358,7 +350,7 @@ pub(super) fn equal_match(
     for (pattern_ch, candidate_ch) in
         pattern_chars.by_ref().zip(candidate_chars.by_ref())
     {
-        if !char_eq(pattern_ch, candidate_ch) {
+        if !opts.char_eq(pattern_ch, candidate_ch) {
             return None;
         }
     }
@@ -371,14 +363,13 @@ pub(super) fn equal_match(
         pattern,
         candidate,
         matched_range.clone(),
+        opts,
         scheme,
-        char_eq,
-        false,
-        matched_ranges,
+        None,
     );
 
-    if with_matched_ranges {
-        matched_ranges.insert(matched_range);
+    if let Some(ranges) = ranges_buf {
+        ranges.insert(matched_range);
     }
 
     Some(score)
@@ -425,80 +416,75 @@ mod tests {
         let pattern =
             Pattern::parse("^AbC$".chars().collect::<Vec<_>>().leak());
 
-        let mut matched_ranges = MatchedRanges::default();
+        let mut ranges_buf = MatchedRanges::default();
 
         assert!(exact_match(
             pattern,
             "ABC",
+            AsciiCandidateOpts::new(true),
             &Scheme::default(),
-            utils::char_eq(true, false),
-            true,
-            &mut matched_ranges
+            Some(&mut ranges_buf)
         )
         .is_none());
 
         {
-            matched_ranges = MatchedRanges::default();
+            ranges_buf = MatchedRanges::default();
 
             assert!(exact_match(
                 pattern,
                 "AbC",
+                AsciiCandidateOpts::new(true),
                 &Scheme::default(),
-                utils::char_eq(true, false),
-                true,
-                &mut matched_ranges
+                Some(&mut ranges_buf)
             )
             .is_some());
 
-            assert_eq!(matched_ranges.as_slice(), [0..3]);
+            assert_eq!(ranges_buf.as_slice(), [0..3]);
         }
 
         {
-            matched_ranges = MatchedRanges::default();
+            ranges_buf = MatchedRanges::default();
 
             assert!(exact_match(
                 pattern,
                 "AbC ",
+                AsciiCandidateOpts::new(true),
                 &Scheme::default(),
-                utils::char_eq(true, false),
-                true,
-                &mut matched_ranges
+                Some(&mut ranges_buf)
             )
             .is_some());
 
-            assert_eq!(matched_ranges.as_slice(), [0..3]);
+            assert_eq!(ranges_buf.as_slice(), [0..3]);
         }
 
         {
-            matched_ranges = MatchedRanges::default();
+            ranges_buf = MatchedRanges::default();
 
             assert!(exact_match(
                 pattern,
                 " AbC ",
+                AsciiCandidateOpts::new(true),
                 &Scheme::default(),
-                utils::char_eq(true, false),
-                true,
-                &mut matched_ranges
+                Some(&mut ranges_buf)
             )
             .is_some());
 
-            assert_eq!(matched_ranges.as_slice(), [1..4]);
+            assert_eq!(ranges_buf.as_slice(), [1..4]);
         }
 
         {
-            matched_ranges = MatchedRanges::default();
+            ranges_buf = MatchedRanges::default();
 
             assert!(exact_match(
                 pattern,
                 "  AbC",
+                AsciiCandidateOpts::new(true),
                 &Scheme::default(),
-                utils::char_eq(true, false),
-                true,
-                &mut matched_ranges
+                Some(&mut ranges_buf)
             )
             .is_some());
 
-            assert_eq!(matched_ranges.as_slice(), [2..5]);
+            assert_eq!(ranges_buf.as_slice(), [2..5]);
         }
     }
 
@@ -506,18 +492,17 @@ mod tests {
     fn exact_match_1() {
         let pattern = Pattern::parse("abc".chars().collect::<Vec<_>>().leak());
 
-        let mut matched_ranges = MatchedRanges::default();
+        let mut ranges_buf = MatchedRanges::default();
 
         assert!(exact_match(
             pattern,
             "aabbcc abc",
+            AsciiCandidateOpts::new(true),
             &Scheme::default(),
-            utils::char_eq(true, false),
-            true,
-            &mut matched_ranges
+            Some(&mut ranges_buf)
         )
         .is_some());
 
-        assert_eq!(matched_ranges.as_slice(), [7..10]);
+        assert_eq!(ranges_buf.as_slice(), [7..10]);
     }
 }

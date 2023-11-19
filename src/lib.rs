@@ -63,6 +63,7 @@ mod r#match;
 mod matched_ranges;
 mod metric;
 mod normalize;
+mod opts;
 mod tiny_vec;
 mod utils;
 
@@ -70,5 +71,5 @@ pub use algos::*;
 pub use case_sensitivity::CaseSensitivity;
 use matched_ranges::MatchedRanges;
 pub use metric::Metric;
+use opts::*;
 pub use r#match::Match;
-use utils::CharEq;

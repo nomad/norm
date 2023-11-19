@@ -34,7 +34,7 @@ impl core::fmt::Debug for FzfV1 {
 
 impl FzfV1 {
     /// TODO: docs
-    #[inline]
+    #[inline(always)]
     pub fn new() -> Self {
         Self::default()
     }
@@ -46,7 +46,43 @@ impl FzfV1 {
     }
 
     /// TODO: docs
-    #[inline]
+    #[inline(always)]
+    fn score(
+        &mut self,
+        pattern: Pattern,
+        candidate: &str,
+        is_candidate_ascii: bool,
+        buf: Option<&mut MatchedRanges>,
+    ) -> Option<Score> {
+        let is_sensitive = match self.case_sensitivity {
+            CaseSensitivity::Sensitive => true,
+            CaseSensitivity::Insensitive => false,
+            CaseSensitivity::Smart => pattern.has_uppercase,
+        };
+
+        if is_candidate_ascii {
+            fzf_v1(
+                pattern,
+                candidate,
+                AsciiCandidateOpts::new(is_sensitive),
+                &self.scheme,
+                buf,
+                (),
+            )
+        } else {
+            fzf_v1(
+                pattern,
+                candidate,
+                UnicodeCandidateOpts::new(is_sensitive, self.normalization),
+                &self.scheme,
+                buf,
+                (),
+            )
+        }
+    }
+
+    /// TODO: docs
+    #[inline(always)]
     pub fn with_case_sensitivity(
         &mut self,
         case_sensitivity: CaseSensitivity,
@@ -56,21 +92,21 @@ impl FzfV1 {
     }
 
     /// TODO: docs
-    #[inline]
+    #[inline(always)]
     pub fn with_matched_ranges(&mut self, matched_ranges: bool) -> &mut Self {
         self.with_matched_ranges = matched_ranges;
         self
     }
 
     /// TODO: docs
-    #[inline]
+    #[inline(always)]
     pub fn with_normalization(&mut self, normalization: bool) -> &mut Self {
         self.normalization = normalization;
         self
     }
 
     /// TODO: docs
-    #[inline]
+    #[inline(always)]
     pub fn with_scoring_scheme(&mut self, scheme: FzfScheme) -> &mut Self {
         self.scheme = scheme.into_inner();
         self
@@ -82,7 +118,7 @@ impl Metric for FzfV1 {
 
     type Distance = FzfDistance;
 
-    #[inline]
+    #[inline(always)]
     fn distance(
         &mut self,
         query: FzfQuery<'_>,
@@ -94,61 +130,62 @@ impl Metric for FzfV1 {
 
         let is_candidate_ascii = candidate.is_ascii();
 
-        let mut matched_ranges = MatchedRanges::default();
+        let mut buf = if self.with_matched_ranges {
+            Some(MatchedRanges::default())
+        } else {
+            None
+        };
 
         let conditions = match query.search_mode {
-            SearchMode::NotExtended(pattern) => {
-                let is_case_sensitive = match self.case_sensitivity {
-                    CaseSensitivity::Sensitive => true,
-                    CaseSensitivity::Insensitive => false,
-                    CaseSensitivity::Smart => pattern.has_uppercase,
-                };
-
-                let char_eq =
-                    utils::char_eq(is_case_sensitive, self.normalization);
-
-                let score = fzf_v1(
-                    pattern,
-                    candidate,
-                    &self.scheme,
-                    char_eq,
-                    is_case_sensitive,
-                    self.with_matched_ranges,
-                    is_candidate_ascii,
-                    &mut matched_ranges,
-                )?;
-
-                let distance = FzfDistance::from_score(score);
-
-                return Some(Match::new(distance, matched_ranges));
-            },
-
             SearchMode::Extended(conditions) => conditions,
+
+            SearchMode::NotExtended(pattern) => {
+                return self
+                    .score(
+                        pattern,
+                        candidate,
+                        is_candidate_ascii,
+                        buf.as_mut(),
+                    )
+                    .map(FzfDistance::from_score)
+                    .map(|distance| {
+                        Match::new(distance, buf.unwrap_or_default())
+                    })
+            },
         };
 
         let mut total_score = 0;
 
         for condition in conditions {
             let score = condition.iter().find_map(|pattern| {
-                let is_case_sensitive = match self.case_sensitivity {
+                let is_sensitive = match self.case_sensitivity {
                     CaseSensitivity::Sensitive => true,
                     CaseSensitivity::Insensitive => false,
                     CaseSensitivity::Smart => pattern.has_uppercase,
                 };
 
-                let char_eq =
-                    utils::char_eq(is_case_sensitive, self.normalization);
-
-                pattern.score(
-                    candidate,
-                    &self.scheme,
-                    char_eq,
-                    is_case_sensitive,
-                    self.with_matched_ranges,
-                    is_candidate_ascii,
-                    &mut matched_ranges,
-                    fzf_v1,
-                )
+                if is_candidate_ascii {
+                    pattern.score(
+                        candidate,
+                        AsciiCandidateOpts::new(is_sensitive),
+                        &self.scheme,
+                        buf.as_mut(),
+                        (),
+                        fzf_v1,
+                    )
+                } else {
+                    pattern.score(
+                        candidate,
+                        UnicodeCandidateOpts::new(
+                            is_sensitive,
+                            self.normalization,
+                        ),
+                        &self.scheme,
+                        buf.as_mut(),
+                        (),
+                        fzf_v1,
+                    )
+                }
             })?;
 
             total_score += score;
@@ -156,7 +193,7 @@ impl Metric for FzfV1 {
 
         let distance = FzfDistance::from_score(total_score);
 
-        Some(Match::new(distance, matched_ranges))
+        Some(Match::new(distance, buf.unwrap_or_default()))
     }
 
     #[inline]
@@ -175,44 +212,24 @@ impl Metric for FzfV1 {
 pub(super) fn fzf_v1(
     pattern: Pattern,
     candidate: &str,
+    opts: impl Opts,
     scheme: &Scheme,
-    char_eq: CharEq,
-    is_case_sensitive: bool,
-    with_matched_ranges: bool,
-    is_candidate_ascii: bool,
-    matched_ranges: &mut MatchedRanges,
+    ranges_buf: Option<&mut MatchedRanges>,
+    _: (),
 ) -> Option<Score> {
     if pattern.is_empty() {
         return Some(0);
     }
 
-    let range_forward = forward_pass(
-        pattern,
-        candidate,
-        is_candidate_ascii,
-        is_case_sensitive,
-        char_eq,
-    )?;
+    let range_forward = forward_pass(pattern, candidate, opts)?;
 
-    let start_backward = backward_pass(
-        pattern,
-        &candidate[range_forward.clone()],
-        is_candidate_ascii,
-        is_case_sensitive,
-        char_eq,
-    );
+    let start_backward =
+        backward_pass(pattern, &candidate[range_forward.clone()], opts);
 
     let range = range_forward.start + start_backward..range_forward.end;
 
-    let score = calculate_score(
-        pattern,
-        candidate,
-        range,
-        scheme,
-        char_eq,
-        with_matched_ranges,
-        matched_ranges,
-    );
+    let score =
+        calculate_score(pattern, candidate, range, opts, scheme, ranges_buf);
 
     Some(score)
 }
@@ -222,23 +239,14 @@ pub(super) fn fzf_v1(
 fn forward_pass(
     pattern: Pattern,
     mut candidate: &str,
-    is_candidate_ascii: bool,
-    is_case_sensitive: bool,
-    char_eq: CharEq,
+    opts: impl Opts,
 ) -> Option<Range<usize>> {
     let mut pattern_chars = pattern.chars();
 
     let mut pattern_char = pattern_chars.next()?;
 
-    let (start_offset, matched_char) = utils::find_first(
-        pattern_char,
-        candidate,
-        is_candidate_ascii,
-        is_case_sensitive,
-        char_eq,
-    )?;
-
-    let matched_char_byte_len = matched_char.len_utf8();
+    let (start_offset, matched_char_byte_len) =
+        opts.find_first(pattern_char, candidate)?;
 
     let mut end_offset = start_offset + matched_char_byte_len;
 
@@ -252,15 +260,8 @@ fn forward_pass(
     candidate = unsafe { candidate.get_unchecked(end_offset..) };
 
     loop {
-        let (byte_offset, matched_char) = utils::find_first(
-            pattern_char,
-            candidate,
-            is_candidate_ascii,
-            is_case_sensitive,
-            char_eq,
-        )?;
-
-        let matched_char_byte_len = matched_char.len_utf8();
+        let (byte_offset, matched_char_byte_len) =
+            opts.find_first(pattern_char, candidate)?;
 
         end_offset += byte_offset + matched_char_byte_len;
 
@@ -282,18 +283,16 @@ fn forward_pass(
 fn backward_pass(
     pattern: Pattern,
     mut candidate: &str,
-    is_candidate_ascii: bool,
-    is_case_sensitive: bool,
-    char_eq: CharEq,
+    opts: impl Opts,
 ) -> usize {
     // The candidate must start with the first character of the query.
-    debug_assert!(char_eq(
+    debug_assert!(opts.char_eq(
         pattern.chars().next().unwrap(),
         candidate.chars().next().unwrap(),
     ));
 
     // The candidate must end with the last character of the query.
-    debug_assert!(char_eq(
+    debug_assert!(opts.char_eq(
         pattern.chars().next_back().unwrap(),
         candidate.chars().next_back().unwrap(),
     ));
@@ -303,14 +302,8 @@ fn backward_pass(
     let mut pattern_char = pattern_chars.next().expect("pattern is not empty");
 
     loop {
-        let (byte_offset, _) = utils::find_last(
-            pattern_char,
-            candidate,
-            is_candidate_ascii,
-            is_case_sensitive,
-            char_eq,
-        )
-        .unwrap();
+        let (byte_offset, _) =
+            opts.find_last(pattern_char, candidate).unwrap();
 
         if let Some(next) = pattern_chars.next() {
             pattern_char = next;
