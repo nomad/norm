@@ -15,7 +15,10 @@ type FuzzyAlgo<T> = fn(
     &mut MatchedRanges,
 ) -> Option<Score>;
 
-/// TODO: docs.
+/// A parsed fzf query.
+///
+/// This struct is created by the [`parse`](FzfParser::parse) method on
+/// [`FzfParser`]. See its documentation for more.
 #[derive(Clone, Copy)]
 pub struct FzfQuery<'a> {
     pub(super) search_mode: SearchMode<'a>,
