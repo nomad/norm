@@ -49,4 +49,15 @@ pub trait Metric {
         query: Self::Query<'_>,
         candidate: &str,
     ) -> Option<Match<Self::Distance>>;
+
+    /// This method always returns the same value as [`Self::distance`], but in
+    /// the case of a match it also fills the provided buffer with the **byte**
+    /// ranges of the candidate that matched the query. If the candidate does
+    /// not match the query, the buffer is left untouched.
+    fn distance_and_ranges(
+        &mut self,
+        _query: Self::Query<'_>,
+        _candidate: &str,
+        _ranges_buf: &mut Vec<Range<usize>>,
+    ) -> Option<Self::Distance>;
 }

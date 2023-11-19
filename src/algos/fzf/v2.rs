@@ -1,3 +1,5 @@
+use core::ops::Range;
+
 use super::{query::*, scoring::*, slab::*, *};
 use crate::*;
 
@@ -158,6 +160,16 @@ impl Metric for FzfV2 {
         let distance = FzfDistance::from_score(total_score);
 
         Some(Match::new(distance, matched_ranges))
+    }
+
+    #[inline]
+    fn distance_and_ranges(
+        &mut self,
+        _query: FzfQuery<'_>,
+        _candidate: &str,
+        _ranges_buf: &mut Vec<Range<usize>>,
+    ) -> Option<Self::Distance> {
+        todo!()
     }
 }
 
