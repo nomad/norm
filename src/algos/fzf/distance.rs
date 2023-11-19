@@ -2,7 +2,9 @@ use core::cmp::{Ord, PartialOrd};
 
 pub(super) type Score = i64;
 
-/// An opaque distance type returned by [`FzfV1`](super::FzfV1) and
+/// The fzf distance type.
+///
+/// This struct is returned by [`FzfV1`](super::FzfV1) and
 /// [`FzfV2`](super::FzfV2)'s [`Metric`](crate::Metric) implementations.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct FzfDistance(Score);
