@@ -284,21 +284,21 @@ fn matches<'idx>(
 ) -> Option<(&'idx mut [MatchedIdx], usize)> {
     let matched_idxs = indices_slab.alloc(pattern.char_len());
 
-    let mut query_char_idx = 0;
+    let mut pattern_char_idx = 0;
 
     let mut last_matched_idx = MatchedIdx::default();
 
     loop {
-        let query_char = pattern.char(query_char_idx);
+        let pattern_char = pattern.char(pattern_char_idx);
 
         let (byte_offset, matched_char_byte_len) =
-            opts.find_first(query_char, candidate)?;
+            opts.find_first(pattern_char, candidate)?;
 
         let char_offset = opts.to_char_offset(candidate, byte_offset);
 
         last_matched_idx += MatchedIdx { byte_offset, char_offset };
 
-        matched_idxs[query_char_idx] = last_matched_idx;
+        matched_idxs[pattern_char_idx] = last_matched_idx;
 
         // SAFETY: the start of the range is within the byte length of the
         // candidate and it's a valid char boundary.
@@ -309,8 +309,8 @@ fn matches<'idx>(
         last_matched_idx +=
             MatchedIdx { byte_offset: matched_char_byte_len, char_offset: 1 };
 
-        if query_char_idx + 1 < pattern.char_len() {
-            query_char_idx += 1;
+        if pattern_char_idx + 1 < pattern.char_len() {
+            pattern_char_idx += 1;
         } else {
             break;
         }
@@ -318,7 +318,7 @@ fn matches<'idx>(
 
     let last_char_offset_inclusive = last_matched_idx.byte_offset
         + if let Some((byte_offset, matched_char_byte_len)) =
-            opts.find_last(pattern.char(query_char_idx), candidate)
+            opts.find_last(pattern.char(pattern_char_idx), candidate)
         {
             byte_offset + matched_char_byte_len
         } else {
@@ -402,7 +402,7 @@ fn score_first_row(
     scores_first_row: &mut Row<Score>,
     consecutives_first_row: &mut Row<usize>,
     bonus_vector: &[Score],
-    query_first_char: char,
+    first_pattern_char: char,
     mut candidate: &str,
     opts: impl Opts,
 ) -> (Score, MatrixCell) {
@@ -420,7 +420,7 @@ fn score_first_row(
 
     while !candidate.is_empty() {
         let Some((byte_offset, matched_char_byte_len)) =
-            opts.find_first(query_first_char, candidate)
+            opts.find_first(first_pattern_char, candidate)
         else {
             for col in col..scores_first_row.len() {
                 let score = prev_score.saturating_sub(penalty);
@@ -484,7 +484,7 @@ fn score_remaining_rows(
     let matrix_width = scores.width();
 
     for row_idx in 1..scores.height() {
-        let query_char = pattern.char(row_idx);
+        let pattern_char = pattern.char(row_idx);
 
         let (prev_scores_row, scores_row) =
             scores.two_rows_mut(row_idx - 1, row_idx);
@@ -503,7 +503,7 @@ fn score_remaining_rows(
 
         while !candidate.is_empty() {
             let Some((byte_offset, matched_char_byte_len)) =
-                opts.find_first(query_char, candidate)
+                opts.find_first(pattern_char, candidate)
             else {
                 for col in column..matrix_width {
                     let score_left = scores_row[col - 1];
