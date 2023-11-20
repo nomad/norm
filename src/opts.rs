@@ -88,18 +88,16 @@ impl Opts for AsciiCandidateOpts {
 
         let query_byte = query_ch as u8;
 
-        let offset = if self.is_case_sensitive
-            || !query_byte.is_ascii_alphabetic()
-        {
-            memchr::memchr_iter(query_byte, candidate.as_bytes()).next_back()
-        } else {
-            memchr::memchr2_iter(
-                query_byte,
-                ascii_letter_flip_case(query_byte),
-                candidate.as_bytes(),
-            )
-            .next_back()
-        }?;
+        let offset =
+            if self.is_case_sensitive || !query_byte.is_ascii_alphabetic() {
+                memchr::memrchr(query_byte, candidate.as_bytes())
+            } else {
+                memchr::memrchr2(
+                    query_byte,
+                    ascii_letter_flip_case(query_byte),
+                    candidate.as_bytes(),
+                )
+            }?;
 
         Some((offset, 1))
     }
