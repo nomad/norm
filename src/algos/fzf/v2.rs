@@ -424,9 +424,9 @@ fn score_first_row(
         else {
             for col in col..scores_first_row.len() {
                 let score = prev_score.saturating_sub(penalty);
-                penalty = penalty::GAP_EXTENSION;
                 scores_first_row[col] = score;
                 prev_score = score;
+                penalty = penalty::GAP_EXTENSION;
             }
 
             break;
@@ -438,9 +438,9 @@ fn score_first_row(
         {
             for col in col..col + char_offset {
                 let score = prev_score.saturating_sub(penalty);
-                penalty = penalty::GAP_EXTENSION;
                 scores_first_row[col] = score;
                 prev_score = score;
+                penalty = penalty::GAP_EXTENSION;
             }
         }
 
@@ -508,8 +508,8 @@ fn score_remaining_rows(
                 for col in column..matrix_width {
                     let score_left = scores_row[col - 1];
                     let score = score_left.saturating_sub(penalty);
-                    penalty = penalty::GAP_EXTENSION;
                     scores_row[col] = score;
+                    penalty = penalty::GAP_EXTENSION;
                 }
 
                 break;
@@ -524,8 +524,8 @@ fn score_remaining_rows(
                 for col in column..column + char_offset {
                     let score_left = scores_row[col - 1];
                     let score = score_left.saturating_sub(penalty);
-                    penalty = penalty::GAP_EXTENSION;
                     scores_row[col] = score;
+                    penalty = penalty::GAP_EXTENSION;
                 }
             }
 
