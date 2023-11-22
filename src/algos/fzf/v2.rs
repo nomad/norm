@@ -334,7 +334,7 @@ fn score_first_row(
     for char_offset in candidate.matches(first_pattern_char) {
         penalty = penalty::GAP_START;
 
-        for col in column..column + char_offset {
+        for col in column + 1..char_offset {
             let score = prev_score.saturating_sub(penalty);
             scores_first_row[col] = score;
             prev_score = score;
@@ -361,7 +361,7 @@ fn score_first_row(
 
     penalty = penalty::GAP_START;
 
-    for col in column..scores_first_row.len() {
+    for col in column + 1..scores_first_row.len() {
         let score = prev_score.saturating_sub(penalty);
         scores_first_row[col] = score;
         prev_score = score;
@@ -405,14 +405,14 @@ fn score_remaining_rows(
         {
             penalty = penalty::GAP_START;
 
-            for col in column..column + char_offset {
+            for col in column + 1..char_offset {
                 let score_left = scores_row[col - 1];
                 let score = score_left.saturating_sub(penalty);
                 scores_row[col] = score;
                 penalty = penalty::GAP_EXTENSION;
             }
 
-            column += char_offset;
+            column = char_offset;
 
             let score_left = scores_row[column - 1].saturating_sub(penalty);
 
@@ -453,7 +453,7 @@ fn score_remaining_rows(
 
         penalty = penalty::GAP_START;
 
-        for col in column..matrix_width {
+        for col in column + 1..matrix_width {
             let score_left = scores_row[col - 1];
             let score = score_left.saturating_sub(penalty);
             scores_row[col] = score;
