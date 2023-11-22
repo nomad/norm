@@ -336,7 +336,7 @@ fn score_first_row(
 
     let mut column = 0;
 
-    let mut penalty;
+    let mut penalty = penalty::GAP_START;
 
     for char_offset in candidate.matches(first_pattern_char) {
         penalty = penalty::GAP_START;
@@ -365,8 +365,6 @@ fn score_first_row(
 
         prev_score = score;
     }
-
-    penalty = penalty::GAP_START;
 
     for col in column + 1..scores_first_row.len() {
         let score = prev_score.saturating_sub(penalty);
@@ -405,7 +403,7 @@ fn score_remaining_rows(
 
         let mut column = first_match_offset;
 
-        let mut penalty;
+        let mut penalty = penalty::GAP_START;
 
         for char_offset in
             candidate.matches_from(first_match_offset, pattern_char)
@@ -457,8 +455,6 @@ fn score_remaining_rows(
 
             scores_row[column] = score;
         }
-
-        penalty = penalty::GAP_START;
 
         for col in column + 1..matrix_width {
             let score_left = scores_row[col - 1];
