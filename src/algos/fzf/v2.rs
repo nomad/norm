@@ -195,9 +195,16 @@ pub(super) fn fzf_v2(
 
     let first_offset = match_offsets[0];
 
+    let initial_char_class = if first_offset == 0 {
+        scheme.initial_char_class
+    } else {
+        char_class(candidate.char(first_offset - 1), scheme)
+    };
+
     let mut candidate = CandidateV2::new(
         candidate.slice(first_offset, last_match_offset),
         &mut slab.bonus,
+        initial_char_class,
         opts,
     );
 

@@ -11,6 +11,9 @@ pub(super) struct CandidateV2<'a> {
     base: Candidate<'a>,
 
     /// TODO: docs
+    initial_char_class: CharClass,
+
+    /// TODO: docs
     opts: CandidateOpts,
 }
 
@@ -51,7 +54,7 @@ impl<'a> CandidateV2<'a> {
         }
 
         let prev_class = if char_idx == 0 {
-            scheme.initial_char_class
+            self.initial_char_class
         } else {
             char_class(self.char(char_idx - 1), scheme)
         };
@@ -103,9 +106,10 @@ impl<'a> CandidateV2<'a> {
     pub fn new(
         base: Candidate<'a>,
         bonus_slab: &'a mut BonusSlab,
+        initial_char_class: CharClass,
         opts: CandidateOpts,
     ) -> Self {
         let bonuses = bonus_slab.alloc(base.char_len());
-        Self { base, bonuses, opts }
+        Self { base, bonuses, initial_char_class, opts }
     }
 }
