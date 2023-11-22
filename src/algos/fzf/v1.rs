@@ -50,8 +50,7 @@ impl FzfV1 {
     fn score(
         &mut self,
         pattern: Pattern,
-        candidate: &str,
-        is_candidate_ascii: bool,
+        candidate: Candidate,
         buf: Option<&mut MatchedRanges>,
     ) -> Option<Score> {
         let is_sensitive = match self.case_sensitivity {
@@ -60,25 +59,9 @@ impl FzfV1 {
             CaseSensitivity::Smart => pattern.has_uppercase,
         };
 
-        if is_candidate_ascii {
-            fzf_v1(
-                pattern,
-                candidate,
-                AsciiCandidateOpts::new(is_sensitive),
-                &self.scheme,
-                buf,
-                (),
-            )
-        } else {
-            fzf_v1(
-                pattern,
-                candidate,
-                UnicodeCandidateOpts::new(is_sensitive, self.normalization),
-                &self.scheme,
-                buf,
-                (),
-            )
-        }
+        let opts = CandidateOpts::new(is_sensitive, self.normalization);
+
+        fzf_v1(pattern, candidate, opts, &self.scheme, buf, ())
     }
 
     /// TODO: docs
@@ -121,79 +104,10 @@ impl Metric for FzfV1 {
     #[inline(always)]
     fn distance(
         &mut self,
-        query: FzfQuery<'_>,
-        candidate: &str,
+        _query: FzfQuery<'_>,
+        _candidate: &str,
     ) -> Option<Match<Self::Distance>> {
-        if query.is_empty() {
-            return Some(Match::default());
-        }
-
-        let is_candidate_ascii = candidate.is_ascii();
-
-        let mut buf = if self.with_matched_ranges {
-            Some(MatchedRanges::default())
-        } else {
-            None
-        };
-
-        let conditions = match query.search_mode {
-            SearchMode::Extended(conditions) => conditions,
-
-            SearchMode::NotExtended(pattern) => {
-                return self
-                    .score(
-                        pattern,
-                        candidate,
-                        is_candidate_ascii,
-                        buf.as_mut(),
-                    )
-                    .map(FzfDistance::from_score)
-                    .map(|distance| {
-                        Match::new(distance, buf.unwrap_or_default())
-                    })
-            },
-        };
-
-        let mut total_score = 0;
-
-        for condition in conditions {
-            let score = condition.iter().find_map(|pattern| {
-                let is_sensitive = match self.case_sensitivity {
-                    CaseSensitivity::Sensitive => true,
-                    CaseSensitivity::Insensitive => false,
-                    CaseSensitivity::Smart => pattern.has_uppercase,
-                };
-
-                if is_candidate_ascii {
-                    pattern.score(
-                        candidate,
-                        AsciiCandidateOpts::new(is_sensitive),
-                        &self.scheme,
-                        buf.as_mut(),
-                        (),
-                        fzf_v1,
-                    )
-                } else {
-                    pattern.score(
-                        candidate,
-                        UnicodeCandidateOpts::new(
-                            is_sensitive,
-                            self.normalization,
-                        ),
-                        &self.scheme,
-                        buf.as_mut(),
-                        (),
-                        fzf_v1,
-                    )
-                }
-            })?;
-
-            total_score += score;
-        }
-
-        let distance = FzfDistance::from_score(total_score);
-
-        Some(Match::new(distance, buf.unwrap_or_default()))
+        todo!();
     }
 
     #[inline]
@@ -211,27 +125,30 @@ impl Metric for FzfV1 {
 #[inline]
 pub(super) fn fzf_v1(
     pattern: Pattern,
-    candidate: &str,
-    opts: impl Opts,
-    scheme: &Scheme,
-    ranges_buf: Option<&mut MatchedRanges>,
+    _candidate: Candidate,
+    _opts: CandidateOpts,
+    _scheme: &Scheme,
+    _ranges_buf: Option<&mut MatchedRanges>,
     _: (),
 ) -> Option<Score> {
+    // TODO: can we remove this?
     if pattern.is_empty() {
         return Some(0);
     }
 
-    let range_forward = forward_pass(pattern, candidate, opts)?;
+    todo!();
 
-    let start_backward =
-        backward_pass(pattern, &candidate[range_forward.clone()], opts);
-
-    let range = range_forward.start + start_backward..range_forward.end;
-
-    let score =
-        calculate_score(pattern, candidate, range, opts, scheme, ranges_buf);
-
-    Some(score)
+    // let range_forward = forward_pass(pattern, candidate, opts)?;
+    //
+    // let start_backward =
+    //     backward_pass(pattern, &candidate[range_forward.clone()], opts);
+    //
+    // let range = range_forward.start + start_backward..range_forward.end;
+    //
+    // let score =
+    //     calculate_score(pattern, candidate, range, opts, scheme, ranges_buf);
+    //
+    // Some(score)
 }
 
 /// TODO: docs

@@ -58,6 +58,7 @@
 extern crate alloc;
 
 mod algos;
+mod candidate;
 mod case_sensitivity;
 mod r#match;
 mod matched_ranges;
@@ -68,6 +69,7 @@ mod tiny_vec;
 mod utils;
 
 pub use algos::*;
+use candidate::{Candidate, CandidateMatches};
 pub use case_sensitivity::CaseSensitivity;
 use matched_ranges::MatchedRanges;
 pub use metric::Metric;

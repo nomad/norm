@@ -4,10 +4,10 @@ use super::*;
 use crate::*;
 
 /// TODO: docs
-type FuzzyAlgo<O, T> = fn(
+type FuzzyAlgo<T> = fn(
     Pattern,
-    &str,
-    O,
+    Candidate,
+    CandidateOpts,
     &Scheme,
     Option<&mut MatchedRanges>,
     T,
@@ -300,14 +300,14 @@ impl<'a> Pattern<'a> {
 
     /// TODO: docs
     #[inline]
-    pub(super) fn score<O: Opts, E>(
+    pub(super) fn score<E>(
         self,
-        candidate: &str,
-        opts: O,
+        candidate: Candidate,
+        opts: CandidateOpts,
         scheme: &Scheme,
         mut ranges_buf: Option<&mut MatchedRanges>,
         extra: E,
-        fuzzy_algo: FuzzyAlgo<O, E>,
+        fuzzy_algo: FuzzyAlgo<E>,
     ) -> Option<Score> {
         if self.is_inverse {
             ranges_buf = None;
@@ -319,19 +319,23 @@ impl<'a> Pattern<'a> {
             },
 
             MatchType::Exact => {
-                exact_match(self, candidate, opts, scheme, ranges_buf)
+                todo!()
+                // exact_match(self, candidate, opts, scheme, ranges_buf)
             },
 
             MatchType::PrefixExact => {
-                prefix_match(self, candidate, opts, scheme, ranges_buf)
+                todo!()
+                // prefix_match(self, candidate, opts, scheme, ranges_buf)
             },
 
             MatchType::SuffixExact => {
-                suffix_match(self, candidate, opts, scheme, ranges_buf)
+                todo!()
+                // suffix_match(self, candidate, opts, scheme, ranges_buf)
             },
 
             MatchType::EqualExact => {
-                equal_match(self, candidate, opts, scheme, ranges_buf)
+                todo!()
+                // equal_match(self, candidate, opts, scheme, ranges_buf)
             },
         };
 

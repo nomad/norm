@@ -33,6 +33,16 @@ pub fn case_sensitive_normalized_eq(lhs: char, rhs: char) -> bool {
     lhs == normalize_candidate_char(lhs, rhs)
 }
 
+#[inline(always)]
+pub fn char_eq(is_case_sensitive: bool, normalize_candidate: bool) -> CharEq {
+    match (is_case_sensitive, normalize_candidate) {
+        (false, false) => case_insensitive_eq,
+        (true, false) => case_sensitive_eq,
+        (false, true) => case_insensitive_normalized_eq,
+        (true, true) => case_sensitive_normalized_eq,
+    }
+}
+
 /// TODO: docs
 #[inline(always)]
 pub fn char_len(s: &str) -> usize {

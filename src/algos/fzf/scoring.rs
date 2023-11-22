@@ -75,7 +75,7 @@ fn non_ascii_char_class(ch: char, scheme: &Scheme) -> CharClass {
 
 /// TODO: docs
 #[inline]
-pub(super) fn bonus(
+pub(super) fn compute_bonus(
     prev_class: CharClass,
     next_class: CharClass,
     scheme: &Scheme,

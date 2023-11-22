@@ -43,6 +43,7 @@
 //! [fzf]: https://github.com/junegunn/fzf
 //! [extended-search]: https://github.com/junegunn/fzf#search-syntax
 
+mod candidate;
 mod common;
 mod distance;
 mod parser;
@@ -55,6 +56,7 @@ mod v1;
 #[cfg(feature = "fzf-v1")]
 mod v2;
 
+use candidate::*;
 use common::*;
 pub use distance::FzfDistance;
 use distance::*;
@@ -64,6 +66,7 @@ pub use scheme::FzfScheme;
 #[doc(hidden)]
 pub use scheme::Scheme;
 use scoring::*;
+use slab::*;
 #[cfg(feature = "fzf-v1")]
 pub use v1::FzfV1;
 #[cfg(feature = "fzf-v1")]

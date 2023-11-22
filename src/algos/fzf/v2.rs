@@ -1,13 +1,15 @@
 use core::ops::Range;
 
-use super::{query::*, scoring::*, slab::*, *};
-use crate::Opts;
+use super::{query::*, slab::*, *};
 use crate::*;
 
 /// TODO: docs
 #[cfg_attr(docsrs, doc(cfg(feature = "fzf-v2")))]
 #[derive(Clone, Default)]
 pub struct FzfV2 {
+    /// TODO: docs
+    candidate_slab: CandidateSlab,
+
     /// TODO: docs
     case_sensitivity: CaseSensitivity,
 
@@ -47,42 +49,6 @@ impl FzfV2 {
     #[cfg(feature = "tests")]
     pub fn scheme(&self) -> &Scheme {
         &self.scheme
-    }
-
-    /// TODO: docs
-    #[inline(always)]
-    fn score(
-        &mut self,
-        pattern: Pattern,
-        candidate: &str,
-        is_candidate_ascii: bool,
-        buf: Option<&mut MatchedRanges>,
-    ) -> Option<Score> {
-        let is_sensitive = match self.case_sensitivity {
-            CaseSensitivity::Sensitive => true,
-            CaseSensitivity::Insensitive => false,
-            CaseSensitivity::Smart => pattern.has_uppercase,
-        };
-
-        if is_candidate_ascii {
-            fzf_v2(
-                pattern,
-                candidate,
-                AsciiCandidateOpts::new(is_sensitive),
-                &self.scheme,
-                buf,
-                &mut self.slab,
-            )
-        } else {
-            fzf_v2(
-                pattern,
-                candidate,
-                UnicodeCandidateOpts::new(is_sensitive, self.normalization),
-                &self.scheme,
-                buf,
-                &mut self.slab,
-            )
-        }
     }
 
     /// TODO: docs
@@ -132,7 +98,12 @@ impl Metric for FzfV2 {
             return Some(Match::default());
         }
 
-        let is_candidate_ascii = candidate.is_ascii();
+        let candidate = if candidate.is_ascii() {
+            Candidate::Ascii(candidate.as_bytes())
+        } else {
+            let chars = self.candidate_slab.alloc(candidate);
+            Candidate::Unicode(chars)
+        };
 
         let mut buf = if self.with_matched_ranges {
             Some(MatchedRanges::default())
@@ -144,17 +115,24 @@ impl Metric for FzfV2 {
             SearchMode::Extended(conditions) => conditions,
 
             SearchMode::NotExtended(pattern) => {
-                return self
-                    .score(
-                        pattern,
-                        candidate,
-                        is_candidate_ascii,
-                        buf.as_mut(),
-                    )
-                    .map(FzfDistance::from_score)
-                    .map(|distance| {
-                        Match::new(distance, buf.unwrap_or_default())
-                    })
+                let is_sensitive = match self.case_sensitivity {
+                    CaseSensitivity::Sensitive => true,
+                    CaseSensitivity::Insensitive => false,
+                    CaseSensitivity::Smart => pattern.has_uppercase,
+                };
+
+                let score = fzf_v2(
+                    pattern,
+                    candidate,
+                    CandidateOpts::new(is_sensitive, self.normalization),
+                    &self.scheme,
+                    None,
+                    &mut self.slab,
+                )?;
+
+                let distance = FzfDistance::from_score(score);
+
+                return Some(Match::new(distance, buf.unwrap_or_default()));
             },
         };
 
@@ -168,28 +146,14 @@ impl Metric for FzfV2 {
                     CaseSensitivity::Smart => pattern.has_uppercase,
                 };
 
-                if is_candidate_ascii {
-                    pattern.score(
-                        candidate,
-                        AsciiCandidateOpts::new(is_sensitive),
-                        &self.scheme,
-                        buf.as_mut(),
-                        &mut self.slab,
-                        fzf_v2,
-                    )
-                } else {
-                    pattern.score(
-                        candidate,
-                        UnicodeCandidateOpts::new(
-                            is_sensitive,
-                            self.normalization,
-                        ),
-                        &self.scheme,
-                        buf.as_mut(),
-                        &mut self.slab,
-                        fzf_v2,
-                    )
-                }
+                pattern.score(
+                    candidate,
+                    CandidateOpts::new(is_sensitive, self.normalization),
+                    &self.scheme,
+                    buf.as_mut(),
+                    &mut self.slab,
+                    fzf_v2,
+                )
             })?;
 
             total_score += score;
@@ -215,60 +179,45 @@ impl Metric for FzfV2 {
 #[inline]
 pub(super) fn fzf_v2(
     pattern: Pattern,
-    candidate: &str,
-    opts: impl Opts,
+    candidate: Candidate,
+    opts: CandidateOpts,
     scheme: &Scheme,
     ranges_buf: Option<&mut MatchedRanges>,
     slab: &mut V2Slab,
 ) -> Option<Score> {
+    // TODO: can we remove this?
     if pattern.is_empty() {
         return Some(0);
     }
 
-    let (matches, last_match_offset) =
+    let (match_offsets, last_match_offset) =
         matches(&mut slab.matched_indices, pattern, candidate, opts)?;
 
-    let first_match = matches[0];
+    let first_offset = match_offsets[0];
 
-    let initial_char_class = candidate[..first_match.byte_offset]
-        .chars()
-        .next_back()
-        .map(|ch| char_class(ch, scheme))
-        .unwrap_or(scheme.initial_char_class);
-
-    let candidate = &candidate[first_match.byte_offset..last_match_offset];
+    let mut candidate = CandidateV2::new(
+        candidate.slice(first_offset, last_match_offset),
+        &mut slab.bonus,
+        opts,
+    );
 
     // After slicing the candidate we need to move all the offsets back
-    // by the offsets of the first match so that they still refer to the
-    // characters.
-    matches.iter_mut().for_each(|mach| *mach -= first_match);
-
-    let bonus_vector = compute_bonuses(
-        &mut slab.bonus_vector,
-        candidate,
-        initial_char_class,
-        scheme,
-    );
+    // by the offset of the first match so that they still refer to the
+    // same characters.
+    match_offsets.iter_mut().for_each(|offset| *offset -= first_offset);
 
     let (scores, consecutive, score, score_cell) = score(
         &mut slab.scoring_matrix,
         &mut slab.consecutive_matrix,
         pattern,
-        candidate,
-        matches,
-        bonus_vector,
-        opts,
+        &mut candidate,
+        match_offsets,
+        scheme,
     );
 
     if let Some(buf) = ranges_buf {
-        matched_ranges(
-            scores,
-            consecutive,
-            score_cell,
-            candidate,
-            first_match.byte_offset,
-            buf,
-        );
+        let candidate = candidate.into_base();
+        matched_ranges(scores, consecutive, score_cell, candidate, 0, buf);
     };
 
     Some(score)
@@ -279,35 +228,28 @@ pub(super) fn fzf_v2(
 fn matches<'idx>(
     indices_slab: &'idx mut MatchedIndicesSlab,
     pattern: Pattern,
-    mut candidate: &str,
-    opts: impl Opts,
-) -> Option<(&'idx mut [MatchedIdx], usize)> {
-    let matched_idxs = indices_slab.alloc(pattern.char_len());
+    candidate: Candidate,
+    opts: CandidateOpts,
+) -> Option<(&'idx mut [usize], usize)> {
+    let match_offsets = indices_slab.alloc(pattern.char_len());
 
     let mut pattern_char_idx = 0;
 
-    let mut last_matched_idx = MatchedIdx::default();
+    let mut last_match_offset = 0;
 
     loop {
         let pattern_char = pattern.char(pattern_char_idx);
 
-        let (byte_offset, matched_char_byte_len) =
-            opts.find_first(pattern_char, candidate)?;
+        last_match_offset = candidate.find_first_from(
+            last_match_offset,
+            pattern_char,
+            opts.is_case_sensitive,
+            opts.char_eq,
+        )?;
 
-        let char_offset = opts.to_char_offset(candidate, byte_offset);
+        match_offsets[pattern_char_idx] = last_match_offset;
 
-        last_matched_idx += MatchedIdx { byte_offset, char_offset };
-
-        matched_idxs[pattern_char_idx] = last_matched_idx;
-
-        // SAFETY: the start of the range is within the byte length of the
-        // candidate and it's a valid char boundary.
-        candidate = unsafe {
-            candidate.get_unchecked(byte_offset + matched_char_byte_len..)
-        };
-
-        last_matched_idx +=
-            MatchedIdx { byte_offset: matched_char_byte_len, char_offset: 1 };
+        last_match_offset += 1;
 
         if pattern_char_idx + 1 < pattern.char_len() {
             pattern_char_idx += 1;
@@ -316,37 +258,16 @@ fn matches<'idx>(
         }
     }
 
-    let last_char_offset_inclusive = last_matched_idx.byte_offset
-        + if let Some((byte_offset, matched_char_byte_len)) =
-            opts.find_last(pattern.char(pattern_char_idx), candidate)
-        {
-            byte_offset + matched_char_byte_len
-        } else {
-            0
-        };
+    let last_char_offset_inclusive = candidate
+        .find_last(
+            pattern.char(pattern_char_idx),
+            opts.is_case_sensitive,
+            opts.char_eq,
+        )
+        .unwrap()
+        + 1;
 
-    Some((matched_idxs, last_char_offset_inclusive))
-}
-
-/// TODO: docs
-#[inline]
-fn compute_bonuses<'bonus>(
-    bonus_slab: &'bonus mut BonusVectorSlab,
-    candidate: &str,
-    initial_char_class: CharClass,
-    scheme: &Scheme,
-) -> &'bonus [Score] {
-    let mut prev_class = initial_char_class;
-
-    let mut bonuses = bonus_slab.alloc(candidate);
-
-    for ch in candidate.chars() {
-        let char_class = char_class(ch, scheme);
-        bonuses.push(bonus(prev_class, char_class, scheme));
-        prev_class = char_class;
-    }
-
-    bonuses.into_slice()
+    Some((match_offsets, last_char_offset_inclusive))
 }
 
 /// TODO: docs
@@ -355,15 +276,12 @@ fn score<'scoring, 'consecutive>(
     scoring_slab: &'scoring mut MatrixSlab<Score>,
     consecutive_slab: &'consecutive mut MatrixSlab<usize>,
     pattern: Pattern,
-    candidate: &str,
-    matches: &[MatchedIdx],
-    bonus_vector: &[Score],
-    opts: impl Opts,
+    candidate: &mut CandidateV2,
+    matches: &[usize],
+    scheme: &Scheme,
 ) -> (Matrix<'scoring, Score>, Matrix<'consecutive, usize>, Score, MatrixCell)
 {
-    // The length of the bonus slice is the same as the character length of the
-    // candidate.
-    let matrix_width = bonus_vector.len();
+    let matrix_width = candidate.char_len();
 
     let matrix_height = pattern.char_len();
 
@@ -375,20 +293,18 @@ fn score<'scoring, 'consecutive>(
     let (max_score, max_score_cell) = score_first_row(
         scoring_matrix.row_mut(0),
         consecutive_matrix.row_mut(0),
-        bonus_vector,
         pattern.char(0),
         candidate,
-        opts,
+        scheme,
     );
 
     let (max_score, max_score_cell) = score_remaining_rows(
         &mut scoring_matrix,
         &mut consecutive_matrix,
         pattern,
-        matches,
         candidate,
-        bonus_vector,
-        opts,
+        scheme,
+        matches,
         max_score,
         max_score_cell,
     );
@@ -401,10 +317,9 @@ fn score<'scoring, 'consecutive>(
 fn score_first_row(
     scores_first_row: &mut Row<Score>,
     consecutives_first_row: &mut Row<usize>,
-    bonus_vector: &[Score],
     first_pattern_char: char,
-    mut candidate: &str,
-    opts: impl Opts,
+    candidate: &mut CandidateV2,
+    scheme: &Scheme,
 ) -> (Score, MatrixCell) {
     let mut max_score: Score = 0;
 
@@ -412,57 +327,45 @@ fn score_first_row(
 
     let mut max_score_col: usize = 0;
 
-    // TODO: docs
-    let mut col = 0;
+    let mut column = 0;
 
-    // TODO: explain what this does.
-    let mut penalty = penalty::GAP_START;
+    let mut penalty;
 
-    while !candidate.is_empty() {
-        let Some((byte_offset, matched_char_byte_len)) =
-            opts.find_first(first_pattern_char, candidate)
-        else {
-            for col in col..scores_first_row.len() {
-                let score = prev_score.saturating_sub(penalty);
-                scores_first_row[col] = score;
-                prev_score = score;
-                penalty = penalty::GAP_EXTENSION;
-            }
+    for char_offset in candidate.matches(first_pattern_char) {
+        penalty = penalty::GAP_START;
 
-            break;
-        };
-
-        let char_offset = opts.to_char_offset(candidate, byte_offset);
-
-        // TODO: explain what this does.
-        {
-            for col in col..col + char_offset {
-                let score = prev_score.saturating_sub(penalty);
-                scores_first_row[col] = score;
-                prev_score = score;
-                penalty = penalty::GAP_EXTENSION;
-            }
+        for col in column..column + char_offset {
+            let score = prev_score.saturating_sub(penalty);
+            scores_first_row[col] = score;
+            prev_score = score;
+            penalty = penalty::GAP_EXTENSION;
         }
 
-        col += char_offset;
+        column = char_offset;
 
-        consecutives_first_row[col] = 1;
+        consecutives_first_row[column] = 1;
 
         let score = bonus::MATCH
-            + (bonus_vector[col] * bonus::FIRST_QUERY_CHAR_MULTIPLIER);
+            + (candidate.bonus_at(column, scheme)
+                * bonus::FIRST_QUERY_CHAR_MULTIPLIER);
+
+        scores_first_row[column] = score;
 
         if score > max_score {
             max_score = score;
-            max_score_col = col;
+            max_score_col = column;
         }
 
-        scores_first_row[col] = score;
-
         prev_score = score;
+    }
 
-        col += 1;
+    penalty = penalty::GAP_START;
 
-        candidate = &candidate[byte_offset + matched_char_byte_len..];
+    for col in column..scores_first_row.len() {
+        let score = prev_score.saturating_sub(penalty);
+        scores_first_row[col] = score;
+        prev_score = score;
+        penalty = penalty::GAP_EXTENSION;
     }
 
     (max_score, MatrixCell(max_score_col))
@@ -474,10 +377,9 @@ fn score_remaining_rows(
     scores: &mut Matrix<'_, Score>,
     consecutives: &mut Matrix<'_, usize>,
     pattern: Pattern,
-    matches: &[MatchedIdx],
-    candidate: &str,
-    bonus_vector: &[Score],
-    opts: impl Opts,
+    candidate: &mut CandidateV2,
+    scheme: &Scheme,
+    matches: &[usize],
     mut max_score: Score,
     mut max_score_cell: MatrixCell,
 ) -> (Score, MatrixCell) {
@@ -492,90 +394,70 @@ fn score_remaining_rows(
         let (prev_consecutives_row, consecutives_row) =
             consecutives.two_rows_mut(row_idx - 1, row_idx);
 
-        let matched_idx = matches[row_idx];
+        let first_match_offset = matches[row_idx];
 
-        let mut column = matched_idx.char_offset;
+        let mut column = first_match_offset;
 
-        let mut candidate = &candidate[matched_idx.byte_offset..];
+        let mut penalty;
 
-        // TODO: explain what this does.
-        let mut penalty = penalty::GAP_START;
-
-        while !candidate.is_empty() {
-            let Some((byte_offset, matched_char_byte_len)) =
-                opts.find_first(pattern_char, candidate)
-            else {
-                for col in column..matrix_width {
-                    let score_left = scores_row[col - 1];
-                    let score = score_left.saturating_sub(penalty);
-                    scores_row[col] = score;
-                    penalty = penalty::GAP_EXTENSION;
-                }
-
-                break;
-            };
-
-            let char_offset = opts.to_char_offset(candidate, byte_offset);
-
-            // TODO: explain what this does.
+        for char_offset in
+            candidate.matches_from(first_match_offset, pattern_char)
+        {
             penalty = penalty::GAP_START;
 
-            {
-                for col in column..column + char_offset {
-                    let score_left = scores_row[col - 1];
-                    let score = score_left.saturating_sub(penalty);
-                    scores_row[col] = score;
-                    penalty = penalty::GAP_EXTENSION;
-                }
+            for col in column..column + char_offset {
+                let score_left = scores_row[col - 1];
+                let score = score_left.saturating_sub(penalty);
+                scores_row[col] = score;
+                penalty = penalty::GAP_EXTENSION;
             }
 
             column += char_offset;
 
-            // TODO: explain what this does.
-            {
-                let score_left =
-                    scores_row[column - 1].saturating_sub(penalty);
+            let score_left = scores_row[column - 1].saturating_sub(penalty);
 
-                let mut score_up_left =
-                    prev_scores_row[column - 1] + bonus::MATCH;
+            let mut score_up_left = prev_scores_row[column - 1] + bonus::MATCH;
 
-                let mut bonus = bonus_vector[column];
+            let mut bonus = candidate.bonus_at(column, scheme);
 
-                let mut consecutive = prev_consecutives_row[column - 1] + 1;
+            let mut consecutive = prev_consecutives_row[column - 1] + 1;
 
-                if consecutive > 1 {
-                    let fb = bonus_vector[column + 1 - consecutive];
+            if consecutive > 1 {
+                let fb = candidate.bonus_at(column + 1 - consecutive, scheme);
 
-                    if bonus >= bonus::BOUNDARY && bonus > fb {
-                        consecutive = 1;
-                    } else {
-                        bonus = bonus::CONSECUTIVE.max(fb).max(bonus);
-                    }
-                }
-
-                score_up_left += if score_up_left + bonus < score_left {
-                    consecutive = 0;
-                    bonus_vector[column]
+                if bonus >= bonus::BOUNDARY && bonus > fb {
+                    consecutive = 1;
                 } else {
-                    bonus
-                };
-
-                let score = score_left.max(score_up_left);
-
-                if score > max_score {
-                    max_score = score;
-                    max_score_cell =
-                        MatrixCell(row_idx * matrix_width + column);
+                    bonus = bonus::CONSECUTIVE.max(fb).max(bonus);
                 }
-
-                consecutives_row[column] = consecutive;
-
-                scores_row[column] = score;
             }
 
-            column += 1;
+            score_up_left += if score_up_left + bonus < score_left {
+                consecutive = 0;
+                candidate.bonus_at(column, scheme)
+            } else {
+                bonus
+            };
 
-            candidate = &candidate[byte_offset + matched_char_byte_len..];
+            let score = score_left.max(score_up_left);
+
+            if score > max_score {
+                max_score = score;
+                max_score_cell = MatrixCell(row_idx * matrix_width + column);
+            }
+
+            consecutives_row[column] = consecutive;
+
+            scores_row[column] = score;
+        }
+
+        penalty = penalty::GAP_START;
+
+        for col in column..matrix_width {
+            let score_left = scores_row[col - 1];
+            let score = score_left.saturating_sub(penalty);
+            scores_row[col] = score;
+            penalty = penalty::GAP_EXTENSION;
         }
     }
 
@@ -588,15 +470,13 @@ fn matched_ranges(
     scores: Matrix<Score>,
     consecutives: Matrix<usize>,
     max_score_cell: MatrixCell,
-    candidate: &str,
-    start_offset: usize,
+    candidate: Candidate,
+    start_byte_offset: usize,
     ranges: &mut MatchedRanges,
 ) {
     let mut prefer_match = true;
 
     let mut cell = max_score_cell;
-
-    let mut char_indices = candidate.char_indices().rev().enumerate();
 
     loop {
         let score = scores[cell];
@@ -635,17 +515,13 @@ fn matched_ranges(
         {
             let col = scores.col_of(cell);
 
-            let (mut offset, ch) = char_indices
-                .by_ref()
-                .find_map(|(back_idx, ch)| {
-                    let idx = scores.width() - back_idx - 1;
-                    (idx == col).then_some(ch)
-                })
-                .unwrap();
+            let mut byte_offset = candidate.to_byte_offset(col);
 
-            offset += start_offset;
+            let ch = candidate.char(col);
 
-            ranges.insert(offset..offset + ch.len_utf8());
+            byte_offset += start_byte_offset;
+
+            ranges.insert(byte_offset..byte_offset + ch.len_utf8());
 
             if let Some(up_left) = cell_up_left {
                 cell = up_left;

@@ -45,7 +45,7 @@ pub(super) fn calculate_score(
         if opts.char_eq(pattern_char, candidate_ch) {
             score += bonus::MATCH;
 
-            let mut bonus = bonus(prev_class, ch_class, scheme);
+            let mut bonus = compute_bonus(prev_class, ch_class, scheme);
 
             if consecutive == 0 {
                 first_bonus = bonus;
@@ -146,7 +146,8 @@ pub(super) fn exact_match(
                 if pattern_char_idx == 0 {
                     bonus_start = current_start_offset + byte_offset;
                     start_offset += byte_offset + candidate_ch.len_utf8();
-                    current_bonus = bonus(prev_char_class, char_class, scheme);
+                    current_bonus =
+                        compute_bonus(prev_char_class, char_class, scheme);
                 }
 
                 pattern_char_idx += 1;
