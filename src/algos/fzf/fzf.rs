@@ -1,12 +1,16 @@
 use core::ops::Range;
 
 use super::{query::*, *};
+use crate::utils::CharEq;
 use crate::*;
 
 /// TODO: docs
 pub(super) trait Fzf {
     /// TODO: docs
     fn alloc_chars<'a>(&mut self, candidate: &str) -> &'a [char];
+
+    /// TODO: docs
+    fn char_eq(&self, pattern: Pattern) -> CharEq;
 
     /// TODO: docs
     fn scheme(&self) -> &Scheme;
@@ -36,7 +40,25 @@ pub(super) trait Fzf {
             },
 
             MatchType::Exact => {
-                todo!();
+                let char_eq = self.char_eq(pattern);
+
+                if pattern.is_inverse {
+                    exact_match::<false>(
+                        pattern,
+                        candidate,
+                        char_eq,
+                        self.scheme(),
+                        ranges,
+                    )
+                } else {
+                    exact_match::<RANGES>(
+                        pattern,
+                        candidate,
+                        char_eq,
+                        self.scheme(),
+                        ranges,
+                    )
+                }
             },
 
             MatchType::PrefixExact => {
@@ -193,12 +215,12 @@ pub(super) fn calculate_score(
 
 /// TODO: docs
 #[inline]
-pub(super) fn exact_match(
+pub(super) fn exact_match<const RANGES: bool>(
     pattern: Pattern,
-    candidate: &str,
-    opts: impl Opts,
+    candidate: Candidate,
+    char_eq: CharEq,
     scheme: &Scheme,
-    ranges_buf: Option<&mut MatchedRanges>,
+    ranges: &mut MatchedRanges,
 ) -> Option<Score> {
     if pattern.is_empty() {
         return Some(0);
@@ -216,30 +238,29 @@ pub(super) fn exact_match(
     // TODO: docs
     let mut matched = false;
 
-    let mut prev_char_class = scheme.initial_char_class;
+    let mut prev_class = scheme.initial_char_class;
 
     let mut start_offset = 0;
 
     'outer: loop {
         let current_start_offset = start_offset;
-        let candidate = &candidate[start_offset..];
         let mut bonus_start = 0;
         let mut current_bonus: Score = 0;
         let mut pattern_char_idx = 0;
 
-        let mut char_indices = candidate.char_indices();
+        let mut chars = candidate.chars_from(start_offset).enumerate();
 
-        for (byte_offset, candidate_ch) in char_indices.by_ref() {
+        for (char_offset, candidate_ch) in chars.by_ref() {
             let pattern_ch = pattern.char(pattern_char_idx);
 
             let char_class = char_class(candidate_ch, scheme);
 
-            if opts.char_eq(pattern_ch, candidate_ch) {
+            if (char_eq)(pattern_ch, candidate_ch) {
                 if pattern_char_idx == 0 {
-                    bonus_start = current_start_offset + byte_offset;
-                    start_offset += byte_offset + candidate_ch.len_utf8();
+                    bonus_start = current_start_offset + char_offset;
+                    start_offset += char_offset + 1;
                     current_bonus =
-                        compute_bonus(prev_char_class, char_class, scheme);
+                        compute_bonus(prev_class, char_class, scheme);
                 }
 
                 pattern_char_idx += 1;
@@ -252,9 +273,8 @@ pub(super) fn exact_match(
 
                         best_bonus_start = bonus_start;
 
-                        best_bonus_end = current_start_offset
-                            + byte_offset
-                            + candidate_ch.len_utf8();
+                        best_bonus_end =
+                            current_start_offset + char_offset + 1;
                     }
 
                     if current_bonus >= bonus::BOUNDARY {
@@ -267,10 +287,10 @@ pub(super) fn exact_match(
                 break;
             }
 
-            prev_char_class = char_class;
+            prev_class = char_class;
         }
 
-        if char_indices.next().is_none() {
+        if chars.next().is_none() {
             break;
         }
     }
@@ -281,20 +301,22 @@ pub(super) fn exact_match(
 
     let matched_range = best_bonus_start..best_bonus_end;
 
-    let score = calculate_score(
-        pattern,
-        candidate,
-        matched_range.clone(),
-        opts,
-        scheme,
-        None,
-    );
+    // let score = calculate_score(
+    //     pattern,
+    //     candidate,
+    //     matched_range.clone(),
+    //     opts,
+    //     scheme,
+    //     None,
+    // );
 
-    if let Some(ranges) = ranges_buf {
+    if RANGES {
         ranges.insert(matched_range);
     }
 
-    Some(score)
+    todo!();
+
+    // Some(score)
 }
 
 /// TODO: docs

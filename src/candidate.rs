@@ -19,6 +19,19 @@ impl<'a> Candidate<'a> {
 
     /// TODO: docs
     #[inline(always)]
+    pub fn chars_from(&self, char_offset: usize) -> Chars<'_> {
+        match self {
+            Candidate::Ascii(slice) => {
+                Chars::Ascii(slice[char_offset..].iter())
+            },
+            Candidate::Unicode(slice) => {
+                Chars::Unicode(slice[char_offset..].iter())
+            },
+        }
+    }
+
+    /// TODO: docs
+    #[inline(always)]
     pub fn char_len(&self) -> usize {
         match self {
             Candidate::Ascii(slice) => slice.len(),
@@ -226,36 +239,21 @@ fn find_last_unicode(
         .find_map(|(idx, &ch)| char_eq(needle, ch).then_some(idx))
 }
 
-struct UnicodeMatches<'a> {
-    needle: char,
-    haystack: &'a [char],
-    char_eq: CharEq,
-    offset: usize,
+/// TODO: docs
+pub(crate) enum Chars<'a> {
+    Ascii(core::slice::Iter<'a, u8>),
+    Unicode(core::slice::Iter<'a, char>),
 }
 
-impl<'a> UnicodeMatches<'a> {
-    fn new(ch: char, haystack: &'a [char], char_eq: CharEq) -> Self {
-        Self { needle: ch, haystack, char_eq, offset: 0 }
-    }
-}
-
-impl Iterator for UnicodeMatches<'_> {
-    type Item = usize;
+impl Iterator for Chars<'_> {
+    type Item = char;
 
     #[inline(always)]
     fn next(&mut self) -> Option<Self::Item> {
-        let idx =
-            self.haystack.iter().enumerate().find_map(|(idx, &ch)| {
-                (self.char_eq)(self.needle, ch).then_some(idx)
-            })?;
-
-        self.haystack = &self.haystack[idx + 1..];
-
-        let offset = self.offset + idx;
-
-        self.offset = offset + 1;
-
-        Some(offset)
+        match self {
+            Chars::Ascii(iter) => iter.next().copied().map(char::from),
+            Chars::Unicode(iter) => iter.next().copied(),
+        }
     }
 }
 
@@ -321,5 +319,38 @@ impl Iterator for CandidateMatches<'_> {
             CandidateMatchesIter::Unicode(unicode) => unicode.next(),
         }
         .map(|offset| self.start_offset + offset)
+    }
+}
+
+struct UnicodeMatches<'a> {
+    needle: char,
+    haystack: &'a [char],
+    char_eq: CharEq,
+    offset: usize,
+}
+
+impl<'a> UnicodeMatches<'a> {
+    fn new(ch: char, haystack: &'a [char], char_eq: CharEq) -> Self {
+        Self { needle: ch, haystack, char_eq, offset: 0 }
+    }
+}
+
+impl Iterator for UnicodeMatches<'_> {
+    type Item = usize;
+
+    #[inline(always)]
+    fn next(&mut self) -> Option<Self::Item> {
+        let idx =
+            self.haystack.iter().enumerate().find_map(|(idx, &ch)| {
+                (self.char_eq)(self.needle, ch).then_some(idx)
+            })?;
+
+        self.haystack = &self.haystack[idx + 1..];
+
+        let offset = self.offset + idx;
+
+        self.offset = offset + 1;
+
+        Some(offset)
     }
 }

@@ -108,6 +108,17 @@ impl Fzf for FzfV2 {
     }
 
     #[inline(always)]
+    fn char_eq(&self, pattern: Pattern) -> utils::CharEq {
+        let is_sensitive = match self.case_sensitivity {
+            CaseSensitivity::Sensitive => true,
+            CaseSensitivity::Insensitive => false,
+            CaseSensitivity::Smart => pattern.has_uppercase,
+        };
+
+        utils::char_eq(is_sensitive, self.normalization)
+    }
+
+    #[inline(always)]
     fn scheme(&self) -> &Scheme {
         &self.scheme
     }
