@@ -21,6 +21,12 @@ impl<'a> Candidate<'a> {
 
     /// TODO: docs
     #[inline(always)]
+    pub fn chars(self) -> Chars<'a> {
+        self.chars_from(0)
+    }
+
+    /// TODO: docs
+    #[inline(always)]
     pub fn chars_from(self, char_offset: usize) -> Chars<'a> {
         match self {
             Candidate::Ascii(slice) => {
@@ -180,14 +186,12 @@ impl<'a> Candidate<'a> {
 
     /// TODO: docs
     #[inline(always)]
-    pub fn slice(self, char_start: usize, char_end: usize) -> Self {
+    pub fn slice(self, char_range: Range<usize>) -> Self {
         match self {
-            Candidate::Ascii(slice) => {
-                Candidate::Ascii(&slice[char_start..char_end])
-            },
+            Candidate::Ascii(slice) => Candidate::Ascii(&slice[char_range]),
 
             Candidate::Unicode(slice) => {
-                Candidate::Unicode(&slice[char_start..char_end])
+                Candidate::Unicode(&slice[char_range])
             },
         }
     }

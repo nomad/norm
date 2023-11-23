@@ -84,11 +84,47 @@ pub(super) trait Fzf {
             },
 
             MatchType::SuffixExact => {
-                todo!();
+                let char_eq = self.char_eq(pattern);
+
+                if pattern.is_inverse {
+                    suffix_match::<false>(
+                        pattern,
+                        candidate,
+                        char_eq,
+                        self.scheme(),
+                        ranges,
+                    )
+                } else {
+                    suffix_match::<RANGES>(
+                        pattern,
+                        candidate,
+                        char_eq,
+                        self.scheme(),
+                        ranges,
+                    )
+                }
             },
 
             MatchType::EqualExact => {
-                todo!();
+                let char_eq = self.char_eq(pattern);
+
+                if pattern.is_inverse {
+                    equal_match::<false>(
+                        pattern,
+                        candidate,
+                        char_eq,
+                        self.scheme(),
+                        ranges,
+                    )
+                } else {
+                    equal_match::<RANGES>(
+                        pattern,
+                        candidate,
+                        char_eq,
+                        self.scheme(),
+                        ranges,
+                    )
+                }
             },
         };
 
@@ -316,8 +352,8 @@ pub(super) fn suffix_match<const RANGES: bool>(
         - ignored_candidate_trailing_spaces(pattern, candidate)?;
 
     for (candidate_ch, pattern_ch) in candidate
-        .slice(0, chars_up_to_ignored_spaces)
-        .chars_from(0)
+        .slice(0..chars_up_to_ignored_spaces)
+        .chars()
         .rev()
         .zip(pattern_chars.by_ref())
     {
@@ -352,12 +388,12 @@ pub(super) fn suffix_match<const RANGES: bool>(
 
 /// TODO: docs
 #[inline]
-pub(super) fn equal_match(
+pub(super) fn equal_match<const RANGES: bool>(
     pattern: Pattern,
-    candidate: &str,
-    opts: impl Opts,
+    candidate: Candidate,
+    char_eq: CharEq,
     scheme: &Scheme,
-    ranges_buf: Option<&mut MatchedRanges>,
+    ranges: &mut MatchedRanges,
 ) -> Option<Score> {
     if pattern.is_empty() {
         return Some(0);
@@ -367,30 +403,29 @@ pub(super) fn equal_match(
         ignored_candidate_leading_spaces(pattern, candidate)?;
 
     // The candidate contains only spaces.
-    if ignored_leading_spaces == candidate.len() {
+    if ignored_leading_spaces == candidate.char_len() {
         return None;
     }
 
     let ignored_trailing_spaces =
         ignored_candidate_trailing_spaces(pattern, candidate)?;
 
-    let matched_range =
-        ignored_leading_spaces..candidate.len() - ignored_trailing_spaces;
+    let matched_char_range =
+        ignored_leading_spaces..candidate.char_len() - ignored_trailing_spaces;
 
-    let relevant_candidate = &candidate[matched_range.clone()];
-
-    if relevant_candidate.len() < pattern.char_len() {
+    if matched_char_range.len() < pattern.char_len() {
         return None;
     }
 
     let mut pattern_chars = pattern.chars();
 
-    let mut candidate_chars = relevant_candidate.chars();
+    let mut candidate_chars =
+        candidate.slice(matched_char_range.clone()).chars();
 
     for (pattern_ch, candidate_ch) in
         pattern_chars.by_ref().zip(candidate_chars.by_ref())
     {
-        if !opts.char_eq(pattern_ch, candidate_ch) {
+        if !char_eq(pattern_ch, candidate_ch) {
             return None;
         }
     }
@@ -399,20 +434,22 @@ pub(super) fn equal_match(
         return None;
     }
 
-    let score = calculate_score(
-        pattern,
-        candidate,
-        matched_range.clone(),
-        opts,
-        scheme,
-        None,
-    );
+    // let score = calculate_score(
+    //     pattern,
+    //     candidate,
+    //     matched_char_range.clone(),
+    //     opts,
+    //     scheme,
+    //     None,
+    // );
 
-    if let Some(ranges) = ranges_buf {
-        ranges.insert(matched_range);
+    if RANGES {
+        ranges.insert(candidate.to_byte_range(matched_char_range));
     }
 
-    Some(score)
+    todo!();
+
+    // Some(score)
 }
 
 /// TODO: docs

@@ -158,7 +158,7 @@ impl Fzf for FzfV2 {
         };
 
         let mut candidate = CandidateV2::new(
-            candidate.slice(first_offset, last_match_offset),
+            candidate.slice(first_offset..last_match_offset),
             &mut self.slab.bonus,
             initial_char_class,
             opts,
