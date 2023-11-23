@@ -115,7 +115,7 @@ impl Fzf for FzfV1 {
     fn fuzzy<const RANGES: bool>(
         &mut self,
         pattern: Pattern,
-        _candidate: Candidate,
+        candidate: Candidate,
         _ranges: &mut MatchedRanges,
     ) -> Option<Score> {
         // TODO: can we remove this?
@@ -129,17 +129,17 @@ impl Fzf for FzfV1 {
             CaseSensitivity::Smart => pattern.has_uppercase,
         };
 
-        let _opts = CandidateOpts::new(is_sensitive, self.normalization);
+        let opts = CandidateOpts::new(is_sensitive, self.normalization);
+
+        let range_forward = forward_pass(pattern, candidate, opts)?;
+
+        let start_backward =
+            backward_pass(pattern, candidate, range_forward.end, opts);
+
+        let range = range_forward.start + start_backward..range_forward.end;
 
         todo!();
 
-        // let range_forward = forward_pass(pattern, candidate, opts)?;
-        //
-        // let start_backward =
-        //     backward_pass(pattern, &candidate[range_forward.clone()], opts);
-        //
-        // let range = range_forward.start + start_backward..range_forward.end;
-        //
         // let score =
         //     calculate_score(pattern, candidate, range, opts, scheme, ranges_buf);
         //
@@ -151,17 +151,21 @@ impl Fzf for FzfV1 {
 #[inline]
 fn forward_pass(
     pattern: Pattern,
-    mut candidate: &str,
-    opts: impl Opts,
+    candidate: Candidate,
+    opts: CandidateOpts,
 ) -> Option<Range<usize>> {
     let mut pattern_chars = pattern.chars();
 
     let mut pattern_char = pattern_chars.next()?;
 
-    let (start_offset, matched_char_byte_len) =
-        opts.find_first(pattern_char, candidate)?;
+    let start_offset = candidate.find_first_from(
+        0,
+        pattern_char,
+        opts.is_case_sensitive,
+        opts.char_eq,
+    )?;
 
-    let mut end_offset = start_offset + matched_char_byte_len;
+    let mut end_offset = start_offset + 1;
 
     if let Some(next) = pattern_chars.next() {
         pattern_char = next;
@@ -169,25 +173,19 @@ fn forward_pass(
         return Some(start_offset..end_offset);
     }
 
-    // SAFETY: todo.
-    candidate = unsafe { candidate.get_unchecked(end_offset..) };
-
     loop {
-        let (byte_offset, matched_char_byte_len) =
-            opts.find_first(pattern_char, candidate)?;
-
-        end_offset += byte_offset + matched_char_byte_len;
+        end_offset = candidate.find_first_from(
+            end_offset,
+            pattern_char,
+            opts.is_case_sensitive,
+            opts.char_eq,
+        )? + 1;
 
         if let Some(next) = pattern_chars.next() {
             pattern_char = next;
         } else {
             return Some(start_offset..end_offset);
         }
-
-        // SAFETY: todo.
-        candidate = unsafe {
-            candidate.get_unchecked(byte_offset + matched_char_byte_len..)
-        };
     }
 }
 
@@ -195,36 +193,30 @@ fn forward_pass(
 #[inline]
 fn backward_pass(
     pattern: Pattern,
-    mut candidate: &str,
-    opts: impl Opts,
+    candidate: Candidate,
+    end_offset: usize,
+    opts: CandidateOpts,
 ) -> usize {
-    // The candidate must start with the first character of the query.
-    debug_assert!(opts.char_eq(
-        pattern.chars().next().unwrap(),
-        candidate.chars().next().unwrap(),
-    ));
-
-    // The candidate must end with the last character of the query.
-    debug_assert!(opts.char_eq(
-        pattern.chars().next_back().unwrap(),
-        candidate.chars().next_back().unwrap(),
-    ));
-
     let mut pattern_chars = pattern.chars().rev();
 
     let mut pattern_char = pattern_chars.next().expect("pattern is not empty");
 
+    let mut start_offset = end_offset;
+
     loop {
-        let (byte_offset, _) =
-            opts.find_last(pattern_char, candidate).unwrap();
+        start_offset = candidate
+            .find_last_from(
+                start_offset,
+                pattern_char,
+                opts.is_case_sensitive,
+                opts.char_eq,
+            )
+            .unwrap();
 
         if let Some(next) = pattern_chars.next() {
             pattern_char = next;
         } else {
-            return byte_offset;
+            return start_offset;
         }
-
-        // SAFETY: todo.
-        candidate = unsafe { candidate.get_unchecked(..byte_offset) };
     }
 }

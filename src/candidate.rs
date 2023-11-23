@@ -79,6 +79,32 @@ impl<'a> Candidate<'a> {
 
     /// TODO: docs
     #[inline(always)]
+    pub fn find_last_from(
+        &self,
+        end_offset: usize,
+        ch: char,
+        is_case_sensitive: bool,
+        char_eq: CharEq,
+    ) -> Option<usize> {
+        match self {
+            Candidate::Ascii(slice) => {
+                if ch.is_ascii() {
+                    let slice = &slice[..end_offset];
+                    find_last_ascii(ch as _, slice, is_case_sensitive)
+                } else {
+                    None
+                }
+            },
+
+            Candidate::Unicode(slice) => {
+                let slice = &slice[..end_offset];
+                find_last_unicode(ch, slice, char_eq)
+            },
+        }
+    }
+
+    /// TODO: docs
+    #[inline(always)]
     pub fn matches(
         &self,
         ch: char,
