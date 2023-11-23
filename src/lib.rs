@@ -49,6 +49,7 @@
 //! ```
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![allow(clippy::module_inception)]
 #![allow(clippy::needless_range_loop)]
 #![allow(clippy::too_many_arguments)]
 #![deny(missing_docs)]

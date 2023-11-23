@@ -60,7 +60,7 @@ impl Default for BonusSlab {
 impl BonusSlab {
     /// TODO: docs
     #[inline]
-    pub fn alloc<'a>(&'a mut self, len: usize) -> &'a mut [Bonus] {
+    pub fn alloc(&mut self, len: usize) -> &mut [Bonus] {
         if len > self.vec.len() {
             self.vec.resize(len, Bonus::default());
         }
