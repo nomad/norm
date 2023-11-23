@@ -9,9 +9,9 @@ pub fn upstream_empty<F: Fzf>() {
 
     let m = m.unwrap();
 
-    assert_eq!(m.distance().into_score(), 0);
+    assert_eq!(m.distance.into_score(), 0);
 
-    assert!(m.matched_ranges().is_empty());
+    assert!(m.matched_ranges.as_slice().is_empty());
 }
 
 pub fn upstream_fuzzy_1<F: Fzf>() {
@@ -20,13 +20,13 @@ pub fn upstream_fuzzy_1<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         3 * bonus::MATCH + bonus::CAMEL_123
             - penalty::GAP_START
             - 3 * penalty::GAP_EXTENSION
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [2..4, 8..9]);
+    assert_eq!(m.matched_ranges.as_slice(), [2..4, 8..9]);
 }
 
 pub fn upstream_fuzzy_2<F: Fzf>() {
@@ -35,7 +35,7 @@ pub fn upstream_fuzzy_2<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         3 * bonus::MATCH
             + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 2)
                 * fzf.scheme().bonus_boundary_white
@@ -43,7 +43,7 @@ pub fn upstream_fuzzy_2<F: Fzf>() {
             - 4 * penalty::GAP_EXTENSION
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [0..1, 4..5, 8..9]);
+    assert_eq!(m.matched_ranges.as_slice(), [0..1, 4..5, 8..9]);
 }
 
 pub fn upstream_fuzzy_3<F: Fzf>() {
@@ -52,11 +52,11 @@ pub fn upstream_fuzzy_3<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         4 * bonus::MATCH + 2 * bonus::CONSECUTIVE + bonus::CAMEL_123
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [9..13]);
+    assert_eq!(m.matched_ranges.as_slice(), [9..13]);
 }
 
 pub fn upstream_fuzzy_4<F: Fzf>() {
@@ -65,13 +65,13 @@ pub fn upstream_fuzzy_4<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         4 * bonus::MATCH
             + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 3)
                 * fzf.scheme().bonus_boundary_delimiter
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [6..10]);
+    assert_eq!(m.matched_ranges.as_slice(), [6..10]);
 }
 
 pub fn upstream_fuzzy_5<F: Fzf>() {
@@ -80,14 +80,14 @@ pub fn upstream_fuzzy_5<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         4 * bonus::MATCH
             + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 2) * bonus::BOUNDARY
             + fzf.scheme().bonus_boundary_delimiter
             - penalty::GAP_START
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [8..11, 12..13]);
+    assert_eq!(m.matched_ranges.as_slice(), [8..11, 12..13]);
 }
 
 pub fn upstream_fuzzy_6<F: Fzf>() {
@@ -96,13 +96,13 @@ pub fn upstream_fuzzy_6<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         5 * bonus::MATCH + 3 * bonus::CONSECUTIVE
             - penalty::GAP_START
             - penalty::GAP_EXTENSION
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [3..6, 8..10]);
+    assert_eq!(m.matched_ranges.as_slice(), [3..6, 8..10]);
 }
 
 pub fn upstream_fuzzy_7<F: Fzf>() {
@@ -111,7 +111,7 @@ pub fn upstream_fuzzy_7<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         5 * bonus::MATCH
             + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 2) * bonus::CAMEL_123
             + bonus::CONSECUTIVE
@@ -119,7 +119,7 @@ pub fn upstream_fuzzy_7<F: Fzf>() {
             - penalty::GAP_EXTENSION
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [3..6, 8..10]);
+    assert_eq!(m.matched_ranges.as_slice(), [3..6, 8..10]);
 }
 
 pub fn upstream_fuzzy_8<F: Fzf>() {
@@ -128,7 +128,7 @@ pub fn upstream_fuzzy_8<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         3 * bonus::MATCH
             + bonus::FIRST_QUERY_CHAR_MULTIPLIER
                 * fzf.scheme().bonus_boundary_white
@@ -137,7 +137,7 @@ pub fn upstream_fuzzy_8<F: Fzf>() {
             - 4 * penalty::GAP_EXTENSION
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [0..1, 4..5, 8..9]);
+    assert_eq!(m.matched_ranges.as_slice(), [0..1, 4..5, 8..9]);
 }
 
 pub fn upstream_fuzzy_9<F: Fzf>() {
@@ -146,7 +146,7 @@ pub fn upstream_fuzzy_9<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         3 * bonus::MATCH
             + bonus::FIRST_QUERY_CHAR_MULTIPLIER
                 * fzf.scheme().bonus_boundary_white
@@ -155,7 +155,7 @@ pub fn upstream_fuzzy_9<F: Fzf>() {
             - 2 * penalty::GAP_EXTENSION
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [0..1, 3..4, 6..7]);
+    assert_eq!(m.matched_ranges.as_slice(), [0..1, 3..4, 6..7]);
 }
 
 pub fn upstream_fuzzy_10<F: Fzf>() {
@@ -164,7 +164,7 @@ pub fn upstream_fuzzy_10<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         3 * bonus::MATCH
             + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 1)
                 * fzf.scheme().bonus_boundary_white
@@ -172,7 +172,7 @@ pub fn upstream_fuzzy_10<F: Fzf>() {
             - 3 * penalty::GAP_EXTENSION
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [0..1, 4..5, 7..8]);
+    assert_eq!(m.matched_ranges.as_slice(), [0..1, 4..5, 7..8]);
 }
 
 pub fn upstream_fuzzy_11<F: Fzf>() {
@@ -181,13 +181,13 @@ pub fn upstream_fuzzy_11<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         4 * bonus::MATCH
             + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 3)
                 * fzf.scheme().bonus_boundary_white
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [0..4]);
+    assert_eq!(m.matched_ranges.as_slice(), [0..4]);
 }
 
 pub fn upstream_fuzzy_12<F: Fzf>() {
@@ -196,14 +196,14 @@ pub fn upstream_fuzzy_12<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         5 * bonus::MATCH
             + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 2) * bonus::CAMEL_123
             + bonus::NON_WORD
             + bonus::BOUNDARY
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [1..6]);
+    assert_eq!(m.matched_ranges.as_slice(), [1..6]);
 }
 
 pub fn upstream_fuzzy_13<F: Fzf>() {
@@ -212,13 +212,13 @@ pub fn upstream_fuzzy_13<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         3 * bonus::MATCH + bonus::CAMEL_123
             - penalty::GAP_START
             - 3 * penalty::GAP_EXTENSION
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [2..4, 8..9]);
+    assert_eq!(m.matched_ranges.as_slice(), [2..4, 8..9]);
 }
 
 pub fn upstream_fuzzy_14<F: Fzf>() {
@@ -227,7 +227,7 @@ pub fn upstream_fuzzy_14<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         3 * bonus::MATCH
             + bonus::FIRST_QUERY_CHAR_MULTIPLIER
                 * fzf.scheme().bonus_boundary_white
@@ -236,7 +236,7 @@ pub fn upstream_fuzzy_14<F: Fzf>() {
             - 4 * penalty::GAP_EXTENSION
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [0..1, 4..5, 8..9]);
+    assert_eq!(m.matched_ranges.as_slice(), [0..1, 4..5, 8..9]);
 }
 
 pub fn upstream_fuzzy_15<F: Fzf>() {
@@ -245,7 +245,7 @@ pub fn upstream_fuzzy_15<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         3 * bonus::MATCH
             + bonus::FIRST_QUERY_CHAR_MULTIPLIER
                 * fzf.scheme().bonus_boundary_white
@@ -254,7 +254,7 @@ pub fn upstream_fuzzy_15<F: Fzf>() {
             - 2 * penalty::GAP_EXTENSION
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [0..1, 3..4, 6..7]);
+    assert_eq!(m.matched_ranges.as_slice(), [0..1, 3..4, 6..7]);
 }
 
 pub fn upstream_fuzzy_16<F: Fzf>() {
@@ -263,14 +263,14 @@ pub fn upstream_fuzzy_16<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         4 * bonus::MATCH
             + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 2)
                 * fzf.scheme().bonus_boundary_white
             + bonus::CAMEL_123.max(fzf.scheme().bonus_boundary_white)
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [0..4]);
+    assert_eq!(m.matched_ranges.as_slice(), [0..4]);
 }
 
 pub fn upstream_fuzzy_17<F: Fzf>() {
@@ -279,11 +279,11 @@ pub fn upstream_fuzzy_17<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         4 * bonus::MATCH + 3 * bonus::BOUNDARY
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [2..6]);
+    assert_eq!(m.matched_ranges.as_slice(), [2..6]);
 }
 
 pub fn upstream_fuzzy_18<F: Fzf>() {
@@ -317,11 +317,11 @@ pub fn upstream_exact_3<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         3 * bonus::MATCH + bonus::CAMEL_123 + bonus::CONSECUTIVE
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [2..5]);
+    assert_eq!(m.matched_ranges.as_slice(), [2..5]);
 }
 
 pub fn upstream_exact_4<F: Fzf>() {
@@ -330,11 +330,11 @@ pub fn upstream_exact_4<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         4 * bonus::MATCH + bonus::CAMEL_123 + 2 * bonus::CONSECUTIVE
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [9..13]);
+    assert_eq!(m.matched_ranges.as_slice(), [9..13]);
 }
 
 pub fn upstream_exact_5<F: Fzf>() {
@@ -343,13 +343,13 @@ pub fn upstream_exact_5<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         4 * bonus::MATCH
             + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 3)
                 * fzf.scheme().bonus_boundary_delimiter
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [6..10]);
+    assert_eq!(m.matched_ranges.as_slice(), [6..10]);
 }
 
 pub fn upstream_exact_6<F: Fzf>() {
@@ -358,13 +358,13 @@ pub fn upstream_exact_6<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         5 * bonus::MATCH
             + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 3) * bonus::BOUNDARY
             + fzf.scheme().bonus_boundary_delimiter
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [8..13]);
+    assert_eq!(m.matched_ranges.as_slice(), [8..13]);
 }
 
 pub fn upstream_exact_7<F: Fzf>() {
@@ -372,12 +372,9 @@ pub fn upstream_exact_7<F: Fzf>() {
 
     let m = m.unwrap();
 
-    assert_eq!(
-        m.distance().into_score(),
-        2 * bonus::MATCH + bonus::CONSECUTIVE
-    );
+    assert_eq!(m.distance.into_score(), 2 * bonus::MATCH + bonus::CONSECUTIVE);
 
-    assert_eq!(m.matched_ranges().sorted(), [1..3]);
+    assert_eq!(m.matched_ranges.as_slice(), [1..3]);
 }
 
 pub fn upstream_prefix_1<F: Fzf>() {
@@ -396,13 +393,13 @@ pub fn upstream_prefix_3<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         3 * bonus::MATCH
             + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 2)
                 * fzf.scheme().bonus_boundary_white
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [0..3]);
+    assert_eq!(m.matched_ranges.as_slice(), [0..3]);
 }
 
 pub fn upstream_prefix_4<F: Fzf>() {
@@ -411,13 +408,13 @@ pub fn upstream_prefix_4<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         3 * bonus::MATCH
             + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 2)
                 * fzf.scheme().bonus_boundary_white
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [0..3]);
+    assert_eq!(m.matched_ranges.as_slice(), [0..3]);
 }
 
 pub fn upstream_prefix_5<F: Fzf>() {
@@ -426,13 +423,13 @@ pub fn upstream_prefix_5<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         3 * bonus::MATCH
             + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 2)
                 * fzf.scheme().bonus_boundary_white
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [0..3]);
+    assert_eq!(m.matched_ranges.as_slice(), [0..3]);
 }
 
 pub fn upstream_prefix_6<F: Fzf>() {
@@ -441,13 +438,13 @@ pub fn upstream_prefix_6<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         3 * bonus::MATCH
             + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 2)
                 * fzf.scheme().bonus_boundary_white
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [1..4]);
+    assert_eq!(m.matched_ranges.as_slice(), [1..4]);
 }
 
 pub fn upstream_prefix_7<F: Fzf>() {
@@ -456,13 +453,13 @@ pub fn upstream_prefix_7<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         3 * bonus::MATCH
             + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 2)
                 * fzf.scheme().bonus_boundary_white
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [0..3]);
+    assert_eq!(m.matched_ranges.as_slice(), [0..3]);
 }
 
 pub fn upstream_prefix_8<F: Fzf>() {
@@ -486,11 +483,11 @@ pub fn upstream_suffix_3<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         3 * bonus::MATCH + 2 * bonus::CONSECUTIVE
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [6..9]);
+    assert_eq!(m.matched_ranges.as_slice(), [6..9]);
 }
 
 pub fn upstream_suffix_4<F: Fzf>() {
@@ -499,12 +496,12 @@ pub fn upstream_suffix_4<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         3 * bonus::MATCH
             + (bonus::FIRST_QUERY_CHAR_MULTIPLIER + 2) * bonus::CAMEL_123
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [6..9]);
+    assert_eq!(m.matched_ranges.as_slice(), [6..9]);
 }
 
 pub fn upstream_suffix_5<F: Fzf>() {
@@ -513,11 +510,11 @@ pub fn upstream_suffix_5<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         3 * bonus::MATCH + 2 * bonus::CONSECUTIVE
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [6..9]);
+    assert_eq!(m.matched_ranges.as_slice(), [6..9]);
 }
 
 pub fn upstream_suffix_6<F: Fzf>() {
@@ -526,13 +523,13 @@ pub fn upstream_suffix_6<F: Fzf>() {
     let m = m.unwrap();
 
     assert_eq!(
-        m.distance().into_score(),
+        m.distance.into_score(),
         4 * bonus::MATCH
             + 2 * bonus::CONSECUTIVE
             + fzf.scheme().bonus_boundary_white
     );
 
-    assert_eq!(m.matched_ranges().sorted(), [6..10]);
+    assert_eq!(m.matched_ranges.as_slice(), [6..10]);
 }
 
 pub use utils::*;
@@ -540,8 +537,13 @@ pub use utils::*;
 mod utils {
     use core::ops::Range;
 
+    pub struct FzfMatch {
+        pub distance: FzfDistance,
+        pub matched_ranges: norm::MatchedRanges,
+    }
+
     use norm::fzf::{FzfDistance, FzfParser, FzfQuery, FzfV1, FzfV2};
-    use norm::{CaseSensitivity, Match, Metric};
+    use norm::{CaseSensitivity, Metric};
 
     /// TODO: docs
     pub trait SortedRanges {
@@ -624,15 +626,23 @@ mod utils {
         case_sensitivity: CaseSensitivity,
         query: &str,
         candidate: &str,
-    ) -> (F, Option<Match<FzfDistance>>) {
+    ) -> (F, Option<FzfMatch>) {
         let mut fzf = F::default();
 
         fzf.with_case_sensitivity(case_sensitivity).with_matched_ranges(true);
 
         let mut parser = FzfParser::new();
 
-        let m = fzf.distance(parser.parse(query), candidate);
+        let mut ranges = norm::MatchedRanges::default();
 
-        (fzf, m)
+        let Some(distance) = fzf.distance_and_ranges(
+            parser.parse(query),
+            candidate,
+            &mut ranges,
+        ) else {
+            return (fzf, None);
+        };
+
+        (fzf, Some(FzfMatch { distance, matched_ranges: ranges }))
     }
 }

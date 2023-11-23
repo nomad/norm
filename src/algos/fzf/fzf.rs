@@ -588,104 +588,109 @@ pub(super) fn compute_score<const RANGES: bool>(
     score
 }
 
-// #[cfg(test)]
-// mod tests {
-//     #![allow(clippy::single_range_in_vec_init)]
-//
-//     use super::*;
-//
-//     #[test]
-//     fn equal_match_1() {
-//         let pattern =
-//             Pattern::parse("^AbC$".chars().collect::<Vec<_>>().leak());
-//
-//         let mut ranges_buf = MatchedRanges::default();
-//
-//         assert!(exact_match(
-//             pattern,
-//             "ABC",
-//             todo!(),
-//             &Scheme::default(),
-//             Some(&mut ranges_buf)
-//         )
-//         .is_none());
-//
-//         {
-//             ranges_buf = MatchedRanges::default();
-//
-//             assert!(exact_match(
-//                 pattern,
-//                 "AbC",
-//                 todo!(),
-//                 &Scheme::default(),
-//                 Some(&mut ranges_buf)
-//             )
-//             .is_some());
-//
-//             assert_eq!(ranges_buf.as_slice(), [0..3]);
-//         }
-//
-//         {
-//             ranges_buf = MatchedRanges::default();
-//
-//             assert!(exact_match(
-//                 pattern,
-//                 "AbC ",
-//                 todo!(),
-//                 &Scheme::default(),
-//                 Some(&mut ranges_buf)
-//             )
-//             .is_some());
-//
-//             assert_eq!(ranges_buf.as_slice(), [0..3]);
-//         }
-//
-//         {
-//             ranges_buf = MatchedRanges::default();
-//
-//             assert!(exact_match(
-//                 pattern,
-//                 " AbC ",
-//                 todo!(),
-//                 &Scheme::default(),
-//                 Some(&mut ranges_buf)
-//             )
-//             .is_some());
-//
-//             assert_eq!(ranges_buf.as_slice(), [1..4]);
-//         }
-//
-//         {
-//             ranges_buf = MatchedRanges::default();
-//
-//             assert!(exact_match(
-//                 pattern,
-//                 "  AbC",
-//                 todo!(),
-//                 &Scheme::default(),
-//                 Some(&mut ranges_buf)
-//             )
-//             .is_some());
-//
-//             assert_eq!(ranges_buf.as_slice(), [2..5]);
-//         }
-//     }
-//
-//     #[test]
-//     fn exact_match_1() {
-//         let pattern = Pattern::parse("abc".chars().collect::<Vec<_>>().leak());
-//
-//         let mut ranges_buf = MatchedRanges::default();
-//
-//         assert!(exact_match(
-//             pattern,
-//             "aabbcc abc",
-//             todo!(),
-//             &Scheme::default(),
-//             Some(&mut ranges_buf)
-//         )
-//         .is_some());
-//
-//         assert_eq!(ranges_buf.as_slice(), [7..10]);
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::single_range_in_vec_init)]
+
+    use super::*;
+
+    fn candidate(s: &str) -> Candidate {
+        assert!(s.is_ascii());
+        Candidate::Ascii(s.as_bytes())
+    }
+
+    #[test]
+    fn equal_match_1() {
+        let pattern =
+            Pattern::parse("^AbC$".chars().collect::<Vec<_>>().leak());
+
+        let mut ranges_buf = MatchedRanges::default();
+
+        assert!(exact_match::<true>(
+            pattern,
+            candidate("ABC"),
+            utils::char_eq(false, false),
+            &Scheme::default(),
+            &mut ranges_buf
+        )
+        .is_none());
+
+        {
+            ranges_buf = MatchedRanges::default();
+
+            assert!(exact_match::<true>(
+                pattern,
+                candidate("AbC"),
+                utils::char_eq(false, false),
+                &Scheme::default(),
+                &mut ranges_buf
+            )
+            .is_some());
+
+            assert_eq!(ranges_buf.as_slice(), [0..3]);
+        }
+
+        {
+            ranges_buf = MatchedRanges::default();
+
+            assert!(exact_match::<true>(
+                pattern,
+                candidate("AbC "),
+                utils::char_eq(false, false),
+                &Scheme::default(),
+                &mut ranges_buf
+            )
+            .is_some());
+
+            assert_eq!(ranges_buf.as_slice(), [0..3]);
+        }
+
+        {
+            ranges_buf = MatchedRanges::default();
+
+            assert!(exact_match::<true>(
+                pattern,
+                candidate(" AbC "),
+                utils::char_eq(false, false),
+                &Scheme::default(),
+                &mut ranges_buf
+            )
+            .is_some());
+
+            assert_eq!(ranges_buf.as_slice(), [1..4]);
+        }
+
+        {
+            ranges_buf = MatchedRanges::default();
+
+            assert!(exact_match::<true>(
+                pattern,
+                candidate("  AbC"),
+                utils::char_eq(false, false),
+                &Scheme::default(),
+                &mut ranges_buf
+            )
+            .is_some());
+
+            assert_eq!(ranges_buf.as_slice(), [2..5]);
+        }
+    }
+
+    #[test]
+    fn exact_match_1() {
+        let pattern = Pattern::parse("abc".chars().collect::<Vec<_>>().leak());
+
+        let mut ranges_buf = MatchedRanges::default();
+
+        assert!(exact_match::<true>(
+            pattern,
+            candidate("aabbcc abc"),
+            utils::char_eq(false, false),
+            &Scheme::default(),
+            &mut ranges_buf
+        )
+        .is_some());
+
+        assert_eq!(ranges_buf.as_slice(), [7..10]);
+    }
+}

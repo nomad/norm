@@ -43,6 +43,12 @@ impl FzfV1 {
     }
 
     /// TODO: docs
+    #[cfg(feature = "tests")]
+    pub fn scheme(&self) -> &Scheme {
+        &self.scheme
+    }
+
+    /// TODO: docs
     #[inline(always)]
     pub fn with_case_sensitivity(
         &mut self,
