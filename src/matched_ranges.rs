@@ -17,7 +17,7 @@ impl core::fmt::Debug for MatchedRanges {
 impl MatchedRanges {
     /// TODO: docs
     #[inline(always)]
-    pub(crate) fn as_slice(&self) -> &[Range<usize>] {
+    pub fn as_slice(&self) -> &[Range<usize>] {
         self.ranges.as_slice()
     }
 
