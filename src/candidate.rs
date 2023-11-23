@@ -1,3 +1,5 @@
+use core::ops::Range;
+
 use crate::utils::*;
 
 /// TODO: docs
@@ -10,7 +12,7 @@ pub(crate) enum Candidate<'a> {
 impl<'a> Candidate<'a> {
     /// TODO: docs
     #[inline(always)]
-    pub fn char(&self, char_idx: usize) -> char {
+    pub fn char(self, char_idx: usize) -> char {
         match self {
             Candidate::Ascii(candidate) => candidate[char_idx] as _,
             Candidate::Unicode(candidate) => candidate[char_idx],
@@ -19,7 +21,7 @@ impl<'a> Candidate<'a> {
 
     /// TODO: docs
     #[inline(always)]
-    pub fn chars_from(&self, char_offset: usize) -> Chars<'_> {
+    pub fn chars_from(self, char_offset: usize) -> Chars<'a> {
         match self {
             Candidate::Ascii(slice) => {
                 Chars::Ascii(slice[char_offset..].iter())
@@ -32,7 +34,7 @@ impl<'a> Candidate<'a> {
 
     /// TODO: docs
     #[inline(always)]
-    pub fn char_len(&self) -> usize {
+    pub fn char_len(self) -> usize {
         match self {
             Candidate::Ascii(slice) => slice.len(),
             Candidate::Unicode(slice) => slice.len(),
@@ -42,7 +44,7 @@ impl<'a> Candidate<'a> {
     /// TODO: docs
     #[inline(always)]
     pub fn find_first_from(
-        &self,
+        self,
         char_offset: usize,
         ch: char,
         is_case_sensitive: bool,
@@ -72,7 +74,7 @@ impl<'a> Candidate<'a> {
     /// TODO: docs
     #[inline(always)]
     pub fn find_last(
-        &self,
+        self,
         ch: char,
         is_case_sensitive: bool,
         char_eq: CharEq,
@@ -93,7 +95,7 @@ impl<'a> Candidate<'a> {
     /// TODO: docs
     #[inline(always)]
     pub fn find_last_from(
-        &self,
+        self,
         end_offset: usize,
         ch: char,
         is_case_sensitive: bool,
@@ -118,7 +120,7 @@ impl<'a> Candidate<'a> {
 
     /// TODO: docs
     #[inline(always)]
-    pub fn leading_spaces(&self) -> usize {
+    pub fn leading_spaces(self) -> usize {
         match self {
             Candidate::Ascii(slice) => {
                 slice.iter().take_while(|&&ch| ch == b' ').count()
@@ -133,7 +135,7 @@ impl<'a> Candidate<'a> {
     /// TODO: docs
     #[inline(always)]
     pub fn matches(
-        &self,
+        self,
         ch: char,
         is_case_sensitive: bool,
         char_eq: CharEq,
@@ -152,7 +154,7 @@ impl<'a> Candidate<'a> {
     /// TODO: docs
     #[inline(always)]
     pub fn matches_from(
-        &self,
+        self,
         char_offset: usize,
         ch: char,
         is_case_sensitive: bool,
@@ -197,6 +199,43 @@ impl<'a> Candidate<'a> {
             Candidate::Ascii(_) => char_offset,
             Candidate::Unicode(slice) => {
                 slice[..char_offset].iter().map(|&ch| ch.len_utf8()).sum()
+            },
+        }
+    }
+
+    /// TODO: docs
+    #[inline(always)]
+    pub fn to_byte_range(self, char_range: Range<usize>) -> Range<usize> {
+        match self {
+            Candidate::Ascii(_) => char_range,
+
+            Candidate::Unicode(slice) => {
+                let mut chars = slice[..char_range.end].iter();
+
+                let start = chars
+                    .by_ref()
+                    .map(|&ch| ch.len_utf8())
+                    .take(char_range.start)
+                    .sum::<usize>();
+
+                let end =
+                    start + chars.map(|&ch| ch.len_utf8()).sum::<usize>();
+
+                start..end
+            },
+        }
+    }
+
+    /// TODO: docs
+    #[inline(always)]
+    pub fn trailing_spaces(self) -> usize {
+        match self {
+            Candidate::Ascii(slice) => {
+                slice.iter().rev().take_while(|&&ch| ch == b' ').count()
+            },
+
+            Candidate::Unicode(slice) => {
+                slice.iter().rev().take_while(|&&ch| ch == ' ').count()
             },
         }
     }
@@ -267,6 +306,16 @@ impl Iterator for Chars<'_> {
         match self {
             Chars::Ascii(iter) => iter.next().copied().map(char::from),
             Chars::Unicode(iter) => iter.next().copied(),
+        }
+    }
+}
+
+impl DoubleEndedIterator for Chars<'_> {
+    #[inline(always)]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        match self {
+            Chars::Ascii(iter) => iter.next_back().copied().map(char::from),
+            Chars::Unicode(iter) => iter.next_back().copied(),
         }
     }
 }

@@ -268,7 +268,9 @@ pub(super) fn prefix_match<const RANGES: bool>(
         if !char_eq(pattern_ch, candidate_ch) {
             return None;
         }
-        match_byte_len += candidate_ch.len_utf8();
+        if RANGES {
+            match_byte_len += candidate_ch.len_utf8();
+        }
     }
 
     if pattern_chars.next().is_some() {
@@ -297,12 +299,12 @@ pub(super) fn prefix_match<const RANGES: bool>(
 
 /// TODO: docs
 #[inline]
-pub(super) fn suffix_match(
+pub(super) fn suffix_match<const RANGES: bool>(
     pattern: Pattern,
-    candidate: &str,
-    opts: impl Opts,
+    candidate: Candidate,
+    char_eq: CharEq,
     scheme: &Scheme,
-    ranges_buf: Option<&mut MatchedRanges>,
+    ranges: &mut MatchedRanges,
 ) -> Option<Score> {
     if pattern.is_empty() {
         return Some(0);
@@ -310,43 +312,42 @@ pub(super) fn suffix_match(
 
     let mut pattern_chars = pattern.chars().rev();
 
-    let up_to_ignored_spaces = candidate.len()
+    let chars_up_to_ignored_spaces = candidate.char_len()
         - ignored_candidate_trailing_spaces(pattern, candidate)?;
 
-    let mut match_byte_len = 0;
-
-    for (candidate_ch, pattern_ch) in candidate[..up_to_ignored_spaces]
-        .chars()
+    for (candidate_ch, pattern_ch) in candidate
+        .slice(0, chars_up_to_ignored_spaces)
+        .chars_from(0)
         .rev()
         .zip(pattern_chars.by_ref())
     {
-        if !opts.char_eq(pattern_ch, candidate_ch) {
+        if !char_eq(pattern_ch, candidate_ch) {
             return None;
         }
-        match_byte_len += candidate_ch.len_utf8();
     }
 
     if pattern_chars.next().is_some() {
         return None;
     }
 
-    let matched_range =
-        up_to_ignored_spaces - match_byte_len..up_to_ignored_spaces;
+    // let score = calculate_score(
+    //     pattern,
+    //     candidate,
+    //     matched_range.clone(),
+    //     opts,
+    //     scheme,
+    //     None,
+    // );
 
-    let score = calculate_score(
-        pattern,
-        candidate,
-        matched_range.clone(),
-        opts,
-        scheme,
-        None,
-    );
-
-    if let Some(ranges) = ranges_buf {
-        ranges.insert(matched_range);
+    if RANGES {
+        let end = chars_up_to_ignored_spaces;
+        let start = end - pattern.char_len();
+        ranges.insert(candidate.to_byte_range(start..end));
     }
 
-    Some(score)
+    todo!()
+
+    // Some(score)
 }
 
 /// TODO: docs
@@ -433,9 +434,9 @@ fn ignored_candidate_leading_spaces(
 #[inline(always)]
 fn ignored_candidate_trailing_spaces(
     pattern: Pattern,
-    candidate: &str,
+    candidate: Candidate,
 ) -> Option<usize> {
-    let candidate_trailing_spaces = utils::trailing_spaces(candidate);
+    let candidate_trailing_spaces = candidate.trailing_spaces();
 
     if pattern.trailing_spaces() > candidate_trailing_spaces {
         None
