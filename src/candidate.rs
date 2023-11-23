@@ -118,6 +118,20 @@ impl<'a> Candidate<'a> {
 
     /// TODO: docs
     #[inline(always)]
+    pub fn leading_spaces(&self) -> usize {
+        match self {
+            Candidate::Ascii(slice) => {
+                slice.iter().take_while(|&&ch| ch == b' ').count()
+            },
+
+            Candidate::Unicode(slice) => {
+                slice.iter().take_while(|&&ch| ch == ' ').count()
+            },
+        }
+    }
+
+    /// TODO: docs
+    #[inline(always)]
     pub fn matches(
         &self,
         ch: char,

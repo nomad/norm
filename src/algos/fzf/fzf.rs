@@ -62,7 +62,25 @@ pub(super) trait Fzf {
             },
 
             MatchType::PrefixExact => {
-                todo!();
+                let char_eq = self.char_eq(pattern);
+
+                if pattern.is_inverse {
+                    prefix_match::<false>(
+                        pattern,
+                        candidate,
+                        char_eq,
+                        self.scheme(),
+                        ranges,
+                    )
+                } else {
+                    prefix_match::<RANGES>(
+                        pattern,
+                        candidate,
+                        char_eq,
+                        self.scheme(),
+                        ranges,
+                    )
+                }
             },
 
             MatchType::SuffixExact => {
@@ -115,102 +133,6 @@ pub(super) trait Fzf {
             },
         }
     }
-}
-
-/// TODO: docs
-#[inline]
-pub(super) fn calculate_score(
-    pattern: Pattern,
-    candidate: &str,
-    candidate_range: Range<usize>,
-    opts: impl Opts,
-    scheme: &Scheme,
-    mut ranges_buf: Option<&mut MatchedRanges>,
-) -> Score {
-    // TODO: docs
-    let mut is_in_gap = false;
-
-    // TODO: docs
-    let mut is_first_pattern_char = true;
-
-    // TODO: docs
-    let mut first_bonus: Score = 0;
-
-    // TODO: docs
-    let mut consecutive = 0u32;
-
-    let range_start = candidate_range.start;
-
-    let mut prev_class = candidate[..candidate_range.start]
-        .chars()
-        .next_back()
-        .map(|ch| char_class(ch, scheme))
-        .unwrap_or(scheme.initial_char_class);
-
-    let mut pattern_chars = pattern.chars();
-
-    let mut pattern_char = pattern_chars.next().expect("pattern is not empty");
-
-    let mut score: Score = 0;
-
-    for (offset, candidate_ch) in candidate[candidate_range].char_indices() {
-        let ch_class = char_class(candidate_ch, scheme);
-
-        if opts.char_eq(pattern_char, candidate_ch) {
-            score += bonus::MATCH;
-
-            let mut bonus = compute_bonus(prev_class, ch_class, scheme);
-
-            if consecutive == 0 {
-                first_bonus = bonus;
-            } else {
-                if bonus >= bonus::BOUNDARY && bonus > first_bonus {
-                    first_bonus = bonus
-                }
-                bonus = bonus.max(first_bonus).max(bonus::CONSECUTIVE);
-            }
-
-            score += if is_first_pattern_char {
-                bonus * bonus::FIRST_QUERY_CHAR_MULTIPLIER
-            } else {
-                bonus
-            };
-
-            if let Some(ranges) = &mut ranges_buf {
-                let start = range_start + offset;
-                let end = start + candidate_ch.len_utf8();
-                ranges.insert(start..end);
-            }
-
-            is_in_gap = false;
-
-            is_first_pattern_char = false;
-
-            consecutive += 1;
-
-            if let Some(next_char) = pattern_chars.next() {
-                pattern_char = next_char;
-            } else {
-                break;
-            };
-        } else {
-            score -= if is_in_gap {
-                penalty::GAP_EXTENSION
-            } else {
-                penalty::GAP_START
-            };
-
-            is_in_gap = true;
-
-            consecutive = 0;
-
-            first_bonus = 0;
-        }
-
-        prev_class = ch_class;
-    }
-
-    score
 }
 
 /// TODO: docs
@@ -321,12 +243,12 @@ pub(super) fn exact_match<const RANGES: bool>(
 
 /// TODO: docs
 #[inline]
-pub(super) fn prefix_match(
+pub(super) fn prefix_match<const RANGES: bool>(
     pattern: Pattern,
-    candidate: &str,
-    opts: impl Opts,
+    candidate: Candidate,
+    char_eq: CharEq,
     scheme: &Scheme,
-    ranges_buf: Option<&mut MatchedRanges>,
+    ranges: &mut MatchedRanges,
 ) -> Option<Score> {
     if pattern.is_empty() {
         return Some(0);
@@ -339,10 +261,11 @@ pub(super) fn prefix_match(
 
     let mut match_byte_len = 0;
 
-    for (candidate_ch, pattern_ch) in
-        candidate[ignored_leading_spaces..].chars().zip(pattern_chars.by_ref())
+    for (candidate_ch, pattern_ch) in candidate
+        .chars_from(ignored_leading_spaces)
+        .zip(pattern_chars.by_ref())
     {
-        if !opts.char_eq(pattern_ch, candidate_ch) {
+        if !char_eq(pattern_ch, candidate_ch) {
             return None;
         }
         match_byte_len += candidate_ch.len_utf8();
@@ -352,23 +275,24 @@ pub(super) fn prefix_match(
         return None;
     }
 
-    let matched_range =
-        ignored_leading_spaces..ignored_leading_spaces + match_byte_len;
+    // let score = calculate_score(
+    //     pattern,
+    //     candidate,
+    //     matched_range.clone(),
+    //     opts,
+    //     scheme,
+    //     None,
+    // );
 
-    let score = calculate_score(
-        pattern,
-        candidate,
-        matched_range.clone(),
-        opts,
-        scheme,
-        None,
-    );
-
-    if let Some(ranges) = ranges_buf {
-        ranges.insert(matched_range);
+    if RANGES {
+        let start = ignored_leading_spaces;
+        let end = start + match_byte_len;
+        ranges.insert(start..end);
     }
 
-    Some(score)
+    todo!()
+
+    // Some(score)
 }
 
 /// TODO: docs
@@ -494,9 +418,9 @@ pub(super) fn equal_match(
 #[inline(always)]
 fn ignored_candidate_leading_spaces(
     pattern: Pattern,
-    candidate: &str,
+    candidate: Candidate,
 ) -> Option<usize> {
-    let candidate_leading_spaces = utils::leading_spaces(candidate);
+    let candidate_leading_spaces = candidate.leading_spaces();
 
     if pattern.leading_spaces() > candidate_leading_spaces {
         None
@@ -518,6 +442,102 @@ fn ignored_candidate_trailing_spaces(
     } else {
         Some(candidate_trailing_spaces - pattern.trailing_spaces())
     }
+}
+
+/// TODO: docs
+#[inline]
+pub(super) fn calculate_score(
+    pattern: Pattern,
+    candidate: &str,
+    candidate_range: Range<usize>,
+    opts: impl Opts,
+    scheme: &Scheme,
+    mut ranges_buf: Option<&mut MatchedRanges>,
+) -> Score {
+    // TODO: docs
+    let mut is_in_gap = false;
+
+    // TODO: docs
+    let mut is_first_pattern_char = true;
+
+    // TODO: docs
+    let mut first_bonus: Score = 0;
+
+    // TODO: docs
+    let mut consecutive = 0u32;
+
+    let range_start = candidate_range.start;
+
+    let mut prev_class = candidate[..candidate_range.start]
+        .chars()
+        .next_back()
+        .map(|ch| char_class(ch, scheme))
+        .unwrap_or(scheme.initial_char_class);
+
+    let mut pattern_chars = pattern.chars();
+
+    let mut pattern_char = pattern_chars.next().expect("pattern is not empty");
+
+    let mut score: Score = 0;
+
+    for (offset, candidate_ch) in candidate[candidate_range].char_indices() {
+        let ch_class = char_class(candidate_ch, scheme);
+
+        if opts.char_eq(pattern_char, candidate_ch) {
+            score += bonus::MATCH;
+
+            let mut bonus = compute_bonus(prev_class, ch_class, scheme);
+
+            if consecutive == 0 {
+                first_bonus = bonus;
+            } else {
+                if bonus >= bonus::BOUNDARY && bonus > first_bonus {
+                    first_bonus = bonus
+                }
+                bonus = bonus.max(first_bonus).max(bonus::CONSECUTIVE);
+            }
+
+            score += if is_first_pattern_char {
+                bonus * bonus::FIRST_QUERY_CHAR_MULTIPLIER
+            } else {
+                bonus
+            };
+
+            if let Some(ranges) = &mut ranges_buf {
+                let start = range_start + offset;
+                let end = start + candidate_ch.len_utf8();
+                ranges.insert(start..end);
+            }
+
+            is_in_gap = false;
+
+            is_first_pattern_char = false;
+
+            consecutive += 1;
+
+            if let Some(next_char) = pattern_chars.next() {
+                pattern_char = next_char;
+            } else {
+                break;
+            };
+        } else {
+            score -= if is_in_gap {
+                penalty::GAP_EXTENSION
+            } else {
+                penalty::GAP_START
+            };
+
+            is_in_gap = true;
+
+            consecutive = 0;
+
+            first_bonus = 0;
+        }
+
+        prev_class = ch_class;
+    }
+
+    score
 }
 
 // #[cfg(test)]
