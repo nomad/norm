@@ -36,9 +36,7 @@
 //! let mut results = cities
 //!     .iter()
 //!     .copied()
-//!     .filter_map(|city| {
-//!         fzf.distance(query, city).map(|mach| (city, mach.distance()))
-//!     })
+//!     .filter_map(|city| fzf.distance(query, city).map(|dist| (city, dist)))
 //!     .collect::<Vec<_>>();
 //!
 //! results.sort_by_key(|(_city, dist)| *dist);

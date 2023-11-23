@@ -48,7 +48,7 @@ mod distance;
 mod fzf;
 #[cfg(feature = "fzf-v1")]
 mod fzf_v1;
-#[cfg(feature = "fzf-v1")]
+#[cfg(feature = "fzf-v2")]
 mod fzf_v2;
 mod parser;
 mod query;
@@ -62,7 +62,7 @@ use distance::*;
 use fzf::*;
 #[cfg(feature = "fzf-v1")]
 pub use fzf_v1::FzfV1;
-#[cfg(feature = "fzf-v1")]
+#[cfg(feature = "fzf-v2")]
 pub use fzf_v2::FzfV2;
 pub use parser::*;
 pub use query::FzfQuery;
