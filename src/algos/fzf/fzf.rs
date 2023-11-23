@@ -609,7 +609,7 @@ mod tests {
         assert!(exact_match::<true>(
             pattern,
             candidate("ABC"),
-            utils::char_eq(false, false),
+            utils::char_eq(true, false),
             &Scheme::default(),
             &mut ranges_buf
         )
@@ -621,7 +621,7 @@ mod tests {
             assert!(exact_match::<true>(
                 pattern,
                 candidate("AbC"),
-                utils::char_eq(false, false),
+                utils::char_eq(true, false),
                 &Scheme::default(),
                 &mut ranges_buf
             )
@@ -636,7 +636,7 @@ mod tests {
             assert!(exact_match::<true>(
                 pattern,
                 candidate("AbC "),
-                utils::char_eq(false, false),
+                utils::char_eq(true, false),
                 &Scheme::default(),
                 &mut ranges_buf
             )
@@ -651,7 +651,7 @@ mod tests {
             assert!(exact_match::<true>(
                 pattern,
                 candidate(" AbC "),
-                utils::char_eq(false, false),
+                utils::char_eq(true, false),
                 &Scheme::default(),
                 &mut ranges_buf
             )
@@ -666,7 +666,7 @@ mod tests {
             assert!(exact_match::<true>(
                 pattern,
                 candidate("  AbC"),
-                utils::char_eq(false, false),
+                utils::char_eq(true, false),
                 &Scheme::default(),
                 &mut ranges_buf
             )
@@ -685,7 +685,7 @@ mod tests {
         assert!(exact_match::<true>(
             pattern,
             candidate("aabbcc abc"),
-            utils::char_eq(false, false),
+            utils::char_eq(true, false),
             &Scheme::default(),
             &mut ranges_buf
         )
