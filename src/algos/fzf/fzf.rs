@@ -173,7 +173,7 @@ pub(super) trait Fzf {
 
 /// TODO: docs
 #[inline]
-pub(super) fn exact_match<const RANGES: bool>(
+fn exact_match<const RANGES: bool>(
     pattern: Pattern,
     candidate: Candidate,
     char_eq: CharEq,
@@ -188,10 +188,10 @@ pub(super) fn exact_match<const RANGES: bool>(
     let mut best_bonus: i64 = -1;
 
     // TODO: docs
-    let mut best_bonus_start = 0;
+    let mut best_bonus_char_start = 0;
 
     // TODO: docs
-    let mut best_bonus_end = 0;
+    let mut best_bonus_char_end = 0;
 
     // TODO: docs
     let mut matched = false;
@@ -229,9 +229,9 @@ pub(super) fn exact_match<const RANGES: bool>(
                     if current_bonus as i64 > best_bonus {
                         best_bonus = current_bonus as _;
 
-                        best_bonus_start = bonus_start;
+                        best_bonus_char_start = bonus_start;
 
-                        best_bonus_end =
+                        best_bonus_char_end =
                             current_start_offset + char_offset + 1;
                     }
 
@@ -257,29 +257,27 @@ pub(super) fn exact_match<const RANGES: bool>(
         return None;
     }
 
-    let matched_range = best_bonus_start..best_bonus_end;
+    let matched_range = best_bonus_char_start..best_bonus_char_end;
 
-    // let score = calculate_score(
-    //     pattern,
-    //     candidate,
-    //     matched_range.clone(),
-    //     opts,
-    //     scheme,
-    //     None,
-    // );
+    let score = compute_score::<false>(
+        pattern,
+        candidate,
+        matched_range.clone(),
+        char_eq,
+        scheme,
+        ranges,
+    );
 
     if RANGES {
-        ranges.insert(matched_range);
+        ranges.insert(candidate.to_byte_range(matched_range));
     }
 
-    todo!();
-
-    // Some(score)
+    Some(score)
 }
 
 /// TODO: docs
 #[inline]
-pub(super) fn prefix_match<const RANGES: bool>(
+fn prefix_match<const RANGES: bool>(
     pattern: Pattern,
     candidate: Candidate,
     char_eq: CharEq,
@@ -313,29 +311,31 @@ pub(super) fn prefix_match<const RANGES: bool>(
         return None;
     }
 
-    // let score = calculate_score(
-    //     pattern,
-    //     candidate,
-    //     matched_range.clone(),
-    //     opts,
-    //     scheme,
-    //     None,
-    // );
-
-    if RANGES {
+    let matched_range = {
         let start = ignored_leading_spaces;
         let end = start + match_byte_len;
-        ranges.insert(start..end);
+        start..end
+    };
+
+    let score = compute_score::<false>(
+        pattern,
+        candidate,
+        matched_range.clone(),
+        char_eq,
+        scheme,
+        ranges,
+    );
+
+    if RANGES {
+        ranges.insert(matched_range);
     }
 
-    todo!()
-
-    // Some(score)
+    Some(score)
 }
 
 /// TODO: docs
 #[inline]
-pub(super) fn suffix_match<const RANGES: bool>(
+fn suffix_match<const RANGES: bool>(
     pattern: Pattern,
     candidate: Candidate,
     char_eq: CharEq,
@@ -366,29 +366,31 @@ pub(super) fn suffix_match<const RANGES: bool>(
         return None;
     }
 
-    // let score = calculate_score(
-    //     pattern,
-    //     candidate,
-    //     matched_range.clone(),
-    //     opts,
-    //     scheme,
-    //     None,
-    // );
-
-    if RANGES {
+    let matched_range = {
         let end = chars_up_to_ignored_spaces;
         let start = end - pattern.char_len();
-        ranges.insert(candidate.to_byte_range(start..end));
+        start..end
+    };
+
+    let score = compute_score::<false>(
+        pattern,
+        candidate,
+        matched_range.clone(),
+        char_eq,
+        scheme,
+        ranges,
+    );
+
+    if RANGES {
+        ranges.insert(candidate.to_byte_range(matched_range));
     }
 
-    todo!()
-
-    // Some(score)
+    Some(score)
 }
 
 /// TODO: docs
 #[inline]
-pub(super) fn equal_match<const RANGES: bool>(
+fn equal_match<const RANGES: bool>(
     pattern: Pattern,
     candidate: Candidate,
     char_eq: CharEq,
@@ -434,22 +436,20 @@ pub(super) fn equal_match<const RANGES: bool>(
         return None;
     }
 
-    // let score = calculate_score(
-    //     pattern,
-    //     candidate,
-    //     matched_char_range.clone(),
-    //     opts,
-    //     scheme,
-    //     None,
-    // );
+    let score = compute_score::<false>(
+        pattern,
+        candidate,
+        matched_char_range.clone(),
+        char_eq,
+        scheme,
+        ranges,
+    );
 
     if RANGES {
         ranges.insert(candidate.to_byte_range(matched_char_range));
     }
 
-    todo!();
-
-    // Some(score)
+    Some(score)
 }
 
 /// TODO: docs
@@ -484,13 +484,13 @@ fn ignored_candidate_trailing_spaces(
 
 /// TODO: docs
 #[inline]
-pub(super) fn calculate_score(
+pub(super) fn compute_score<const RANGES: bool>(
     pattern: Pattern,
-    candidate: &str,
-    candidate_range: Range<usize>,
-    opts: impl Opts,
+    candidate: Candidate,
+    candidate_char_range: Range<usize>,
+    char_eq: CharEq,
     scheme: &Scheme,
-    mut ranges_buf: Option<&mut MatchedRanges>,
+    ranges: &mut MatchedRanges,
 ) -> Score {
     // TODO: docs
     let mut is_in_gap = false;
@@ -504,13 +504,19 @@ pub(super) fn calculate_score(
     // TODO: docs
     let mut consecutive = 0u32;
 
-    let range_start = candidate_range.start;
+    let byte_range_start = if RANGES {
+        candidate.to_byte_offset(candidate_char_range.start)
+    } else {
+        0
+    };
 
-    let mut prev_class = candidate[..candidate_range.start]
-        .chars()
-        .next_back()
-        .map(|ch| char_class(ch, scheme))
-        .unwrap_or(scheme.initial_char_class);
+    let mut byte_offset = 0;
+
+    let mut prev_class = if candidate_char_range.start == 0 {
+        scheme.initial_char_class
+    } else {
+        char_class(candidate.char(candidate_char_range.start - 1), scheme)
+    };
 
     let mut pattern_chars = pattern.chars();
 
@@ -518,10 +524,10 @@ pub(super) fn calculate_score(
 
     let mut score: Score = 0;
 
-    for (offset, candidate_ch) in candidate[candidate_range].char_indices() {
+    for candidate_ch in candidate.slice(candidate_char_range).chars() {
         let ch_class = char_class(candidate_ch, scheme);
 
-        if opts.char_eq(pattern_char, candidate_ch) {
+        if char_eq(pattern_char, candidate_ch) {
             score += bonus::MATCH;
 
             let mut bonus = compute_bonus(prev_class, ch_class, scheme);
@@ -541,8 +547,8 @@ pub(super) fn calculate_score(
                 bonus
             };
 
-            if let Some(ranges) = &mut ranges_buf {
-                let start = range_start + offset;
+            if RANGES {
+                let start = byte_range_start + byte_offset;
                 let end = start + candidate_ch.len_utf8();
                 ranges.insert(start..end);
             }
@@ -573,6 +579,10 @@ pub(super) fn calculate_score(
         }
 
         prev_class = ch_class;
+
+        if RANGES {
+            byte_offset += candidate_ch.len_utf8();
+        }
     }
 
     score

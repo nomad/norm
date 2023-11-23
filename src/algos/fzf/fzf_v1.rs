@@ -127,7 +127,7 @@ impl Fzf for FzfV1 {
         &mut self,
         pattern: Pattern,
         candidate: Candidate,
-        _ranges: &mut MatchedRanges,
+        ranges: &mut MatchedRanges,
     ) -> Option<Score> {
         // TODO: can we remove this?
         if pattern.is_empty() {
@@ -149,12 +149,16 @@ impl Fzf for FzfV1 {
 
         let range = range_forward.start + start_backward..range_forward.end;
 
-        todo!();
+        let score = compute_score::<RANGES>(
+            pattern,
+            candidate,
+            range,
+            opts.char_eq,
+            &self.scheme,
+            ranges,
+        );
 
-        // let score =
-        //     calculate_score(pattern, candidate, range, opts, scheme, ranges_buf);
-        //
-        // Some(score)
+        Some(score)
     }
 }
 

@@ -45,13 +45,7 @@ pub fn char_eq(is_case_sensitive: bool, normalize_candidate: bool) -> CharEq {
 
 /// TODO: docs
 #[inline(always)]
-pub fn char_len(s: &str) -> usize {
-    s.chars().count()
-}
-
-/// TODO: docs
-#[inline(always)]
-pub fn leading_spaces(s: &str) -> usize {
+fn leading_spaces(s: &str) -> usize {
     s.bytes().take_while(|&b| b == b' ').count()
 }
 
@@ -69,10 +63,4 @@ fn normalize_candidate_char(query_char: char, candidate_char: char) -> char {
 #[inline(always)]
 pub fn strip_leading_spaces(s: &str) -> &str {
     &s[leading_spaces(s)..]
-}
-
-/// TODO: docs
-#[inline(always)]
-pub fn trailing_spaces(s: &str) -> usize {
-    s.bytes().rev().take_while(|&b| b == b' ').count()
 }
