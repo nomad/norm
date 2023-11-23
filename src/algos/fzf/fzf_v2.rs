@@ -1,5 +1,3 @@
-use core::ops::Range;
-
 use super::{query::*, slab::*, *};
 use crate::*;
 
@@ -46,12 +44,6 @@ impl FzfV2 {
     }
 
     /// TODO: docs
-    #[cfg(feature = "tests")]
-    pub fn scheme(&self) -> &Scheme {
-        &self.scheme
-    }
-
-    /// TODO: docs
     #[inline(always)]
     pub fn with_case_sensitivity(
         &mut self,
@@ -93,141 +85,100 @@ impl Metric for FzfV2 {
         &mut self,
         query: FzfQuery<'_>,
         candidate: &str,
-    ) -> Option<Match<Self::Distance>> {
-        if query.is_empty() {
-            return Some(Match::default());
-        }
-
-        let candidate = if candidate.is_ascii() {
-            Candidate::Ascii(candidate.as_bytes())
-        } else {
-            let chars = self.candidate_slab.alloc(candidate);
-            Candidate::Unicode(chars)
-        };
-
-        let mut buf = if self.with_matched_ranges {
-            Some(MatchedRanges::default())
-        } else {
-            None
-        };
-
-        let conditions = match query.search_mode {
-            SearchMode::Extended(conditions) => conditions,
-
-            SearchMode::NotExtended(pattern) => {
-                let is_sensitive = match self.case_sensitivity {
-                    CaseSensitivity::Sensitive => true,
-                    CaseSensitivity::Insensitive => false,
-                    CaseSensitivity::Smart => pattern.has_uppercase,
-                };
-
-                let score = fzf_v2(
-                    pattern,
-                    candidate,
-                    CandidateOpts::new(is_sensitive, self.normalization),
-                    &self.scheme,
-                    None,
-                    &mut self.slab,
-                )?;
-
-                let distance = FzfDistance::from_score(score);
-
-                return Some(Match::new(distance, buf.unwrap_or_default()));
-            },
-        };
-
-        let mut total_score = 0;
-
-        for condition in conditions {
-            let score = condition.iter().find_map(|pattern| {
-                let is_sensitive = match self.case_sensitivity {
-                    CaseSensitivity::Sensitive => true,
-                    CaseSensitivity::Insensitive => false,
-                    CaseSensitivity::Smart => pattern.has_uppercase,
-                };
-
-                pattern.score(
-                    candidate,
-                    CandidateOpts::new(is_sensitive, self.normalization),
-                    &self.scheme,
-                    buf.as_mut(),
-                    &mut self.slab,
-                    fzf_v2,
-                )
-            })?;
-
-            total_score += score;
-        }
-
-        let distance = FzfDistance::from_score(total_score);
-
-        Some(Match::new(distance, buf.unwrap_or_default()))
+    ) -> Option<Self::Distance> {
+        let ranges = &mut MatchedRanges::default();
+        <Self as Fzf>::distance::<false>(self, query, candidate, ranges)
     }
 
-    #[inline]
+    #[inline(always)]
     fn distance_and_ranges(
         &mut self,
-        _query: FzfQuery<'_>,
-        _candidate: &str,
-        _ranges_buf: &mut Vec<Range<usize>>,
+        query: FzfQuery<'_>,
+        candidate: &str,
+        ranges: &mut MatchedRanges,
     ) -> Option<Self::Distance> {
-        todo!();
+        <Self as Fzf>::distance::<true>(self, query, candidate, ranges)
     }
 }
 
-/// TODO: docs
-#[inline]
-pub(super) fn fzf_v2(
-    pattern: Pattern,
-    candidate: Candidate,
-    opts: CandidateOpts,
-    scheme: &Scheme,
-    ranges_buf: Option<&mut MatchedRanges>,
-    slab: &mut V2Slab,
-) -> Option<Score> {
-    // TODO: can we remove this?
-    if pattern.is_empty() {
-        return Some(0);
+impl Fzf for FzfV2 {
+    #[inline(always)]
+    fn alloc_chars<'a>(&mut self, s: &str) -> &'a [char] {
+        unsafe { core::mem::transmute(self.candidate_slab.alloc(s)) }
     }
 
-    let (match_offsets, last_match_offset) =
-        matches(&mut slab.matched_indices, pattern, candidate, opts)?;
+    #[inline(always)]
+    fn scheme(&self) -> &Scheme {
+        &self.scheme
+    }
 
-    let first_offset = match_offsets[0];
+    #[inline(always)]
+    fn fuzzy<const RANGES: bool>(
+        &mut self,
+        pattern: Pattern,
+        candidate: Candidate,
+        ranges: &mut MatchedRanges,
+    ) -> Option<Score> {
+        // TODO: can we remove this?
+        if pattern.is_empty() {
+            return Some(0);
+        }
 
-    let initial_char_class = if first_offset == 0 {
-        scheme.initial_char_class
-    } else {
-        char_class(candidate.char(first_offset - 1), scheme)
-    };
+        let is_sensitive = match self.case_sensitivity {
+            CaseSensitivity::Sensitive => true,
+            CaseSensitivity::Insensitive => false,
+            CaseSensitivity::Smart => pattern.has_uppercase,
+        };
 
-    let mut candidate = CandidateV2::new(
-        candidate.slice(first_offset, last_match_offset),
-        &mut slab.bonus,
-        initial_char_class,
-        opts,
-    );
+        let opts = CandidateOpts::new(is_sensitive, self.normalization);
 
-    // After slicing the candidate we need to move all the offsets back
-    // by the offset of the first match so that they still refer to the
-    // same characters.
-    match_offsets.iter_mut().for_each(|offset| *offset -= first_offset);
+        let (match_offsets, last_match_offset) =
+            matches(&mut self.slab.matched_indices, pattern, candidate, opts)?;
 
-    let (scores, consecutive, score, score_cell) = score(
-        &mut slab.scoring_matrix,
-        &mut slab.consecutive_matrix,
-        pattern,
-        &mut candidate,
-        match_offsets,
-        scheme,
-    );
+        let first_offset = match_offsets[0];
 
-    if let Some(buf) = ranges_buf {
-        let candidate = candidate.into_base();
-        matched_ranges(scores, consecutive, score_cell, candidate, 0, buf);
-    };
+        let start_byte_offset =
+            if RANGES { candidate.to_byte_offset(first_offset) } else { 0 };
 
-    Some(score)
+        let initial_char_class = if first_offset == 0 {
+            self.scheme.initial_char_class
+        } else {
+            char_class(candidate.char(first_offset - 1), &self.scheme)
+        };
+
+        let mut candidate = CandidateV2::new(
+            candidate.slice(first_offset, last_match_offset),
+            &mut self.slab.bonus,
+            initial_char_class,
+            opts,
+        );
+
+        // After slicing the candidate we move all the offsets back by the
+        // first offset.
+        match_offsets.iter_mut().for_each(|offset| *offset -= first_offset);
+
+        let (scores, consecutive, score, score_cell) = score(
+            &mut self.slab.scoring_matrix,
+            &mut self.slab.consecutive_matrix,
+            pattern,
+            &mut candidate,
+            match_offsets,
+            &self.scheme,
+        );
+
+        if RANGES {
+            matched_ranges(
+                scores,
+                consecutive,
+                score_cell,
+                candidate.into_base(),
+                start_byte_offset,
+                ranges,
+            );
+        };
+
+        Some(score)
+    }
 }
 
 /// TODO: docs

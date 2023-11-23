@@ -8,6 +8,9 @@ use crate::*;
 #[derive(Clone, Default)]
 pub struct FzfV1 {
     /// TODO: docs
+    candidate_slab: CandidateSlab,
+
+    /// TODO: docs
     case_sensitivity: CaseSensitivity,
 
     /// TODO: docs
@@ -37,31 +40,6 @@ impl FzfV1 {
     #[inline(always)]
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// TODO: docs
-    #[cfg(feature = "tests")]
-    pub fn scheme(&self) -> &Scheme {
-        &self.scheme
-    }
-
-    /// TODO: docs
-    #[inline(always)]
-    fn score(
-        &mut self,
-        pattern: Pattern,
-        candidate: Candidate,
-        buf: Option<&mut MatchedRanges>,
-    ) -> Option<Score> {
-        let is_sensitive = match self.case_sensitivity {
-            CaseSensitivity::Sensitive => true,
-            CaseSensitivity::Insensitive => false,
-            CaseSensitivity::Smart => pattern.has_uppercase,
-        };
-
-        let opts = CandidateOpts::new(is_sensitive, self.normalization);
-
-        fzf_v1(pattern, candidate, opts, &self.scheme, buf, ())
     }
 
     /// TODO: docs
@@ -104,51 +82,69 @@ impl Metric for FzfV1 {
     #[inline(always)]
     fn distance(
         &mut self,
-        _query: FzfQuery<'_>,
-        _candidate: &str,
-    ) -> Option<Match<Self::Distance>> {
-        todo!();
+        query: FzfQuery<'_>,
+        candidate: &str,
+    ) -> Option<Self::Distance> {
+        let ranges = &mut MatchedRanges::default();
+        <Self as Fzf>::distance::<false>(self, query, candidate, ranges)
     }
 
     #[inline]
     fn distance_and_ranges(
         &mut self,
-        _query: FzfQuery<'_>,
-        _candidate: &str,
-        _ranges_buf: &mut Vec<Range<usize>>,
+        query: FzfQuery<'_>,
+        candidate: &str,
+        ranges: &mut MatchedRanges,
     ) -> Option<Self::Distance> {
-        todo!()
+        <Self as Fzf>::distance::<true>(self, query, candidate, ranges)
     }
 }
 
-/// TODO: docs
-#[inline]
-pub(super) fn fzf_v1(
-    pattern: Pattern,
-    _candidate: Candidate,
-    _opts: CandidateOpts,
-    _scheme: &Scheme,
-    _ranges_buf: Option<&mut MatchedRanges>,
-    _: (),
-) -> Option<Score> {
-    // TODO: can we remove this?
-    if pattern.is_empty() {
-        return Some(0);
+impl Fzf for FzfV1 {
+    #[inline(always)]
+    fn alloc_chars<'a>(&mut self, s: &str) -> &'a [char] {
+        unsafe { core::mem::transmute(self.candidate_slab.alloc(s)) }
     }
 
-    todo!();
+    #[inline(always)]
+    fn scheme(&self) -> &Scheme {
+        &self.scheme
+    }
 
-    // let range_forward = forward_pass(pattern, candidate, opts)?;
-    //
-    // let start_backward =
-    //     backward_pass(pattern, &candidate[range_forward.clone()], opts);
-    //
-    // let range = range_forward.start + start_backward..range_forward.end;
-    //
-    // let score =
-    //     calculate_score(pattern, candidate, range, opts, scheme, ranges_buf);
-    //
-    // Some(score)
+    #[inline(always)]
+    fn fuzzy<const RANGES: bool>(
+        &mut self,
+        pattern: Pattern,
+        _candidate: Candidate,
+        _ranges: &mut MatchedRanges,
+    ) -> Option<Score> {
+        // TODO: can we remove this?
+        if pattern.is_empty() {
+            return Some(0);
+        }
+
+        let is_sensitive = match self.case_sensitivity {
+            CaseSensitivity::Sensitive => true,
+            CaseSensitivity::Insensitive => false,
+            CaseSensitivity::Smart => pattern.has_uppercase,
+        };
+
+        let _opts = CandidateOpts::new(is_sensitive, self.normalization);
+
+        todo!();
+
+        // let range_forward = forward_pass(pattern, candidate, opts)?;
+        //
+        // let start_backward =
+        //     backward_pass(pattern, &candidate[range_forward.clone()], opts);
+        //
+        // let range = range_forward.start + start_backward..range_forward.end;
+        //
+        // let score =
+        //     calculate_score(pattern, candidate, range, opts, scheme, ranges_buf);
+        //
+        // Some(score)
+    }
 }
 
 /// TODO: docs

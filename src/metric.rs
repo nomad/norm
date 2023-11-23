@@ -1,6 +1,4 @@
-use core::ops::Range;
-
-use crate::Match;
+use crate::MatchedRanges;
 
 /// A trait representing a distance metric on strings.
 ///
@@ -48,7 +46,7 @@ pub trait Metric {
         &mut self,
         query: Self::Query<'_>,
         candidate: &str,
-    ) -> Option<Match<Self::Distance>>;
+    ) -> Option<Self::Distance>;
 
     /// This method always returns the same value as [`Self::distance`], but in
     /// the case of a match it also fills the provided buffer with the **byte**
@@ -58,6 +56,6 @@ pub trait Metric {
         &mut self,
         _query: Self::Query<'_>,
         _candidate: &str,
-        _ranges_buf: &mut Vec<Range<usize>>,
+        _ranges_buf: &mut MatchedRanges,
     ) -> Option<Self::Distance>;
 }

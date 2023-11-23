@@ -4,7 +4,7 @@ use crate::tiny_vec::TinyVec;
 
 /// TODO: docs
 #[derive(Default)]
-pub(crate) struct MatchedRanges {
+pub struct MatchedRanges {
     ranges: TinyVec<8, Range<usize>>,
 }
 
