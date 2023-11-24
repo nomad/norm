@@ -150,6 +150,16 @@ impl Fzf for FzfV2 {
 
         let opts = CandidateOpts::new(is_sensitive, self.normalization);
 
+        if pattern.char_len() == 1 {
+            return fuzzy_single_char::<RANGES>(
+                pattern.char(0),
+                candidate,
+                opts,
+                self.scheme(),
+                ranges,
+            );
+        }
+
         let (match_offsets, last_match_offset) =
             matches(&mut self.slab.matched_indices, pattern, candidate, opts)?;
 
@@ -506,4 +516,51 @@ fn matched_ranges(
             break;
         }
     }
+}
+
+/// TODO: docs
+#[inline]
+fn fuzzy_single_char<const RANGES: bool>(
+    pattern_char: char,
+    candidate: Candidate,
+    opts: CandidateOpts,
+    scheme: &Scheme,
+    ranges: &mut MatchedRanges,
+) -> Option<Score> {
+    let mut max_score = 0;
+
+    let mut max_score_pos = 0;
+
+    for char_offset in
+        candidate.matches(pattern_char, opts.is_case_sensitive, opts.char_eq)
+    {
+        let prev_class = if char_offset == 0 {
+            scheme.initial_char_class
+        } else {
+            char_class(candidate.char(char_offset - 1), scheme)
+        };
+
+        let this_class = char_class(candidate.char(char_offset), scheme);
+
+        let bonus = compute_bonus(prev_class, this_class, scheme);
+
+        let score = bonus::MATCH + bonus * bonus::FIRST_QUERY_CHAR_MULTIPLIER;
+
+        if score > max_score {
+            max_score = score;
+            max_score_pos = char_offset;
+        }
+    }
+
+    if max_score == 0 {
+        return None;
+    }
+
+    if RANGES {
+        let start = candidate.to_byte_offset(max_score_pos);
+        let byte_len = candidate.char(max_score_pos).len_utf8();
+        ranges.insert(start..start + byte_len);
+    }
+
+    Some(max_score)
 }
