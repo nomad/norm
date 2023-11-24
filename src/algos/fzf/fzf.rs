@@ -293,17 +293,12 @@ fn prefix_match<const RANGES: bool>(
     let ignored_leading_spaces =
         ignored_candidate_leading_spaces(pattern, candidate)?;
 
-    let mut match_byte_len = 0;
-
     for (candidate_ch, pattern_ch) in candidate
         .chars_from(ignored_leading_spaces)
         .zip(pattern_chars.by_ref())
     {
         if !char_eq(pattern_ch, candidate_ch) {
             return None;
-        }
-        if RANGES {
-            match_byte_len += candidate_ch.len_utf8();
         }
     }
 
@@ -313,7 +308,7 @@ fn prefix_match<const RANGES: bool>(
 
     let matched_range = {
         let start = ignored_leading_spaces;
-        let end = start + match_byte_len;
+        let end = start + pattern.char_len();
         start..end
     };
 
@@ -327,7 +322,7 @@ fn prefix_match<const RANGES: bool>(
     );
 
     if RANGES {
-        ranges.insert(matched_range);
+        ranges.insert(candidate.to_byte_range(matched_range));
     }
 
     Some(score)
