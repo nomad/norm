@@ -9,6 +9,21 @@ pub(crate) enum Candidate<'a> {
     Unicode(&'a [char]),
 }
 
+impl core::fmt::Debug for Candidate<'_> {
+    #[inline]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Candidate::Ascii(slice) => {
+                core::str::from_utf8(slice).unwrap().fmt(f)
+            },
+
+            Candidate::Unicode(slice) => {
+                slice.iter().collect::<String>().fmt(f)
+            },
+        }
+    }
+}
+
 impl<'a> Candidate<'a> {
     /// TODO: docs
     #[inline(always)]
