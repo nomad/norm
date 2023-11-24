@@ -1,5 +1,3 @@
-use core::ops::Range;
-
 use super::{query::*, *};
 use crate::*;
 
@@ -148,17 +146,15 @@ impl Fzf for FzfV1 {
 
         let opts = CandidateOpts::new(is_sensitive, self.normalization);
 
-        let range_forward = forward_pass(pattern, candidate, opts)?;
+        let end_forward = forward_pass(pattern, candidate, opts)?;
 
         let start_backward =
-            backward_pass(pattern, candidate, range_forward.end, opts);
-
-        let range = start_backward..range_forward.end;
+            backward_pass(pattern, candidate, end_forward, opts);
 
         let score = compute_score::<RANGES>(
             pattern,
             candidate,
-            range,
+            start_backward..end_forward,
             opts.char_eq,
             &self.scheme,
             ranges,
@@ -174,25 +170,12 @@ fn forward_pass(
     pattern: Pattern,
     candidate: Candidate,
     opts: CandidateOpts,
-) -> Option<Range<usize>> {
+) -> Option<usize> {
     let mut pattern_chars = pattern.chars();
 
     let mut pattern_char = pattern_chars.next()?;
 
-    let start_offset = candidate.find_first_from(
-        0,
-        pattern_char,
-        opts.is_case_sensitive,
-        opts.char_eq,
-    )?;
-
-    let mut end_offset = start_offset + 1;
-
-    if let Some(next) = pattern_chars.next() {
-        pattern_char = next;
-    } else {
-        return Some(start_offset..end_offset);
-    }
+    let mut end_offset = 0;
 
     loop {
         end_offset = candidate.find_first_from(
@@ -205,7 +188,7 @@ fn forward_pass(
         if let Some(next) = pattern_chars.next() {
             pattern_char = next;
         } else {
-            return Some(start_offset..end_offset);
+            return Some(end_offset);
         }
     }
 }
