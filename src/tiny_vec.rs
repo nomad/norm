@@ -46,7 +46,7 @@ impl<const INLINE: usize, T, I: SliceIndex<[T]>> IndexMut<I>
 {
     #[inline(always)]
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        IndexMut::index_mut(self.as_slice_mut(), index)
+        IndexMut::index_mut(self.as_mut_slice(), index)
     }
 }
 
@@ -60,9 +60,9 @@ impl<const INLINE: usize, T> TinyVec<INLINE, T> {
     }
 
     #[inline(always)]
-    pub fn as_slice_mut(&mut self) -> &mut [T] {
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
         match &mut self.inner {
-            TinyVecType::Inline(inner) => inner.as_slice_mut(),
+            TinyVecType::Inline(inner) => inner.as_mut_slice(),
             TinyVecType::Heap(inner) => inner.as_mut_slice(),
         }
     }
@@ -76,8 +76,16 @@ impl<const INLINE: usize, T> TinyVec<INLINE, T> {
     }
 
     #[inline(always)]
+    pub fn clear(&mut self) {
+        match &mut self.inner {
+            TinyVecType::Inline(inner) => inner.clear(),
+            TinyVecType::Heap(inner) => inner.clear(),
+        }
+    }
+
+    #[inline(always)]
     pub fn get_mut(&mut self, idx: usize) -> Option<&mut T> {
-        self.as_slice_mut().get_mut(idx)
+        self.as_mut_slice().get_mut(idx)
     }
 
     #[inline(always)]
@@ -128,7 +136,7 @@ impl<const INLINE: usize, T> TinyVec<INLINE, T> {
     pub fn split_at_mut(&mut self, mid: usize) -> (&mut [T], &mut [T]) {
         match &mut self.inner {
             TinyVecType::Inline(inner) => {
-                inner.as_slice_mut().split_at_mut(mid)
+                inner.as_mut_slice().split_at_mut(mid)
             },
             TinyVecType::Heap(inner) => inner.split_at_mut(mid),
         }
@@ -182,9 +190,20 @@ impl<const N: usize, T: Sized> InlineVec<N, T> {
     }
 
     #[inline(always)]
-    fn as_slice_mut(&mut self) -> &mut [T] {
+    fn as_mut_slice(&mut self) -> &mut [T] {
         // SAFETY: same as `as_slice`.
         unsafe { transmute(&mut self.data[..self.len]) }
+    }
+
+    #[inline(always)]
+    fn clear(&mut self) {
+        let elems: *mut [T] = self.as_mut_slice();
+
+        // SAFETY: copied from `Vec::clear`.
+        unsafe {
+            self.len = 0;
+            ptr::drop_in_place(elems);
+        }
     }
 
     #[inline(always)]

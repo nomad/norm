@@ -23,6 +23,12 @@ impl MatchedRanges {
 
     /// TODO: docs
     #[inline(always)]
+    pub fn clear(&mut self) {
+        self.ranges.clear()
+    }
+
+    /// TODO: docs
+    #[inline(always)]
     pub(crate) fn insert(&mut self, new_range: Range<usize>) {
         let insert_idx = match self
             .ranges

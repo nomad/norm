@@ -100,6 +100,7 @@ impl Metric for FzfV1 {
         candidate: &str,
         ranges: &mut MatchedRanges,
     ) -> Option<Self::Distance> {
+        ranges.clear();
         <Self as Fzf>::distance::<true>(self, query, candidate, ranges)
     }
 }
