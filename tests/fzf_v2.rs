@@ -2,7 +2,6 @@
 
 mod fzf_common;
 
-use common::SortedRanges;
 use fzf_common as common;
 use norm::fzf::{bonus, FzfParser, FzfV2};
 use norm::{CaseSensitivity, Metric};
@@ -223,21 +222,23 @@ fn fzf_v2_score_1() {
 
     let mut parser = FzfParser::new();
 
-    let mach = fzf
+    let mut ranges = norm::MatchedRanges::default();
+
+    let distance = fzf
         .with_case_sensitivity(CaseSensitivity::Sensitive)
         .with_matched_ranges(true)
-        .distance(parser.parse("jelly"), "jellyfish")
+        .distance_and_ranges(parser.parse("jelly"), "jellyfish", &mut ranges)
         .unwrap();
 
     assert_eq!(
-        mach.distance().into_score(),
+        distance.into_score(),
         bonus::MATCH * 5
             + fzf.scheme().bonus_boundary_white
                 * bonus::FIRST_QUERY_CHAR_MULTIPLIER
             + fzf.scheme().bonus_boundary_white * 4
     );
 
-    assert_eq!(mach.matched_ranges().sorted(), [0..5]);
+    assert_eq!(ranges.as_slice(), [0..5]);
 }
 
 #[test]
@@ -246,12 +247,12 @@ fn fzf_v2_score_2() {
 
     let mut parser = FzfParser::new();
 
-    let mach = fzf
+    let distance = fzf
         .with_case_sensitivity(CaseSensitivity::Sensitive)
         .with_matched_ranges(true)
         .distance(parser.parse("!$"), "$$2");
 
-    assert!(mach.is_none());
+    assert!(distance.is_none());
 }
 
 #[test]
@@ -260,13 +261,19 @@ fn fzf_v2_score_3() {
 
     let mut parser = FzfParser::new();
 
-    let mach = fzf
+    let mut ranges = norm::MatchedRanges::default();
+
+    let _ = fzf
         .with_case_sensitivity(CaseSensitivity::Sensitive)
         .with_matched_ranges(true)
-        .distance(parser.parse("\0\0"), "\0#B\0\u{364}\0\0")
+        .distance_and_ranges(
+            parser.parse("\0\0"),
+            "\0#B\0\u{364}\0\0",
+            &mut ranges,
+        )
         .unwrap();
 
-    assert_eq!(mach.matched_ranges().sorted(), [6..8]);
+    assert_eq!(ranges.as_slice(), [6..8]);
 }
 
 #[test]
@@ -275,14 +282,20 @@ fn fzf_v2_score_4() {
 
     let mut parser = FzfParser::new();
 
-    let mach = fzf
+    let mut ranges = norm::MatchedRanges::default();
+
+    let _ = fzf
         .with_case_sensitivity(CaseSensitivity::Sensitive)
         .with_matched_ranges(true)
         .with_normalization(true)
-        .distance(parser.parse("e !"), " !I\\hh+\u{364}")
+        .distance_and_ranges(
+            parser.parse("e !"),
+            " !I\\hh+\u{364}",
+            &mut ranges,
+        )
         .unwrap();
 
-    assert_eq!(mach.matched_ranges(), [1..2, 7..9]);
+    assert_eq!(ranges.as_slice(), [1..2, 7..9]);
 }
 
 #[test]
@@ -291,14 +304,16 @@ fn fzf_v2_score_5() {
 
     let mut parser = FzfParser::new();
 
-    let mach = fzf
+    let mut ranges = norm::MatchedRanges::default();
+
+    let _ = fzf
         .with_case_sensitivity(CaseSensitivity::Insensitive)
         .with_matched_ranges(true)
         .with_normalization(true)
-        .distance(parser.parse("E"), "\u{364}E")
+        .distance_and_ranges(parser.parse("E"), "\u{364}E", &mut ranges)
         .unwrap();
 
-    assert_eq!(mach.matched_ranges(), [0..2]);
+    assert_eq!(ranges.as_slice(), [0..2]);
 }
 
 #[test]
@@ -307,13 +322,19 @@ fn fzf_v2_score_6() {
 
     let mut parser = FzfParser::new();
 
+    let mut ranges = norm::MatchedRanges::default();
+
     let query = parser.parse("!2\t\0\0\0WWHHWHWWWWWWWZ !I");
 
-    let mach = fzf
+    let distance = fzf
         .with_case_sensitivity(CaseSensitivity::Insensitive)
         .with_matched_ranges(true)
         .with_normalization(true)
-        .distance(query, "\u{6}\0\0 N\u{364}\u{e}\u{365}+");
+        .distance_and_ranges(
+            query,
+            "\u{6}\0\0 N\u{364}\u{e}\u{365}+",
+            &mut ranges,
+        );
 
-    assert!(mach.is_none());
+    assert!(distance.is_none());
 }

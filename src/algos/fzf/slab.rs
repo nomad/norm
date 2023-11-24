@@ -1,4 +1,4 @@
-use core::ops::{AddAssign, Index, IndexMut, SubAssign};
+use core::ops::{Index, IndexMut};
 
 use super::Score;
 
@@ -6,7 +6,7 @@ use super::Score;
 #[derive(Clone, Default)]
 pub(super) struct V2Slab {
     /// TODO: docs
-    pub(super) bonus_vector: BonusVectorSlab,
+    pub(super) bonus: BonusSlab,
 
     /// TODO: docs
     pub(super) consecutive_matrix: MatrixSlab<usize>,
@@ -18,108 +18,116 @@ pub(super) struct V2Slab {
     pub(super) scoring_matrix: MatrixSlab<Score>,
 }
 
+// #[repr(align(8))]
+/// TODO: docs
+#[derive(Clone, Default)]
+pub(super) struct Bonus {
+    value: u8,
+    is_set: bool,
+}
+
+impl Bonus {
+    #[inline(always)]
+    pub fn is_set(&self) -> bool {
+        self.is_set
+    }
+
+    #[inline(always)]
+    pub fn set(&mut self, value: Score) {
+        self.value = value as _;
+        self.is_set = true;
+    }
+
+    #[inline(always)]
+    pub fn value(&self) -> Score {
+        self.value as _
+    }
+}
+
+/// TODO: docs
+#[derive(Clone)]
+pub(super) struct BonusSlab {
+    vec: Vec<Bonus>,
+}
+
+impl Default for BonusSlab {
+    #[inline(always)]
+    fn default() -> Self {
+        Self { vec: vec![Bonus::default(); 128] }
+    }
+}
+
+impl BonusSlab {
+    /// TODO: docs
+    #[inline]
+    pub fn alloc(&mut self, len: usize) -> &mut [Bonus] {
+        if len > self.vec.len() {
+            self.vec.resize(len, Bonus::default());
+        }
+
+        let slice = &mut self.vec[..len];
+
+        for bonus in slice.iter_mut() {
+            bonus.is_set = false;
+        }
+
+        slice
+    }
+}
+
+/// TODO: docs
+#[derive(Clone)]
+pub(super) struct CandidateSlab {
+    chars: Vec<char>,
+}
+
+impl Default for CandidateSlab {
+    #[inline(always)]
+    fn default() -> Self {
+        Self { chars: vec![char::default(); 128] }
+    }
+}
+
+impl CandidateSlab {
+    #[inline(always)]
+    pub fn alloc<'a>(&'a mut self, text: &str) -> &'a [char] {
+        if text.len() > self.chars.len() {
+            self.chars.resize(text.len(), char::default());
+        }
+
+        let mut char_len = 0;
+
+        for ch in text.chars() {
+            self.chars[char_len] = ch;
+            char_len += 1;
+        }
+
+        &self.chars[..char_len]
+    }
+}
+
 /// TODO: docs
 #[derive(Clone)]
 pub(super) struct MatchedIndicesSlab {
-    vec: Vec<MatchedIdx>,
+    vec: Vec<usize>,
 }
 
 impl Default for MatchedIndicesSlab {
     #[inline]
     fn default() -> Self {
-        Self { vec: vec![MatchedIdx::default(); 16] }
+        Self { vec: vec![0; 128] }
     }
 }
 
 impl MatchedIndicesSlab {
     #[inline]
     /// TODO: docs
-    pub fn alloc(&mut self, len: usize) -> &mut [MatchedIdx] {
+    pub fn alloc(&mut self, len: usize) -> &mut [usize] {
         if len > self.vec.len() {
-            self.vec.resize(len, MatchedIdx::default());
+            self.vec.resize(len, 0);
         }
 
         &mut self.vec[..len]
-    }
-}
-
-/// TODO: docs
-#[derive(Copy, Clone, Debug, Default)]
-pub(super) struct MatchedIdx {
-    /// TODO: docs
-    pub(super) byte_offset: usize,
-
-    /// TODO: docs
-    pub(super) char_offset: usize,
-}
-
-impl AddAssign<Self> for MatchedIdx {
-    #[inline(always)]
-    fn add_assign(&mut self, rhs: Self) {
-        self.byte_offset += rhs.byte_offset;
-        self.char_offset += rhs.char_offset;
-    }
-}
-
-impl SubAssign<Self> for MatchedIdx {
-    #[inline(always)]
-    fn sub_assign(&mut self, rhs: Self) {
-        self.byte_offset -= rhs.byte_offset;
-        self.char_offset -= rhs.char_offset;
-    }
-}
-
-/// TODO: docs
-#[derive(Clone)]
-pub(super) struct BonusVectorSlab {
-    vec: Vec<Score>,
-}
-
-impl Default for BonusVectorSlab {
-    #[inline]
-    fn default() -> Self {
-        Self { vec: vec![0; 16] }
-    }
-}
-
-impl BonusVectorSlab {
-    /// TODO: docs
-    #[inline]
-    pub fn alloc<'a>(&'a mut self, candidate: &str) -> BonusVector<'a> {
-        let byte_len = candidate.len();
-
-        if byte_len > self.vec.len() {
-            self.vec.resize(byte_len, 0);
-        }
-
-        BonusVector { indices: &mut self.vec[..byte_len], len: 0 }
-    }
-}
-
-/// TODO: docs
-pub(super) struct BonusVector<'a> {
-    indices: &'a mut [Score],
-    len: usize,
-}
-
-impl core::fmt::Debug for BonusVector<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.indices[..self.len].fmt(f)
-    }
-}
-
-impl<'a> BonusVector<'a> {
-    /// TODO: docs
-    #[inline]
-    pub fn into_slice(self) -> &'a [Score] {
-        &self.indices[..self.len]
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn push(&mut self, score: Score) {
-        self.indices[self.len] = score;
-        self.len += 1;
     }
 }
 

@@ -1,22 +1,9 @@
 use core::fmt::Write;
 
-use super::*;
-use crate::*;
-
-/// TODO: docs
-type FuzzyAlgo<O, T> = fn(
-    Pattern,
-    &str,
-    O,
-    &Scheme,
-    Option<&mut MatchedRanges>,
-    T,
-) -> Option<Score>;
-
 /// A parsed fzf query.
 ///
-/// This struct is created by the [`parse`](FzfParser::parse) method on
-/// [`FzfParser`]. See its documentation for more.
+/// This struct is created by the [`parse`](super::FzfParser::parse) method on
+/// [`FzfParser`](super::FzfParser). See its documentation for more.
 #[derive(Clone, Copy)]
 pub struct FzfQuery<'a> {
     pub(super) search_mode: SearchMode<'a>,
@@ -295,50 +282,6 @@ impl<'a> Pattern<'a> {
             text,
             match_type,
             is_inverse,
-        }
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub(super) fn score<O: Opts, E>(
-        self,
-        candidate: &str,
-        opts: O,
-        scheme: &Scheme,
-        mut ranges_buf: Option<&mut MatchedRanges>,
-        extra: E,
-        fuzzy_algo: FuzzyAlgo<O, E>,
-    ) -> Option<Score> {
-        if self.is_inverse {
-            ranges_buf = None;
-        }
-
-        let result = match self.match_type {
-            MatchType::Fuzzy => {
-                fuzzy_algo(self, candidate, opts, scheme, ranges_buf, extra)
-            },
-
-            MatchType::Exact => {
-                exact_match(self, candidate, opts, scheme, ranges_buf)
-            },
-
-            MatchType::PrefixExact => {
-                prefix_match(self, candidate, opts, scheme, ranges_buf)
-            },
-
-            MatchType::SuffixExact => {
-                suffix_match(self, candidate, opts, scheme, ranges_buf)
-            },
-
-            MatchType::EqualExact => {
-                equal_match(self, candidate, opts, scheme, ranges_buf)
-            },
-        };
-
-        match (result.is_some(), self.is_inverse) {
-            (true, false) => result,
-            (false, true) => Some(0),
-            _ => None,
         }
     }
 

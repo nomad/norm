@@ -36,9 +36,7 @@
 //! let mut results = cities
 //!     .iter()
 //!     .copied()
-//!     .filter_map(|city| {
-//!         fzf.distance(query, city).map(|mach| (city, mach.distance()))
-//!     })
+//!     .filter_map(|city| fzf.distance(query, city).map(|dist| (city, dist)))
 //!     .collect::<Vec<_>>();
 //!
 //! results.sort_by_key(|(_city, dist)| *dist);
@@ -49,6 +47,7 @@
 //! ```
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![allow(clippy::module_inception)]
 #![allow(clippy::needless_range_loop)]
 #![allow(clippy::too_many_arguments)]
 #![deny(missing_docs)]
@@ -58,18 +57,16 @@
 extern crate alloc;
 
 mod algos;
+mod candidate;
 mod case_sensitivity;
-mod r#match;
 mod matched_ranges;
 mod metric;
 mod normalize;
-mod opts;
 mod tiny_vec;
 mod utils;
 
 pub use algos::*;
+use candidate::{Candidate, CandidateMatches};
 pub use case_sensitivity::CaseSensitivity;
-use matched_ranges::MatchedRanges;
+pub use matched_ranges::MatchedRanges;
 pub use metric::Metric;
-use opts::*;
-pub use r#match::Match;

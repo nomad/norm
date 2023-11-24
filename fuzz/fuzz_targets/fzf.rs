@@ -41,29 +41,27 @@ fuzz_target!(|data: (Query, Candidate)| {
 
     let mut fzf_v2 = FzfV2::new();
 
+    let mut ranges = norm::MatchedRanges::default();
+
     with_opts(|case_sensitivity, normalization, scheme| {
-        let mach = fzf_v1
+        let _ = fzf_v1
             .with_case_sensitivity(case_sensitivity)
             .with_normalization(normalization)
             .with_scoring_scheme(scheme)
-            .distance(query, candidate);
+            .distance_and_ranges(query, candidate, &mut ranges);
 
-        if let Some(mach) = mach {
-            for range in mach.matched_ranges() {
-                let _s = &candidate[range.clone()];
-            }
+        for range in ranges.as_slice() {
+            let _ = &candidate[range.clone()];
         }
 
-        let mach = fzf_v2
+        let _ = fzf_v2
             .with_case_sensitivity(case_sensitivity)
             .with_normalization(normalization)
             .with_scoring_scheme(scheme)
-            .distance(query, candidate);
+            .distance_and_ranges(query, candidate, &mut ranges);
 
-        if let Some(mach) = mach {
-            for range in mach.matched_ranges() {
-                let _s = &candidate[range.clone()];
-            }
+        for range in ranges.as_slice() {
+            let _ = &candidate[range.clone()];
         }
     });
 });

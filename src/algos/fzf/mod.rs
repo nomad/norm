@@ -43,31 +43,34 @@
 //! [fzf]: https://github.com/junegunn/fzf
 //! [extended-search]: https://github.com/junegunn/fzf#search-syntax
 
-mod common;
+mod candidate;
 mod distance;
+mod fzf;
+#[cfg(feature = "fzf-v1")]
+mod fzf_v1;
+#[cfg(feature = "fzf-v2")]
+mod fzf_v2;
 mod parser;
 mod query;
 mod scheme;
 mod scoring;
 mod slab;
-#[cfg(feature = "fzf-v1")]
-mod v1;
-#[cfg(feature = "fzf-v1")]
-mod v2;
 
-use common::*;
+use candidate::*;
 pub use distance::FzfDistance;
 use distance::*;
+use fzf::*;
+#[cfg(feature = "fzf-v1")]
+pub use fzf_v1::FzfV1;
+#[cfg(feature = "fzf-v2")]
+pub use fzf_v2::FzfV2;
 pub use parser::*;
 pub use query::FzfQuery;
 pub use scheme::FzfScheme;
 #[doc(hidden)]
 pub use scheme::Scheme;
 use scoring::*;
-#[cfg(feature = "fzf-v1")]
-pub use v1::FzfV1;
-#[cfg(feature = "fzf-v1")]
-pub use v2::FzfV2;
+use slab::*;
 
 #[doc(hidden)]
 pub mod bonus {

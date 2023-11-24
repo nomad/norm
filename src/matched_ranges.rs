@@ -4,7 +4,7 @@ use crate::tiny_vec::TinyVec;
 
 /// TODO: docs
 #[derive(Default)]
-pub(crate) struct MatchedRanges {
+pub struct MatchedRanges {
     ranges: TinyVec<8, Range<usize>>,
 }
 
@@ -17,8 +17,14 @@ impl core::fmt::Debug for MatchedRanges {
 impl MatchedRanges {
     /// TODO: docs
     #[inline(always)]
-    pub(crate) fn as_slice(&self) -> &[Range<usize>] {
+    pub fn as_slice(&self) -> &[Range<usize>] {
         self.ranges.as_slice()
+    }
+
+    /// TODO: docs
+    #[inline(always)]
+    pub fn clear(&mut self) {
+        self.ranges.clear()
     }
 
     /// TODO: docs

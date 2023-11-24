@@ -33,15 +33,19 @@ pub fn case_sensitive_normalized_eq(lhs: char, rhs: char) -> bool {
     lhs == normalize_candidate_char(lhs, rhs)
 }
 
-/// TODO: docs
 #[inline(always)]
-pub fn char_len(s: &str) -> usize {
-    s.chars().count()
+pub fn char_eq(is_case_sensitive: bool, normalize_candidate: bool) -> CharEq {
+    match (is_case_sensitive, normalize_candidate) {
+        (false, false) => case_insensitive_eq,
+        (true, false) => case_sensitive_eq,
+        (false, true) => case_insensitive_normalized_eq,
+        (true, true) => case_sensitive_normalized_eq,
+    }
 }
 
 /// TODO: docs
 #[inline(always)]
-pub fn leading_spaces(s: &str) -> usize {
+fn leading_spaces(s: &str) -> usize {
     s.bytes().take_while(|&b| b == b' ').count()
 }
 
@@ -59,10 +63,4 @@ fn normalize_candidate_char(query_char: char, candidate_char: char) -> char {
 #[inline(always)]
 pub fn strip_leading_spaces(s: &str) -> &str {
     &s[leading_spaces(s)..]
-}
-
-/// TODO: docs
-#[inline(always)]
-pub fn trailing_spaces(s: &str) -> usize {
-    s.bytes().rev().take_while(|&b| b == b' ').count()
 }
