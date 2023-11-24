@@ -153,7 +153,7 @@ impl Fzf for FzfV1 {
         let start_backward =
             backward_pass(pattern, candidate, range_forward.end, opts);
 
-        let range = range_forward.start + start_backward..range_forward.end;
+        let range = start_backward..range_forward.end;
 
         let score = compute_score::<RANGES>(
             pattern,
