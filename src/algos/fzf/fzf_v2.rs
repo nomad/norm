@@ -449,43 +449,36 @@ fn matched_ranges(
 
     let mut cell = max_score_cell;
 
+    let mut col = scores.col_of(max_score_cell);
+
+    let mut row = scores.row_of(max_score_cell);
+
     loop {
-        let score = scores[cell];
+        let is_cell_in_first_col = col == 0;
 
-        let cell_left = if scores.is_in_first_col(cell) {
-            None
+        let is_cell_in_first_row = row == 0;
+
+        let score_left =
+            if is_cell_in_first_col { 0 } else { scores[scores.left(cell)] };
+
+        let score_up_left = if is_cell_in_first_col || is_cell_in_first_row {
+            0
         } else {
-            Some(scores.left(cell))
+            scores[scores.up_left(cell)]
         };
-
-        let cell_up_left =
-            if scores.is_in_first_col(cell) || scores.is_in_first_row(cell) {
-                None
-            } else {
-                Some(scores.up(scores.left(cell)))
-            };
-
-        let score_left = cell_left.map_or(0, |cell_left| scores[cell_left]);
-
-        let score_up_left =
-            cell_up_left.map_or(0, |cell_up_left| scores[cell_up_left]);
 
         let prefer_this_match = prefer_match;
 
         prefer_match = consecutives[cell] > 1
-            || (!consecutives.is_in_last_col(cell)
-                && !consecutives.is_in_last_row(cell)
-                && {
-                    let down_right =
-                        consecutives.down(consecutives.right(cell));
-                    consecutives[down_right] > 0
-                });
+            || consecutives
+                .get_value(consecutives.down_right(cell))
+                .map_or(false, |down_right| down_right > 0);
+
+        let score = scores[cell];
 
         if score > score_up_left
             && (score > score_left || score == score_left && prefer_this_match)
         {
-            let col = scores.col_of(cell);
-
             let mut byte_offset = candidate.to_byte_offset(col);
 
             let ch = candidate.char(col);
@@ -494,16 +487,19 @@ fn matched_ranges(
 
             ranges.insert(byte_offset..byte_offset + ch.len_utf8());
 
-            if let Some(up_left) = cell_up_left {
-                cell = up_left;
-            } else {
+            if is_cell_in_first_row || is_cell_in_first_col {
                 break;
+            } else {
+                row -= 1;
+                cell = scores.up_left(cell);
             }
-        } else if let Some(left) = cell_left {
-            cell = left;
-        } else {
+        } else if is_cell_in_first_col {
             break;
+        } else {
+            cell = scores.left(cell);
         }
+
+        col -= 1;
     }
 }
 

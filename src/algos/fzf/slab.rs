@@ -280,7 +280,7 @@ impl<T: MatrixItem> core::fmt::Debug for Matrix<'_, T> {
 
                 write!(f, "{item}")?;
 
-                let num_spaces = if self.is_in_last_col(cell) {
+                let num_spaces = if self.col_of(cell) + 1 == self.width {
                     last_col_max_score_width - item.printed_width()
                 } else {
                     max_score_width - item.printed_width() + 1
@@ -304,6 +304,14 @@ impl<T: MatrixItem> core::fmt::Debug for Matrix<'_, T> {
     }
 }
 
+impl<'a, T: MatrixItem + Copy> Matrix<'a, T> {
+    /// TODO: docs
+    #[inline(always)]
+    pub fn get_value(&self, cell: MatrixCell) -> Option<T> {
+        self.slice.get(cell.0).copied()
+    }
+}
+
 impl<'a, T: MatrixItem> Matrix<'a, T> {
     /// TODO: docs
     #[inline]
@@ -322,8 +330,8 @@ impl<'a, T: MatrixItem> Matrix<'a, T> {
 
     /// TODO: docs
     #[inline]
-    pub fn down(&self, cell: MatrixCell) -> MatrixCell {
-        MatrixCell(cell.0 + self.width)
+    pub fn down_right(&self, cell: MatrixCell) -> MatrixCell {
+        MatrixCell(cell.0 + self.width + 1)
     }
 
     /// TODO: docs
@@ -334,38 +342,8 @@ impl<'a, T: MatrixItem> Matrix<'a, T> {
 
     /// TODO: docs
     #[inline]
-    pub fn is_in_first_col(&self, cell: MatrixCell) -> bool {
-        self.col_of(cell) == 0
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn is_in_first_row(&self, cell: MatrixCell) -> bool {
-        self.row_of(cell) == 0
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn is_in_last_col(&self, cell: MatrixCell) -> bool {
-        self.col_of(cell) == self.width - 1
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn is_in_last_row(&self, cell: MatrixCell) -> bool {
-        self.row_of(cell) == self.height - 1
-    }
-
-    /// TODO: docs
-    #[inline]
     pub fn left(&self, cell: MatrixCell) -> MatrixCell {
         MatrixCell(cell.0 - 1)
-    }
-
-    /// TODO: docs
-    #[inline]
-    pub fn right(&self, cell: MatrixCell) -> MatrixCell {
-        MatrixCell(cell.0 + 1)
     }
 
     /// TODO: docs
@@ -416,8 +394,8 @@ impl<'a, T: MatrixItem> Matrix<'a, T> {
     }
 
     #[inline]
-    pub fn up(&self, cell: MatrixCell) -> MatrixCell {
-        MatrixCell(cell.0 - self.width)
+    pub fn up_left(&self, cell: MatrixCell) -> MatrixCell {
+        MatrixCell(cell.0 - self.width - 1)
     }
 
     /// TODO: docs
