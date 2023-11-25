@@ -25,18 +25,24 @@ impl bench::Metric for FzfV2 {
 
     type Parser = FzfParser;
 
-    #[inline]
+    #[inline(always)]
     fn dist(&mut self, query: FzfQuery, candidate: &str) {
         self.distance(query, candidate);
+    }
+    #[inline(always)]
+    fn dist_and_ranges(
+        &mut self,
+        query: FzfQuery,
+        candidate: &str,
+        ranges: &mut norm::MatchedRanges,
+    ) {
+        self.distance_and_ranges(query, candidate, ranges);
     }
     fn with_case_sensitivity(
         &mut self,
         case_sensitivity: CaseSensitivity,
     ) -> &mut Self {
         self.with_case_sensitivity(case_sensitivity)
-    }
-    fn with_matched_ranges(&mut self, matched_ranges: bool) -> &mut Self {
-        self.with_matched_ranges(matched_ranges)
     }
 }
 

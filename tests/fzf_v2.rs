@@ -226,7 +226,6 @@ fn fzf_v2_score_1() {
 
     let distance = fzf
         .with_case_sensitivity(CaseSensitivity::Sensitive)
-        .with_matched_ranges(true)
         .distance_and_ranges(parser.parse("jelly"), "jellyfish", &mut ranges)
         .unwrap();
 
@@ -249,7 +248,6 @@ fn fzf_v2_score_2() {
 
     let distance = fzf
         .with_case_sensitivity(CaseSensitivity::Sensitive)
-        .with_matched_ranges(true)
         .distance(parser.parse("!$"), "$$2");
 
     assert!(distance.is_none());
@@ -265,7 +263,6 @@ fn fzf_v2_score_3() {
 
     let _ = fzf
         .with_case_sensitivity(CaseSensitivity::Sensitive)
-        .with_matched_ranges(true)
         .distance_and_ranges(
             parser.parse("\0\0"),
             "\0#B\0\u{364}\0\0",
@@ -286,7 +283,6 @@ fn fzf_v2_score_4() {
 
     let _ = fzf
         .with_case_sensitivity(CaseSensitivity::Sensitive)
-        .with_matched_ranges(true)
         .with_normalization(true)
         .distance_and_ranges(
             parser.parse("e !"),
@@ -308,7 +304,6 @@ fn fzf_v2_score_5() {
 
     let _ = fzf
         .with_case_sensitivity(CaseSensitivity::Insensitive)
-        .with_matched_ranges(true)
         .with_normalization(true)
         .distance_and_ranges(parser.parse("E"), "\u{364}E", &mut ranges)
         .unwrap();
@@ -328,7 +323,6 @@ fn fzf_v2_score_6() {
 
     let distance = fzf
         .with_case_sensitivity(CaseSensitivity::Insensitive)
-        .with_matched_ranges(true)
         .with_normalization(true)
         .distance_and_ranges(
             query,

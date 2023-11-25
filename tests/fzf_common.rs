@@ -567,8 +567,6 @@ mod utils {
             case_sensitivity: CaseSensitivity,
         ) -> &mut Self;
 
-        fn with_matched_ranges(&mut self, matched_ranges: bool) -> &mut Self;
-
         fn scheme(&self) -> &norm::fzf::Scheme;
     }
 
@@ -578,10 +576,6 @@ mod utils {
             case_sensitivity: CaseSensitivity,
         ) -> &mut Self {
             self.with_case_sensitivity(case_sensitivity)
-        }
-
-        fn with_matched_ranges(&mut self, matched_ranges: bool) -> &mut Self {
-            self.with_matched_ranges(matched_ranges)
         }
 
         fn scheme(&self) -> &norm::fzf::Scheme {
@@ -605,10 +599,6 @@ mod utils {
             self.with_case_sensitivity(case_sensitivity)
         }
 
-        fn with_matched_ranges(&mut self, matched_ranges: bool) -> &mut Self {
-            self.with_matched_ranges(matched_ranges)
-        }
-
         fn scheme(&self) -> &norm::fzf::Scheme {
             #[cfg(feature = "tests")]
             {
@@ -629,7 +619,7 @@ mod utils {
     ) -> (F, Option<FzfMatch>) {
         let mut fzf = F::default();
 
-        fzf.with_case_sensitivity(case_sensitivity).with_matched_ranges(true);
+        fzf.with_case_sensitivity(case_sensitivity);
 
         let mut parser = FzfParser::new();
 

@@ -13,12 +13,17 @@ pub trait Metric {
 
     fn dist(&mut self, query: Self::Query<'_>, candidate: &str);
 
+    fn dist_and_ranges(
+        &mut self,
+        query: Self::Query<'_>,
+        candidate: &str,
+        ranges: &mut norm::MatchedRanges,
+    );
+
     fn with_case_sensitivity(
         &mut self,
         case_sensitivity: CaseSensitivity,
     ) -> &mut Self;
-
-    fn with_matched_ranges(&mut self, matched_ranges: bool) -> &mut Self;
 }
 
 pub trait Parser<M: Metric + ?Sized>: Default {
@@ -61,7 +66,7 @@ fn for_all_cases_and_ranges<M, F>(
     mut fun: F,
 ) where
     M: Metric,
-    F: FnMut(&mut M, BenchmarkId),
+    F: FnMut(&mut M, BenchmarkId, Option<&mut norm::MatchedRanges>),
 {
     for case in [
         CaseSensitivity::Sensitive,
@@ -69,13 +74,14 @@ fn for_all_cases_and_ranges<M, F>(
         CaseSensitivity::Smart,
     ] {
         for with_ranges in [true, false] {
-            metric
-                .with_case_sensitivity(case)
-                .with_matched_ranges(with_ranges);
-
+            metric.with_case_sensitivity(case);
             let param = param(case, with_ranges, suffix);
-
-            fun(&mut metric, BenchmarkId::new(function, param));
+            let mut ranges = with_ranges.then(norm::MatchedRanges::default);
+            fun(
+                &mut metric,
+                BenchmarkId::new(function, param),
+                ranges.as_mut(),
+            );
         }
     }
 }
@@ -87,6 +93,7 @@ fn bench<'a, M, C>(
     metric: &mut M,
     query: &str,
     candidates: C,
+    ranges: Option<&mut norm::MatchedRanges>,
 ) where
     M: Metric,
     C: IntoIterator<Item = &'a str>,
@@ -100,13 +107,23 @@ fn bench<'a, M, C>(
 
     group.throughput(Throughput::Elements(candidates.len() as u64));
 
-    group.bench_function(id, |b| {
-        b.iter(|| {
-            for candidate in candidates.clone() {
-                metric.dist(query, candidate);
-            }
-        })
-    });
+    if let Some(ranges) = ranges {
+        group.bench_function(id, |b| {
+            b.iter(|| {
+                for candidate in candidates.clone() {
+                    metric.dist_and_ranges(query, candidate, ranges);
+                }
+            })
+        });
+    } else {
+        group.bench_function(id, |b| {
+            b.iter(|| {
+                for candidate in candidates.clone() {
+                    metric.dist(query, candidate);
+                }
+            })
+        });
+    }
 }
 
 const MEDIUM_TEXT: &str =
@@ -132,10 +149,10 @@ pub fn short<M: Metric>(
 ) where
     M: Metric,
 {
-    for_all_cases_and_ranges(metric, "short", suffix, |metric, id| {
+    for_all_cases_and_ranges(metric, "short", suffix, |metric, id, ranges| {
         let query = "paradise";
         let candidates = core::iter::once("paradisematic");
-        bench(&mut group, id, metric, query, candidates);
+        bench(&mut group, id, metric, query, candidates, ranges);
     })
 }
 
@@ -147,11 +164,16 @@ pub fn medium_start<M: Metric>(
 ) where
     M: Metric,
 {
-    for_all_cases_and_ranges(metric, "medium_start", suffix, |metric, id| {
-        let query = "away";
-        let candidates = core::iter::once(MEDIUM_TEXT);
-        bench(&mut group, id, metric, query, candidates);
-    })
+    for_all_cases_and_ranges(
+        metric,
+        "medium_start",
+        suffix,
+        |metric, id, ranges| {
+            let query = "away";
+            let candidates = core::iter::once(MEDIUM_TEXT);
+            bench(&mut group, id, metric, query, candidates, ranges);
+        },
+    )
 }
 
 // TODO: docs
@@ -162,11 +184,16 @@ pub fn medium_middle<M: Metric>(
 ) where
     M: Metric,
 {
-    for_all_cases_and_ranges(metric, "medium_middle", suffix, |metric, id| {
-        let query = "blind";
-        let candidates = core::iter::once(MEDIUM_TEXT);
-        bench(&mut group, id, metric, query, candidates);
-    })
+    for_all_cases_and_ranges(
+        metric,
+        "medium_middle",
+        suffix,
+        |metric, id, ranges| {
+            let query = "blind";
+            let candidates = core::iter::once(MEDIUM_TEXT);
+            bench(&mut group, id, metric, query, candidates, ranges);
+        },
+    )
 }
 
 // TODO: docs
@@ -177,11 +204,16 @@ pub fn medium_end<M: Metric>(
 ) where
     M: Metric,
 {
-    for_all_cases_and_ranges(metric, "medium_end", suffix, |metric, id| {
-        let query = "Semantics";
-        let candidates = core::iter::once(MEDIUM_TEXT);
-        bench(&mut group, id, metric, query, candidates);
-    })
+    for_all_cases_and_ranges(
+        metric,
+        "medium_end",
+        suffix,
+        |metric, id, ranges| {
+            let query = "Semantics";
+            let candidates = core::iter::once(MEDIUM_TEXT);
+            bench(&mut group, id, metric, query, candidates, ranges);
+        },
+    )
 }
 
 // TODO: docs
@@ -192,11 +224,16 @@ pub fn long_start<M: Metric>(
 ) where
     M: Metric,
 {
-    for_all_cases_and_ranges(metric, "long_start", suffix, |metric, id| {
-        let query = "mountains";
-        let candidates = core::iter::once(LONG_TEXT);
-        bench(&mut group, id, metric, query, candidates);
-    })
+    for_all_cases_and_ranges(
+        metric,
+        "long_start",
+        suffix,
+        |metric, id, ranges| {
+            let query = "mountains";
+            let candidates = core::iter::once(LONG_TEXT);
+            bench(&mut group, id, metric, query, candidates, ranges);
+        },
+    )
 }
 
 // TODO: docs
@@ -207,11 +244,16 @@ pub fn long_middle<M: Metric>(
 ) where
     M: Metric,
 {
-    for_all_cases_and_ranges(metric, "long_middle", suffix, |metric, id| {
-        let query = "Duden";
-        let candidates = core::iter::once(LONG_TEXT);
-        bench(&mut group, id, metric, query, candidates);
-    })
+    for_all_cases_and_ranges(
+        metric,
+        "long_middle",
+        suffix,
+        |metric, id, ranges| {
+            let query = "Duden";
+            let candidates = core::iter::once(LONG_TEXT);
+            bench(&mut group, id, metric, query, candidates, ranges);
+        },
+    )
 }
 
 // TODO: docs
@@ -222,9 +264,14 @@ pub fn long_end<M: Metric>(
 ) where
     M: Metric,
 {
-    for_all_cases_and_ranges(metric, "long_end", suffix, |metric, id| {
-        let query = "unorthographic";
-        let candidates = core::iter::once(LONG_TEXT);
-        bench(&mut group, id, metric, query, candidates);
-    })
+    for_all_cases_and_ranges(
+        metric,
+        "long_end",
+        suffix,
+        |metric, id, ranges| {
+            let query = "unorthographic";
+            let candidates = core::iter::once(LONG_TEXT);
+            bench(&mut group, id, metric, query, candidates, ranges);
+        },
+    )
 }

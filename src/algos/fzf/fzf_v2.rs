@@ -19,9 +19,6 @@ pub struct FzfV2 {
 
     /// TODO: docs
     slab: V2Slab,
-
-    /// TODO: docs
-    with_matched_ranges: bool,
 }
 
 impl core::fmt::Debug for FzfV2 {
@@ -29,7 +26,6 @@ impl core::fmt::Debug for FzfV2 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("FzfV2")
             .field("case_sensitivity", &self.case_sensitivity)
-            .field("matched_ranges", &self.with_matched_ranges)
             .field("normalization", &self.normalization)
             .field("scheme", &FzfScheme::from_inner(&self.scheme).unwrap())
             .finish_non_exhaustive()
@@ -56,13 +52,6 @@ impl FzfV2 {
         case_sensitivity: CaseSensitivity,
     ) -> &mut Self {
         self.case_sensitivity = case_sensitivity;
-        self
-    }
-
-    /// TODO: docs
-    #[inline(always)]
-    pub fn with_matched_ranges(&mut self, matched_ranges: bool) -> &mut Self {
-        self.with_matched_ranges = matched_ranges;
         self
     }
 
