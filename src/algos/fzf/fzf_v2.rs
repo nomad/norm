@@ -3,7 +3,64 @@ use core::ops::Range;
 use super::{query::*, slab::*, *};
 use crate::*;
 
-/// TODO: docs
+/// A metric that implements fzf's v2 algorithm.
+///
+/// The [`Metric`] implementation of this struct produces the same results that
+/// `fzf` would produce when run with the `--algo=v2` flag.
+///
+/// The algorithm used in the [`distance`](Metric::distance) calculation is a
+/// modified version of the [Smith-Waterman][sw] algorithm, which was
+/// originally designed for finding the best alignment between two DNA or
+/// protein sequences.
+///
+/// Unlike [`FzfV1`], this metric is able to find the best
+/// occurrence of a query within a candidate by considering all possible
+/// alignments between the two. For example, given the query `"foo"` and the
+/// candidate `"f_o_o_foo"`, `FzfV1` would stop at the first match it finds,
+/// i.e. `"f_o_o"`. `FzfV2` on the other hand returns the distance
+/// and range of the best alignment according to its scoring criteria, which in
+/// this case would be `"foo"`.
+///
+/// ```rust
+/// # use norm::fzf::{FzfV1, FzfV2, FzfParser};
+/// # use norm::Metric;
+/// let mut v1 = FzfV1::new();
+/// let mut v2 = FzfV2::new();
+/// let mut parser = FzfParser::new();
+/// let mut ranges = Vec::new();
+///
+/// let query = parser.parse("foo");
+///
+/// let candidate = "f_o_o_foo";
+///
+/// let distance_v1 =
+///     v1.distance_and_ranges(query, candidate, &mut ranges).unwrap();
+///
+/// assert_eq!(ranges, [0..1, 2..3, 4..5]);
+///
+/// ranges.clear();
+///
+/// let distance_v2 =
+///     v2.distance_and_ranges(query, candidate, &mut ranges).unwrap();
+///
+/// assert_eq!(ranges, [6..9]);
+///
+/// // The alignment found by FzfV2 has a lower distance than the one
+/// // found by FzfV1.
+/// assert!(distance_v2 < distance_v1);
+/// ```
+///
+/// Of course, this increase in accuracy comes at the cost of a higher time
+/// complexity for the distance calculation, namely `O(len(query) *
+/// len(candidate))` instead of `O(len(candidate))` for `FzfV1`.
+///
+/// However, filtering out non-matches is still done in `O(len(candidate))`, so
+/// for queries with decent selectivity the performance difference between the
+/// two metrics is usually negligible even when dealing with a large number of
+/// candidates.
+///
+///
+/// [sw]: https://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm
 #[cfg_attr(docsrs, doc(cfg(feature = "fzf-v2")))]
 #[derive(Clone, Default)]
 pub struct FzfV2 {
