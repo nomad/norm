@@ -222,14 +222,14 @@ fn fzf_v1_score_1() {
 
     let mut parser = FzfParser::new();
 
-    let mut ranges = norm::MatchedRanges::default();
+    let mut ranges = Vec::new();
 
     let _ = fzf
         .with_case_sensitivity(CaseSensitivity::Sensitive)
         .distance_and_ranges(parser.parse("ZZ"), "ӥZZZ", &mut ranges)
         .unwrap();
 
-    assert_eq!(ranges.as_slice(), [2..4]);
+    assert_eq!(ranges, [2..4]);
 }
 
 #[test]
@@ -268,7 +268,7 @@ fn fzf_v1_score_4() {
 
     let mut parser = FzfParser::new();
 
-    let mut ranges = norm::MatchedRanges::default();
+    let mut ranges = Vec::new();
 
     let query = parser.parse("z\n");
 
@@ -279,7 +279,7 @@ fn fzf_v1_score_4() {
         .distance_and_ranges(query, candidate, &mut ranges)
         .unwrap();
 
-    assert_eq!(ranges.as_slice(), [1..2, 21..22]);
+    assert_eq!(ranges, [1..2, 21..22]);
 }
 
 #[test]
@@ -288,7 +288,7 @@ fn fzf_v1_score_5() {
 
     let mut parser = FzfParser::new();
 
-    let mut ranges = norm::MatchedRanges::default();
+    let mut ranges = Vec::new();
 
     let _ = fzf
         .with_case_sensitivity(CaseSensitivity::Sensitive)
@@ -300,7 +300,7 @@ fn fzf_v1_score_5() {
         )
         .unwrap();
 
-    assert_eq!(ranges.as_slice(), [1..2, 7..9]);
+    assert_eq!(ranges, [1..2, 7..9]);
 }
 
 #[test]
@@ -309,7 +309,7 @@ fn fzf_v1_score_6() {
 
     let mut parser = FzfParser::new();
 
-    let mut ranges = norm::MatchedRanges::default();
+    let mut ranges = Vec::new();
 
     let query = parser.parse("^e");
 
@@ -318,5 +318,5 @@ fn fzf_v1_score_6() {
         .with_normalization(true)
         .distance_and_ranges(query, "\u{364}", &mut ranges);
 
-    assert_eq!(ranges.as_slice(), [0..2]);
+    assert_eq!(ranges, [0..2]);
 }

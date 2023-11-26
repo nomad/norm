@@ -41,7 +41,7 @@ fuzz_target!(|data: (Query, Candidate)| {
 
     let mut fzf_v2 = FzfV2::new();
 
-    let mut ranges = norm::MatchedRanges::default();
+    let mut ranges = Vec::new();
 
     with_opts(|case_sensitivity, normalization, scheme| {
         let _ = fzf_v1

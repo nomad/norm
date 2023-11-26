@@ -1,3 +1,5 @@
+use core::ops::Range;
+
 use criterion::{
     measurement::WallTime,
     BenchmarkGroup,
@@ -17,7 +19,7 @@ pub trait Metric {
         &mut self,
         query: Self::Query<'_>,
         candidate: &str,
-        ranges: &mut norm::MatchedRanges,
+        ranges: &mut Vec<Range<usize>>,
     );
 
     fn with_case_sensitivity(
@@ -66,7 +68,7 @@ fn for_all_cases_and_ranges<M, F>(
     mut fun: F,
 ) where
     M: Metric,
-    F: FnMut(&mut M, BenchmarkId, Option<&mut norm::MatchedRanges>),
+    F: FnMut(&mut M, BenchmarkId, Option<&mut Vec<Range<usize>>>),
 {
     for case in [
         CaseSensitivity::Sensitive,
@@ -76,7 +78,7 @@ fn for_all_cases_and_ranges<M, F>(
         for with_ranges in [true, false] {
             metric.with_case_sensitivity(case);
             let param = param(case, with_ranges, suffix);
-            let mut ranges = with_ranges.then(norm::MatchedRanges::default);
+            let mut ranges = with_ranges.then(Vec::new);
             fun(
                 &mut metric,
                 BenchmarkId::new(function, param),
@@ -93,7 +95,7 @@ fn bench<'a, M, C>(
     metric: &mut M,
     query: &str,
     candidates: C,
-    ranges: Option<&mut norm::MatchedRanges>,
+    ranges: Option<&mut Vec<Range<usize>>>,
 ) where
     M: Metric,
     C: IntoIterator<Item = &'a str>,

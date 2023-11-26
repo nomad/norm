@@ -1,3 +1,5 @@
+use core::ops::Range;
+
 mod common;
 
 use common as bench;
@@ -34,7 +36,7 @@ impl bench::Metric for FzfV1 {
         &mut self,
         query: FzfQuery,
         candidate: &str,
-        ranges: &mut norm::MatchedRanges,
+        ranges: &mut Vec<Range<usize>>,
     ) {
         self.distance_and_ranges(query, candidate, ranges);
     }

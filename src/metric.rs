@@ -1,4 +1,4 @@
-use crate::MatchedRanges;
+use core::ops::Range;
 
 /// A trait representing a distance metric on strings.
 ///
@@ -54,8 +54,8 @@ pub trait Metric {
     /// not match the query, the buffer is left untouched.
     fn distance_and_ranges(
         &mut self,
-        _query: Self::Query<'_>,
-        _candidate: &str,
-        _ranges_buf: &mut MatchedRanges,
+        query: Self::Query<'_>,
+        candidate: &str,
+        ranges_buf: &mut Vec<Range<usize>>,
     ) -> Option<Self::Distance>;
 }

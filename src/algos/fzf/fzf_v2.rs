@@ -1,3 +1,5 @@
+use core::ops::Range;
+
 use super::{query::*, slab::*, *};
 use crate::*;
 
@@ -81,7 +83,7 @@ impl Metric for FzfV2 {
         query: FzfQuery<'_>,
         candidate: &str,
     ) -> Option<Self::Distance> {
-        let ranges = &mut MatchedRanges::default();
+        let ranges = &mut Vec::new();
         <Self as Fzf>::distance::<false>(self, query, candidate, ranges)
     }
 
@@ -90,9 +92,8 @@ impl Metric for FzfV2 {
         &mut self,
         query: FzfQuery<'_>,
         candidate: &str,
-        ranges: &mut MatchedRanges,
+        ranges: &mut Vec<Range<usize>>,
     ) -> Option<Self::Distance> {
-        ranges.clear();
         <Self as Fzf>::distance::<true>(self, query, candidate, ranges)
     }
 }

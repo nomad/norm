@@ -62,11 +62,10 @@ mod case_sensitivity;
 mod matched_ranges;
 mod metric;
 mod normalize;
-mod tiny_vec;
 mod utils;
 
 pub use algos::*;
 use candidate::{Candidate, CandidateMatches};
 pub use case_sensitivity::CaseSensitivity;
-pub use matched_ranges::MatchedRanges;
+use matched_ranges::MatchedRanges;
 pub use metric::Metric;

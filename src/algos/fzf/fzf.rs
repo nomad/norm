@@ -141,7 +141,7 @@ pub(super) trait Fzf {
         &mut self,
         query: FzfQuery,
         candidate: &str,
-        ranges: &mut MatchedRanges,
+        ranges: &mut Vec<Range<usize>>,
     ) -> Option<FzfDistance> {
         if query.is_empty() {
             return Some(FzfDistance::from_score(0));
@@ -152,6 +152,8 @@ pub(super) trait Fzf {
         } else {
             Candidate::Unicode(self.alloc_chars(candidate))
         };
+
+        let ranges = &mut ranges.into();
 
         match query.search_mode {
             SearchMode::NotExtended(pattern) => self
@@ -599,26 +601,26 @@ mod tests {
         let pattern =
             Pattern::parse("^AbC$".chars().collect::<Vec<_>>().leak());
 
-        let mut ranges_buf = MatchedRanges::default();
+        let mut ranges_buf = Vec::new();
 
         assert!(exact_match::<true>(
             pattern,
             candidate("ABC"),
             utils::char_eq(true, false),
             &Scheme::default(),
-            &mut ranges_buf
+            &mut ((&mut ranges_buf).into())
         )
         .is_none());
 
         {
-            ranges_buf = MatchedRanges::default();
+            ranges_buf.clear();
 
             assert!(exact_match::<true>(
                 pattern,
                 candidate("AbC"),
                 utils::char_eq(true, false),
                 &Scheme::default(),
-                &mut ranges_buf
+                &mut ((&mut ranges_buf).into())
             )
             .is_some());
 
@@ -626,14 +628,14 @@ mod tests {
         }
 
         {
-            ranges_buf = MatchedRanges::default();
+            ranges_buf.clear();
 
             assert!(exact_match::<true>(
                 pattern,
                 candidate("AbC "),
                 utils::char_eq(true, false),
                 &Scheme::default(),
-                &mut ranges_buf
+                &mut ((&mut ranges_buf).into())
             )
             .is_some());
 
@@ -641,14 +643,14 @@ mod tests {
         }
 
         {
-            ranges_buf = MatchedRanges::default();
+            ranges_buf.clear();
 
             assert!(exact_match::<true>(
                 pattern,
                 candidate(" AbC "),
                 utils::char_eq(true, false),
                 &Scheme::default(),
-                &mut ranges_buf
+                &mut ((&mut ranges_buf).into())
             )
             .is_some());
 
@@ -656,14 +658,14 @@ mod tests {
         }
 
         {
-            ranges_buf = MatchedRanges::default();
+            ranges_buf.clear();
 
             assert!(exact_match::<true>(
                 pattern,
                 candidate("  AbC"),
                 utils::char_eq(true, false),
                 &Scheme::default(),
-                &mut ranges_buf
+                &mut ((&mut ranges_buf).into())
             )
             .is_some());
 
@@ -675,17 +677,17 @@ mod tests {
     fn exact_match_1() {
         let pattern = Pattern::parse("abc".chars().collect::<Vec<_>>().leak());
 
-        let mut ranges_buf = MatchedRanges::default();
+        let mut ranges_buf = Vec::new();
 
         assert!(exact_match::<true>(
             pattern,
             candidate("aabbcc abc"),
             utils::char_eq(true, false),
             &Scheme::default(),
-            &mut ranges_buf
+            &mut ((&mut ranges_buf).into())
         )
         .is_some());
 
-        assert_eq!(ranges_buf.as_slice(), [7..10]);
+        assert_eq!(ranges_buf, [7..10]);
     }
 }
