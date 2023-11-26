@@ -59,7 +59,7 @@ impl FzfV2 {
 
     /// TODO: docs
     #[inline(always)]
-    pub fn with_normalization(&mut self, normalization: bool) -> &mut Self {
+    pub fn set_normalization(&mut self, normalization: bool) -> &mut Self {
         self.normalization = normalization;
         self
     }

@@ -46,7 +46,7 @@ fuzz_target!(|data: (Query, Candidate)| {
     with_opts(|case_sensitivity, normalization, scheme| {
         let _ = fzf_v1
             .with_case_sensitivity(case_sensitivity)
-            .with_normalization(normalization)
+            .set_normalization(normalization)
             .with_scoring_scheme(scheme)
             .distance_and_ranges(query, candidate, &mut ranges);
 
@@ -56,7 +56,7 @@ fuzz_target!(|data: (Query, Candidate)| {
 
         let _ = fzf_v2
             .with_case_sensitivity(case_sensitivity)
-            .with_normalization(normalization)
+            .set_normalization(normalization)
             .with_scoring_scheme(scheme)
             .distance_and_ranges(query, candidate, &mut ranges);
 

@@ -292,7 +292,7 @@ fn fzf_v1_score_5() {
 
     let _ = fzf
         .with_case_sensitivity(CaseSensitivity::Sensitive)
-        .with_normalization(true)
+        .set_normalization(true)
         .distance_and_ranges(
             parser.parse("e !"),
             " !I\\hh+\u{364}",
@@ -315,7 +315,7 @@ fn fzf_v1_score_6() {
 
     let _ = fzf
         .with_case_sensitivity(CaseSensitivity::Insensitive)
-        .with_normalization(true)
+        .set_normalization(true)
         .distance_and_ranges(query, "\u{364}", &mut ranges);
 
     assert_eq!(ranges, [0..2]);
