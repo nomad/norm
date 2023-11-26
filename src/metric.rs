@@ -30,7 +30,7 @@ pub trait Metric {
     ///
     /// if and only if `a` is a better match than `b`. In other words, a lower
     /// distance value must indicate a closer or more relevant match.
-    type Distance: Copy + Ord;
+    type Distance: Ord;
 
     /// This method calculates the "distance" between an instance of the
     /// metric's [`Query`][Self::Query] type and a candidate string.
