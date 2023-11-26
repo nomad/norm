@@ -3,7 +3,56 @@ use core::ops::Range;
 use super::{query::*, *};
 use crate::*;
 
-/// TODO: docs
+/// A metric that implements fzf's v1 algorithm.
+///
+/// The [`Metric`] implementation of this struct produces the same results that
+/// `fzf` would produce when run with the `--algo=v1` flag.
+///
+/// The algorithm used in the [`distance`](Metric::distance) calculation simply
+/// looks for the first fuzzy match of the query in the candidate. If a match
+/// is found, it traverses backwards from the end of the match to see if
+/// there's a shorter substring that also matches the query.
+///
+/// By always stopping at the first alignment this metric is able to provide a
+/// `O(len(candidate))` time complexity for both matches and non-matches, but
+/// it usually produces less accurate results than [`FzfV2`].
+///
+/// # Example
+///
+/// ```rust
+/// # use norm::fzf::{FzfV1, FzfParser};
+/// # use norm::Metric;
+/// let mut v1 = FzfV1::new();
+/// let mut parser = FzfParser::new();
+/// let mut ranges = Vec::new();
+///
+/// let query = parser.parse("abc");
+///
+/// let candidate = "a_b_abcd";
+///
+/// /*
+/// We're looking for "abc" in "a_b_abcd". A first scan will find "a_b_abc":
+///
+/// a_b_abcd
+/// *******
+///
+/// Now it will stop looking for other (potentially better) alignments of the
+/// query, and will instead start going backwards from the end of the match,
+/// i.e. from "c".
+///
+/// In this case, it will find "abc", which is shorter than "a_b_abc":
+///
+/// a_b_abcd
+///     ***
+///
+/// so the matched range will be "abc".
+/// */
+///
+/// let _distance =
+///     v1.distance_and_ranges(query, candidate, &mut ranges).unwrap();
+///
+/// assert_eq!(ranges, [4..7]);
+/// ```
 #[cfg_attr(docsrs, doc(cfg(feature = "fzf-v1")))]
 #[derive(Clone, Default)]
 pub struct FzfV1 {
