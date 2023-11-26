@@ -20,8 +20,8 @@
 //!
 //! ## Extended-search mode
 //!
-//! Both metrics fully support fzf's [extended-search mode][extended-search] by
-//! parsing the query with [`FzfParser::parse`].
+//! Both metrics fully support fzf's [extended-search mode][esm] by parsing the
+//! query with [`FzfParser::parse`].
 //!
 //! In extended-search mode, spaces in the query are treated as logical AND
 //! operators, while the pipe character `|` is treated as a logical OR. For
@@ -30,9 +30,8 @@
 //! for candidates that either begin or end with a certain string, to negate a
 //! query, and more.
 //!
-//! To know more about extended-search mode's syntax you can
-//! look directly at [fzf's docs][extended-search] on it, or at the
-//! documentation of the [`FzfParser`].
+//! To know more about extended-search mode's syntax you can look directly at
+//! [fzf's docs][esm] on it, or at the documentation of the [`FzfParser`].
 //!
 //! ## Conformance to fzf
 //!
@@ -41,7 +40,7 @@
 //! implementation and fzf's should be considered a bug.
 //!
 //! [fzf]: https://github.com/junegunn/fzf
-//! [extended-search]: https://github.com/junegunn/fzf#search-syntax
+//! [esm]: https://github.com/junegunn/fzf#search-syntax
 
 mod candidate;
 mod distance;

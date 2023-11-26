@@ -3,7 +3,13 @@ use core::mem::transmute;
 use super::query::{Condition, FzfQuery, Pattern};
 use crate::utils;
 
-/// TODO: docs
+/// The parser used to parse strings into [`FzfQuery`]s.
+///
+/// Queries can be parsed according to fzf's [extended-search mode][esm] via
+/// [`parse`][FzfParser::parse]. If this is not desired, use
+/// [`parse_not_extended`][FzfParser::parse_not_extended] instead.
+///
+/// [esm]: https://github.com/junegunn/fzf#search-syntax
 #[derive(Clone)]
 pub struct FzfParser {
     /// TODO: docs
@@ -35,13 +41,48 @@ impl core::fmt::Debug for FzfParser {
 }
 
 impl FzfParser {
-    /// TODO: docs
+    /// Creates a new `FzfParser`.
     #[inline]
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// TODO: docs
+    /// Parses the given query string according to fzf's
+    /// [extended-search mode][esm].
+    ///
+    /// In extended-search mode certain characters change how the query is
+    /// matched in candidates.
+    ///
+    /// In particular:
+    ///
+    /// | Pattern | Matches                                      |
+    /// | ------- | -------------------------------------------- |
+    /// | `foo`   | candidates that fuzzy-match `"foo"`          |
+    /// | `'foo`  | candidates that include `"foo"`              |
+    /// | `^foo`  | candidates that start with `"foo"`           |
+    /// | `foo$`  | candidates that end with `"foo"`             |
+    /// | `!foo`  | candidates that **don't** include `"foo"`    |
+    /// | `!^foo` | candidates that **don't** start with `"foo"` |
+    /// | `!foo$` | candidates that **don't**  end with `"foo"`  |
+    ///
+    /// It's also possible to query for multiple patterns by separating them
+    /// with spaces or with the pipe character `"|"`. A space acts as a logical
+    /// AND operator, while a pipe character acts as a logical OR operator.
+    ///
+    /// For example, the query `"^main .c$ | .rs$"` would only match candidates
+    /// that start with `"main"` and end with either `".c"` or `".rs"`.
+    /// Spaces can be escaped with a backslash if they're part of a pattern,
+    /// e.g. `"foo\ baz"` will match `"foo bar baz"` but not `"baz foo"`.
+    ///
+    /// Note that like in fzf, but unlike in logical expressions, the pipe
+    /// character (OR) has a higher precedence than the space character (AND),
+    /// so that `"foo bar | baz"` gets parsed as `"foo && (bar || baz)"`, and
+    /// **not** as `"(foo && bar) || baz"`;
+    ///
+    /// If you want to treat all the characters in the query as fuzzy-matching,
+    /// use [`parse_not_extended`][FzfParser::parse_not_extended] instead.
+    ///
+    /// [esm]: https://github.com/junegunn/fzf#search-syntax
     #[inline]
     pub fn parse<'a>(&'a mut self, query: &str) -> FzfQuery<'a> {
         let max_chars = query.len();
@@ -94,7 +135,39 @@ impl FzfParser {
         FzfQuery::new_extended(&self.conditions[..num_conditions])
     }
 
-    /// TODO: docs
+    /// Parses the given query string without using fzf's extended-search mode.
+    ///
+    /// All the characters in the query string are used for fuzzy-matching,
+    /// with no special meaning attached to any of them. This should be
+    /// equivalent to calling `fzf` with the `--no-extended` flag.
+    ///
+    /// If you want to apply fzf's extended-search mode to the query, parse it
+    /// with [`parse`][FzfParser::parse] instead.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use norm::fzf::{FzfParser, FzfV2};
+    /// # use norm::Metric;
+    /// let mut fzf = FzfV2::new();
+    /// let mut parser = FzfParser::new();
+    /// let mut ranges = Vec::new();
+    ///
+    /// let query = parser.parse_not_extended("^bar | baz$");
+    ///
+    /// let distance =
+    ///     fzf.distance_and_ranges(query, "^foo bar | baz $ foo", &mut ranges);
+    ///
+    /// // We expect a match since the characters in the query fuzzy-match the
+    /// // candidate.
+    /// //
+    /// // If we parsed the query by calling `parse` there wouldn't have been a
+    /// // match since the candidate doesn't start with `"bar"` nor does it end
+    /// // with `"baz"`.
+    /// assert!(distance.is_some());
+    ///
+    /// assert_eq!(ranges, [0..1, 5..14, 15..16]);
+    /// ```
     #[inline]
     pub fn parse_not_extended<'a>(&'a mut self, query: &str) -> FzfQuery<'a> {
         let mut char_len = 0;
