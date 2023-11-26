@@ -37,6 +37,12 @@ impl core::fmt::Debug for FzfParser {
 impl FzfParser {
     /// TODO: docs
     #[inline]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// TODO: docs
+    #[inline]
     pub fn parse<'a>(&'a mut self, query: &str) -> FzfQuery<'a> {
         let max_chars = query.len();
 
@@ -85,13 +91,20 @@ impl FzfParser {
             num_conditions += 1;
         }
 
-        FzfQuery::new(&self.conditions[..num_conditions])
+        FzfQuery::new_extended(&self.conditions[..num_conditions])
     }
 
     /// TODO: docs
     #[inline]
-    pub fn new() -> Self {
-        Self::default()
+    pub fn parse_not_extended<'a>(&'a mut self, query: &str) -> FzfQuery<'a> {
+        let mut char_len = 0;
+
+        for ch in query.chars() {
+            self.chars[char_len] = ch;
+            char_len += 1;
+        }
+
+        FzfQuery::new_not_extended(&self.chars[..char_len])
     }
 }
 

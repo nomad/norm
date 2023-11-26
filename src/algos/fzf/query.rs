@@ -47,7 +47,7 @@ impl<'a> FzfQuery<'a> {
 
     /// TODO: docs
     #[inline]
-    pub(super) fn new(conditions: &'a [Condition<'a>]) -> Self {
+    pub(super) fn new_extended(conditions: &'a [Condition<'a>]) -> Self {
         // If there's only one condition with a single pattern, and that
         // pattern is fuzzy, then we can use the non-extended search mode.
         if conditions.len() == 1 {
@@ -67,6 +67,12 @@ impl<'a> FzfQuery<'a> {
         }
 
         Self { search_mode: SearchMode::Extended(conditions) }
+    }
+
+    /// TODO: docs
+    #[inline]
+    pub(super) fn new_not_extended(chars: &'a [char]) -> Self {
+        Self { search_mode: SearchMode::NotExtended(Pattern::raw(chars)) }
     }
 }
 
@@ -191,6 +197,24 @@ impl<'a> Pattern<'a> {
     #[inline(always)]
     pub(super) fn leading_spaces(&self) -> usize {
         self.leading_spaces
+    }
+
+    /// TODO: docs
+    #[inline]
+    fn raw(text: &'a [char]) -> Self {
+        let leading_spaces = text.iter().take_while(|&&c| c == ' ').count();
+
+        let trailing_spaces =
+            text.iter().rev().take_while(|&&c| c == ' ').count();
+
+        Self {
+            leading_spaces,
+            trailing_spaces,
+            has_uppercase: text.iter().copied().any(char::is_uppercase),
+            text,
+            match_type: MatchType::Fuzzy,
+            is_inverse: false,
+        }
     }
 
     /// TODO: docs
