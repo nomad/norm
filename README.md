@@ -1,7 +1,7 @@
 # 📐 norm
 
 [![Latest version]](https://crates.io/crates/norms)
-[![Docs badge]][docs]
+[![Docs badge]](https://docs.rs/norms)
 [![CI]](https://github.com/nomad/norm/actions)
 
 [Latest version]: https://img.shields.io/crates/v/norms.svg
@@ -69,7 +69,7 @@ assert_eq!(ranges.len(), 1);
 assert_eq!(ranges[0], 2..4); // The first "aa" in "Ulaanbaatar"
 ```
 
-# A note on the crate's naming scheme
+## A note on the crate's naming scheme
 
 norm's `package.name` is `norms`, while its `lib.name` is `norm`. This is
 because the package name has to be unique to be published to [crates.io], but
@@ -96,4 +96,3 @@ fn main() {
 
 [bench]: https://github.com/noib3/fuzzy-benches
 [crates.io]: https://crates.io
-[docs]: https://docs.rs/norms
