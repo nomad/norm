@@ -68,13 +68,13 @@ pub struct FzfV2 {
     candidate_slab: CandidateSlab,
 
     /// TODO: docs
+    candidate_normalization: bool,
+
+    /// TODO: docs
     case_sensitivity: CaseSensitivity,
 
     /// TODO: docs
-    normalization: bool,
-
-    /// TODO: docs
-    scheme: Scheme,
+    scoring_scheme: Scheme,
 
     /// TODO: docs
     slab: V2Slab,
@@ -83,10 +83,15 @@ pub struct FzfV2 {
 impl core::fmt::Debug for FzfV2 {
     #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let Some(scoring_scheme) = FzfScheme::from_inner(&self.scoring_scheme)
+        else {
+            return Ok(());
+        };
+
         f.debug_struct("FzfV2")
+            .field("candidate_normalization", &self.candidate_normalization)
             .field("case_sensitivity", &self.case_sensitivity)
-            .field("normalization", &self.normalization)
-            .field("scheme", &FzfScheme::from_inner(&self.scheme).unwrap())
+            .field("scoring_scheme", &scoring_scheme)
             .finish_non_exhaustive()
     }
 }
@@ -101,7 +106,7 @@ impl FzfV2 {
     /// TODO: docs
     #[cfg(feature = "tests")]
     pub fn scheme(&self) -> &Scheme {
-        &self.scheme
+        &self.scoring_scheme
     }
 
     /// Sets the case sensitivity to use when comparing the characters of the
@@ -132,17 +137,43 @@ impl FzfV2 {
         self
     }
 
-    /// TODO: docs
+    /// Sets whether multi-byte latin characters in the candidate should be
+    /// normalized to ASCII before comparing them to the query. The default is
+    /// `false`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use norm::fzf::{FzfV2, FzfParser};
+    /// # use norm::{Metric, CaseSensitivity};
+    /// let mut fzf = FzfV2::new();
+    /// let mut parser = FzfParser::new();
+    ///
+    /// // FzfV2 doesn't normalize candidates by default.
+    /// assert!(fzf.distance(parser.parse("foo"), "ƒöö").is_none());
+    ///
+    /// fzf.set_candidate_normalization(true);
+    ///
+    /// // With normalization enabled, we get a match.
+    /// assert!(fzf.distance(parser.parse("foo"), "ƒöö").is_some());
+    ///
+    /// // Note that normalization is only applied to the candidate, the query
+    /// // is left untouched.
+    /// assert!(fzf.distance(parser.parse("ƒöö"), "foo").is_none());
+    /// ```
     #[inline(always)]
-    pub fn set_normalization(&mut self, normalization: bool) -> &mut Self {
-        self.normalization = normalization;
+    pub fn set_candidate_normalization(
+        &mut self,
+        normalization: bool,
+    ) -> &mut Self {
+        self.candidate_normalization = normalization;
         self
     }
 
     /// TODO: docs
     #[inline(always)]
     pub fn with_scoring_scheme(&mut self, scheme: FzfScheme) -> &mut Self {
-        self.scheme = scheme.into_inner();
+        self.scoring_scheme = scheme.into_inner();
         self
     }
 }
@@ -187,12 +218,12 @@ impl Fzf for FzfV2 {
             CaseSensitivity::Smart => pattern.has_uppercase,
         };
 
-        utils::char_eq(is_sensitive, self.normalization)
+        utils::char_eq(is_sensitive, self.candidate_normalization)
     }
 
     #[inline(always)]
     fn scheme(&self) -> &Scheme {
-        &self.scheme
+        &self.scoring_scheme
     }
 
     #[inline(always)]
@@ -213,7 +244,8 @@ impl Fzf for FzfV2 {
             CaseSensitivity::Smart => pattern.has_uppercase,
         };
 
-        let opts = CandidateOpts::new(is_sensitive, self.normalization);
+        let opts =
+            CandidateOpts::new(is_sensitive, self.candidate_normalization);
 
         if pattern.char_len() == 1 {
             return fuzzy_single_char::<RANGES>(
@@ -234,9 +266,9 @@ impl Fzf for FzfV2 {
             if RANGES { candidate.to_byte_offset(first_offset) } else { 0 };
 
         let initial_char_class = if first_offset == 0 {
-            self.scheme.initial_char_class
+            self.scoring_scheme.initial_char_class
         } else {
-            char_class(candidate.char(first_offset - 1), &self.scheme)
+            char_class(candidate.char(first_offset - 1), &self.scoring_scheme)
         };
 
         let mut candidate = CandidateV2::new(
@@ -256,7 +288,7 @@ impl Fzf for FzfV2 {
             pattern,
             &mut candidate,
             match_offsets,
-            &self.scheme,
+            &self.scoring_scheme,
         );
 
         if RANGES {

@@ -63,19 +63,24 @@ pub struct FzfV1 {
     case_sensitivity: CaseSensitivity,
 
     /// TODO: docs
-    normalization: bool,
+    candidate_normalization: bool,
 
     /// TODO: docs
-    scheme: Scheme,
+    scoring_scheme: Scheme,
 }
 
 impl core::fmt::Debug for FzfV1 {
     #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let Some(scoring_scheme) = FzfScheme::from_inner(&self.scoring_scheme)
+        else {
+            return Ok(());
+        };
+
         f.debug_struct("FzfV1")
+            .field("candidate_normalization", &self.candidate_normalization)
             .field("case_sensitivity", &self.case_sensitivity)
-            .field("normalization", &self.normalization)
-            .field("scheme", &FzfScheme::from_inner(&self.scheme).unwrap())
+            .field("scoring_scheme", &scoring_scheme)
             .finish_non_exhaustive()
     }
 }
@@ -90,7 +95,7 @@ impl FzfV1 {
     /// TODO: docs
     #[cfg(feature = "tests")]
     pub fn scheme(&self) -> &Scheme {
-        &self.scheme
+        &self.scoring_scheme
     }
 
     /// Sets the case sensitivity to use when comparing the characters of the
@@ -121,17 +126,43 @@ impl FzfV1 {
         self
     }
 
-    /// TODO: docs
+    /// Sets whether multi-byte latin characters in the candidate should be
+    /// normalized to ASCII before comparing them to the query. The default is
+    /// `false`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use norm::fzf::{FzfV1, FzfParser};
+    /// # use norm::{Metric, CaseSensitivity};
+    /// let mut fzf = FzfV1::new();
+    /// let mut parser = FzfParser::new();
+    ///
+    /// // FzfV1 doesn't normalize candidates by default.
+    /// assert!(fzf.distance(parser.parse("foo"), "ƒöö").is_none());
+    ///
+    /// fzf.set_candidate_normalization(true);
+    ///
+    /// // With normalization enabled, we get a match.
+    /// assert!(fzf.distance(parser.parse("foo"), "ƒöö").is_some());
+    ///
+    /// // Note that normalization is only applied to the candidate, the query
+    /// // is left untouched.
+    /// assert!(fzf.distance(parser.parse("ƒöö"), "foo").is_none());
+    /// ```
     #[inline(always)]
-    pub fn set_normalization(&mut self, normalization: bool) -> &mut Self {
-        self.normalization = normalization;
+    pub fn set_candidate_normalization(
+        &mut self,
+        normalization: bool,
+    ) -> &mut Self {
+        self.candidate_normalization = normalization;
         self
     }
 
     /// TODO: docs
     #[inline(always)]
     pub fn with_scoring_scheme(&mut self, scheme: FzfScheme) -> &mut Self {
-        self.scheme = scheme.into_inner();
+        self.scoring_scheme = scheme.into_inner();
         self
     }
 }
@@ -176,12 +207,12 @@ impl Fzf for FzfV1 {
             CaseSensitivity::Smart => pattern.has_uppercase,
         };
 
-        utils::char_eq(is_sensitive, self.normalization)
+        utils::char_eq(is_sensitive, self.candidate_normalization)
     }
 
     #[inline(always)]
     fn scheme(&self) -> &Scheme {
-        &self.scheme
+        &self.scoring_scheme
     }
 
     #[inline(always)]
@@ -202,7 +233,8 @@ impl Fzf for FzfV1 {
             CaseSensitivity::Smart => pattern.has_uppercase,
         };
 
-        let opts = CandidateOpts::new(is_sensitive, self.normalization);
+        let opts =
+            CandidateOpts::new(is_sensitive, self.candidate_normalization);
 
         let end_forward = forward_pass(pattern, candidate, opts)?;
 
@@ -214,7 +246,7 @@ impl Fzf for FzfV1 {
             candidate,
             start_backward..end_forward,
             opts.char_eq,
-            &self.scheme,
+            &self.scoring_scheme,
             ranges,
         );
 

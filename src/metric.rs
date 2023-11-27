@@ -111,7 +111,7 @@ pub trait Metric {
     /// let mut parser = FzfParser::new();
     /// let mut ranges = Vec::new();
     ///
-    /// fzf.set_normalization(true);
+    /// fzf.set_candidate_normalization(true);
     ///
     /// let query = parser.parse("foo");
     ///
