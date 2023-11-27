@@ -13,13 +13,12 @@ use crate::*;
 /// originally designed for finding the best alignment between two DNA or
 /// protein sequences.
 ///
-/// Unlike [`FzfV1`], this metric is able to find the best
-/// occurrence of a query within a candidate by considering all possible
-/// alignments between the two. For example, given the query `"foo"` and the
-/// candidate `"f_o_o_foo"`, `FzfV1` would stop at the first match it finds,
-/// i.e. `"f_o_o"`. `FzfV2` on the other hand returns the distance
-/// and range of the best alignment according to its scoring criteria, which in
-/// this case would be `"foo"`.
+/// Unlike [`FzfV1`], this metric is able to find the best occurrence of a
+/// query within a candidate by considering all possible alignments between the
+/// two. For example, given the query `"foo"` and the candidate `"f_o_o_foo"`,
+/// `FzfV1` would stop at the first match it finds, i.e. `"f_o_o"`. `FzfV2` on
+/// the other hand returns the distance and range of the best alignment
+/// according to its scoring criteria, which in this case would be `"foo"`.
 ///
 /// ```rust
 /// # use norm::fzf::{FzfV1, FzfV2, FzfParser};
@@ -110,33 +109,6 @@ impl FzfV2 {
     }
 
     /// Sets the case sensitivity to use when comparing the characters of the
-    /// query and the candidate. The default is [`CaseSensitivity::Smart`].
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use norm::fzf::{FzfV2, FzfParser};
-    /// # use norm::{Metric, CaseSensitivity};
-    /// let mut fzf = FzfV2::new();
-    /// let mut parser = FzfParser::new();
-    ///
-    /// // FzfV2 uses smart case sensitivity by default.
-    /// assert!(fzf.distance(parser.parse("abc"), "ABC").is_some());
-    ///
-    /// fzf.set_case_sensitivity(CaseSensitivity::Sensitive);
-    ///
-    /// // Now it's case sensitive, so the query won't match the candidate.
-    /// assert!(fzf.distance(parser.parse("abc"), "ABC").is_none());
-    /// ```
-    #[inline(always)]
-    pub fn set_case_sensitivity(
-        &mut self,
-        case_sensitivity: CaseSensitivity,
-    ) -> &mut Self {
-        self.case_sensitivity = case_sensitivity;
-        self
-    }
-
     /// Sets whether multi-byte latin characters in the candidate should be
     /// normalized to ASCII before comparing them to the query. The default is
     /// `false`.
@@ -170,9 +142,64 @@ impl FzfV2 {
         self
     }
 
-    /// TODO: docs
+    /// Sets the case sensitivity to use when comparing the characters of the
+    /// query and the candidate. The default is [`CaseSensitivity::Smart`].
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use norm::fzf::{FzfV2, FzfParser};
+    /// # use norm::{Metric, CaseSensitivity};
+    /// let mut fzf = FzfV2::new();
+    /// let mut parser = FzfParser::new();
+    ///
+    /// // FzfV2 uses smart case sensitivity by default.
+    /// assert!(fzf.distance(parser.parse("abc"), "ABC").is_some());
+    ///
+    /// fzf.set_case_sensitivity(CaseSensitivity::Sensitive);
+    ///
+    /// // Now it's case sensitive, so the query won't match the candidate.
+    /// assert!(fzf.distance(parser.parse("abc"), "ABC").is_none());
+    /// ```
     #[inline(always)]
-    pub fn with_scoring_scheme(&mut self, scheme: FzfScheme) -> &mut Self {
+    pub fn set_case_sensitivity(
+        &mut self,
+        case_sensitivity: CaseSensitivity,
+    ) -> &mut Self {
+        self.case_sensitivity = case_sensitivity;
+        self
+    }
+
+    /// Sets the scoring scheme to use when calculating the distance between
+    /// the query and the candidate. The default is [`FzfScheme::Default`].
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use norm::fzf::{FzfV2, FzfParser, FzfScheme};
+    /// # use norm::{Metric};
+    /// let mut fzf = FzfV2::new();
+    /// let mut parser = FzfParser::new();
+    ///
+    /// let query = parser.parse("foo");
+    ///
+    /// // With the default scoring scheme, "f o o" is considered a better
+    /// // match than "f/o/o" when searching for "foo".
+    /// let distance_spaces = fzf.distance(query, "f o o").unwrap();
+    /// let distance_path_separator = fzf.distance(query, "f/o/o").unwrap();
+    /// assert!(distance_spaces < distance_path_separator);
+    ///
+    /// // When searching for a file path we want to use a scoring scheme that
+    /// // considers "f/o/o" a better match than "f o o".
+    /// fzf.set_scoring_scheme(FzfScheme::Path);
+    ///
+    /// // Now "f/o/o" is considered a better match than "f o o".
+    /// let distance_spaces = fzf.distance(query, "f o o").unwrap();
+    /// let distance_path_separator = fzf.distance(query, "f/o/o").unwrap();
+    /// assert!(distance_path_separator < distance_spaces);
+    /// ```
+    #[inline(always)]
+    pub fn set_scoring_scheme(&mut self, scheme: FzfScheme) -> &mut Self {
         self.scoring_scheme = scheme.into_inner();
         self
     }
