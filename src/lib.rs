@@ -39,13 +39,29 @@
 //!     .filter_map(|city| fzf.distance(query, city).map(|dist| (city, dist)))
 //!     .collect::<Vec<_>>();
 //!
-//! // We sort the results by distance in ascending order. The closest
-//! // match will be at the front of the list.
+//! // We sort the results by distance in ascending order, so that the best match
+//! // will be at the front of the vector.
 //! results.sort_by_key(|(_city, dist)| *dist);
 //!
 //! assert_eq!(results.len(), 2);
 //! assert_eq!(results[0].0, "Adelaide");
 //! assert_eq!(results[1].0, "Ulaanbaatar");
+//!
+//! // We can also find out which sub-strings of each candidate matched the
+//! // query.
+//!
+//! let mut ranges = Vec::new();
+//!
+//! let _ = fzf.distance_and_ranges(query, results[0].0, &mut ranges);
+//! assert_eq!(ranges.len(), 2);
+//! assert_eq!(ranges[0], 0..1); // "A" in "Adelaide"
+//! assert_eq!(ranges[1], 4..5); // "a" in "Adelaide"
+//!
+//! ranges.clear();
+//!
+//! let _ = fzf.distance_and_ranges(query, results[1].0, &mut ranges);
+//! assert_eq!(ranges.len(), 1);
+//! assert_eq!(ranges[0], 2..4); // The first "aa" in "Ulaanbaatar"
 //! ```
 //!
 //! # Features flags

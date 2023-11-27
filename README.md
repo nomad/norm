@@ -18,6 +18,13 @@ sometimes referred to as "string similarity search", or more colloquially
 - `FzfV2`: port of the algorithm used by fzf when launching without any extra
   flags or with `--algo=v2`;
 
+## Performance
+
+Performance is a top priority for this crate. Our goal is to have the fastest
+implementation of every metric algorithm we provide, across all languages.
+[Here][bench] you can find a number of benchmarks comparing norm's metrics to
+each other, as well as to other popular libraries.
+
 ## Example usage
 
 ```rust
