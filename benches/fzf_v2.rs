@@ -40,11 +40,11 @@ impl bench::Metric for FzfV2 {
     ) {
         self.distance_and_ranges(query, candidate, ranges);
     }
-    fn with_case_sensitivity(
+    fn set_case_sensitivity(
         &mut self,
         case_sensitivity: CaseSensitivity,
     ) -> &mut Self {
-        self.with_case_sensitivity(case_sensitivity)
+        self.set_case_sensitivity(case_sensitivity)
     }
 }
 

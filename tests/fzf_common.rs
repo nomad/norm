@@ -562,7 +562,7 @@ mod utils {
         Default
         + for<'a> Metric<Query<'a> = FzfQuery<'a>, Distance = FzfDistance>
     {
-        fn with_case_sensitivity(
+        fn set_case_sensitivity(
             &mut self,
             case_sensitivity: CaseSensitivity,
         ) -> &mut Self;
@@ -571,11 +571,11 @@ mod utils {
     }
 
     impl Fzf for FzfV1 {
-        fn with_case_sensitivity(
+        fn set_case_sensitivity(
             &mut self,
             case_sensitivity: CaseSensitivity,
         ) -> &mut Self {
-            self.with_case_sensitivity(case_sensitivity)
+            self.set_case_sensitivity(case_sensitivity)
         }
 
         fn scheme(&self) -> &norm::fzf::Scheme {
@@ -592,11 +592,11 @@ mod utils {
     }
 
     impl Fzf for FzfV2 {
-        fn with_case_sensitivity(
+        fn set_case_sensitivity(
             &mut self,
             case_sensitivity: CaseSensitivity,
         ) -> &mut Self {
-            self.with_case_sensitivity(case_sensitivity)
+            self.set_case_sensitivity(case_sensitivity)
         }
 
         fn scheme(&self) -> &norm::fzf::Scheme {
@@ -619,7 +619,7 @@ mod utils {
     ) -> (F, Option<FzfMatch>) {
         let mut fzf = F::default();
 
-        fzf.with_case_sensitivity(case_sensitivity);
+        fzf.set_case_sensitivity(case_sensitivity);
 
         let mut parser = FzfParser::new();
 

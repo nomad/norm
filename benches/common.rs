@@ -22,7 +22,7 @@ pub trait Metric {
         ranges: &mut Vec<Range<usize>>,
     );
 
-    fn with_case_sensitivity(
+    fn set_case_sensitivity(
         &mut self,
         case_sensitivity: CaseSensitivity,
     ) -> &mut Self;
@@ -76,7 +76,7 @@ fn for_all_cases_and_ranges<M, F>(
         CaseSensitivity::Smart,
     ] {
         for with_ranges in [true, false] {
-            metric.with_case_sensitivity(case);
+            metric.set_case_sensitivity(case);
             let param = param(case, with_ranges, suffix);
             let mut ranges = with_ranges.then(Vec::new);
             fun(

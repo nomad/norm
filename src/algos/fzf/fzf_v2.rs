@@ -104,9 +104,27 @@ impl FzfV2 {
         &self.scheme
     }
 
-    /// TODO: docs
+    /// Sets the case sensitivity to use when comparing the characters of the
+    /// query and the candidate. The default is [`CaseSensitivity::Smart`].
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use norm::fzf::{FzfV2, FzfParser};
+    /// # use norm::{Metric, CaseSensitivity};
+    /// let mut fzf = FzfV2::new();
+    /// let mut parser = FzfParser::new();
+    ///
+    /// // FzfV2 uses smart case sensitivity by default.
+    /// assert!(fzf.distance(parser.parse("abc"), "ABC").is_some());
+    ///
+    /// fzf.set_case_sensitivity(CaseSensitivity::Sensitive);
+    ///
+    /// // Now it's case sensitive, so the query won't match the candidate.
+    /// assert!(fzf.distance(parser.parse("abc"), "ABC").is_none());
+    /// ```
     #[inline(always)]
-    pub fn with_case_sensitivity(
+    pub fn set_case_sensitivity(
         &mut self,
         case_sensitivity: CaseSensitivity,
     ) -> &mut Self {

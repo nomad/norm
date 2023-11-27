@@ -225,7 +225,7 @@ fn fzf_v1_score_1() {
     let mut ranges = Vec::new();
 
     let _ = fzf
-        .with_case_sensitivity(CaseSensitivity::Sensitive)
+        .set_case_sensitivity(CaseSensitivity::Sensitive)
         .distance_and_ranges(parser.parse("ZZ"), "ӥZZZ", &mut ranges)
         .unwrap();
 
@@ -241,7 +241,7 @@ fn fzf_v1_score_2() {
     let query = parser.parse("^\\$ ]]%]]'\0\0\0\0\0\0");
 
     let mach = fzf
-        .with_case_sensitivity(CaseSensitivity::Sensitive)
+        .set_case_sensitivity(CaseSensitivity::Sensitive)
         .distance(query, "\0");
 
     assert!(mach.is_none());
@@ -256,7 +256,7 @@ fn fzf_v1_score_3() {
     let query = parser.parse("^\\$");
 
     let mach = fzf
-        .with_case_sensitivity(CaseSensitivity::Sensitive)
+        .set_case_sensitivity(CaseSensitivity::Sensitive)
         .distance(query, " ");
 
     assert!(mach.is_none());
@@ -275,7 +275,7 @@ fn fzf_v1_score_4() {
     let candidate = "ZZ\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\u{65e}\nZ\u{65e}";
 
     let _ = fzf
-        .with_case_sensitivity(CaseSensitivity::Insensitive)
+        .set_case_sensitivity(CaseSensitivity::Insensitive)
         .distance_and_ranges(query, candidate, &mut ranges)
         .unwrap();
 
@@ -291,7 +291,7 @@ fn fzf_v1_score_5() {
     let mut ranges = Vec::new();
 
     let _ = fzf
-        .with_case_sensitivity(CaseSensitivity::Sensitive)
+        .set_case_sensitivity(CaseSensitivity::Sensitive)
         .set_normalization(true)
         .distance_and_ranges(
             parser.parse("e !"),
@@ -314,7 +314,7 @@ fn fzf_v1_score_6() {
     let query = parser.parse("^e");
 
     let _ = fzf
-        .with_case_sensitivity(CaseSensitivity::Insensitive)
+        .set_case_sensitivity(CaseSensitivity::Insensitive)
         .set_normalization(true)
         .distance_and_ranges(query, "\u{364}", &mut ranges);
 
