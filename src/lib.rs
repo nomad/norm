@@ -39,12 +39,19 @@
 //!     .filter_map(|city| fzf.distance(query, city).map(|dist| (city, dist)))
 //!     .collect::<Vec<_>>();
 //!
+//! // We sort the results by distance in ascending order. The closest
+//! // match will be at the front of the list.
 //! results.sort_by_key(|(_city, dist)| *dist);
 //!
 //! assert_eq!(results.len(), 2);
 //! assert_eq!(results[0].0, "Adelaide");
 //! assert_eq!(results[1].0, "Ulaanbaatar");
 //! ```
+//!
+//! # Features flags
+//!
+//! - `fzf-v1`: enables the [`FzfV1`](algos::fzf::FzfV1) metric;
+//! - `fzf-v2`: enables the [`FzfV2`](algos::fzf::FzfV2) metric;
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(clippy::module_inception)]
