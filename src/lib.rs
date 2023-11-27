@@ -68,6 +68,8 @@
 //!
 //! - `fzf-v1`: enables the [`FzfV1`](algos::fzf::FzfV1) metric;
 //! - `fzf-v2`: enables the [`FzfV2`](algos::fzf::FzfV2) metric;
+//!
+//! [bench]: https://github.com/noib3/fuzzy-benches
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(clippy::module_inception)]

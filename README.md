@@ -94,5 +94,6 @@ fn main() {
 }
 ```
 
-[docs]: https://docs.rs/norms
+[bench]: https://github.com/noib3/fuzzy-benches
 [crates.io]: https://crates.io
+[docs]: https://docs.rs/norms
