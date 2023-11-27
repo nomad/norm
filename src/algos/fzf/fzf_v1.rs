@@ -86,13 +86,17 @@ impl core::fmt::Debug for FzfV1 {
 }
 
 impl FzfV1 {
-    /// TODO: docs
+    /// Creates a new `FzfV1`.
+    ///
+    /// This will immediately allocate 512 bytes of heap memory, so it's
+    /// recommended to call this once and reuse the same instance for multiple
+    /// distance calculations.
     #[inline(always)]
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// TODO: docs
+    /// Returns the current scoring scheme. This is only used for testing.
     #[cfg(feature = "tests")]
     pub fn scheme(&self) -> &Scheme {
         &self.scoring_scheme

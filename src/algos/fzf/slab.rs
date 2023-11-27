@@ -2,7 +2,8 @@ use core::ops::{Index, IndexMut};
 
 use super::Score;
 
-/// TODO: docs
+/// Creating a new [`V2Slab`] allocates 5.25kb on a 64-bit system and 4.25kb on
+/// a 32-bit system.
 #[derive(Clone, Default)]
 pub(super) struct V2Slab {
     /// TODO: docs
@@ -18,7 +19,6 @@ pub(super) struct V2Slab {
     pub(super) scoring_matrix: MatrixSlab<Score>,
 }
 
-// #[repr(align(8))]
 /// TODO: docs
 #[derive(Clone, Default)]
 pub(super) struct Bonus {
@@ -44,7 +44,7 @@ impl Bonus {
     }
 }
 
-/// TODO: docs
+/// Creating a new [`BonusSlab`] allocates 256 bytes.
 #[derive(Clone)]
 pub(super) struct BonusSlab {
     vec: Vec<Bonus>,
@@ -75,7 +75,7 @@ impl BonusSlab {
     }
 }
 
-/// TODO: docs
+/// Creating a new [`CandidateSlab`] allocates 512 bytes.
 #[derive(Clone)]
 pub(super) struct CandidateSlab {
     chars: Vec<char>,
@@ -106,7 +106,7 @@ impl CandidateSlab {
     }
 }
 
-/// TODO: docs
+/// Creating a new [`MatchedIndicesSlab`] allocates 1kb on a 64-bit system.
 #[derive(Clone)]
 pub(super) struct MatchedIndicesSlab {
     vec: Vec<usize>,
@@ -169,7 +169,7 @@ impl MatrixItem for usize {
     }
 }
 
-/// TODO: docs
+/// Creating a new [`MatrixSlab`] allocates `256 * size_of::<T>()` bytes.
 #[derive(Clone)]
 pub(super) struct MatrixSlab<T: MatrixItem> {
     vec: Vec<T>,
