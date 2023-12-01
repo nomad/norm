@@ -29,6 +29,11 @@ name = "fzf_v2"
 required-features = ["tests"]
 
 [[bench]]
+name = "fzf_common"
+harness = false
+required-features = ["bench"]
+
+[[bench]]
 name = "fzf_v1"
 harness = false
 required-features = ["bench"]
