@@ -264,11 +264,6 @@ impl Fzf for FzfV2 {
         candidate: Candidate,
         ranges: &mut MatchedRanges,
     ) -> Option<Score> {
-        // TODO: can we remove this?
-        if pattern.is_empty() {
-            return Some(0);
-        }
-
         let is_sensitive = match self.case_sensitivity {
             CaseSensitivity::Sensitive => true,
             CaseSensitivity::Insensitive => false,

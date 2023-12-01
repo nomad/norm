@@ -599,7 +599,8 @@ mod tests {
     #[test]
     fn equal_match_1() {
         let pattern =
-            Pattern::parse("^AbC$".chars().collect::<Vec<_>>().leak());
+            Pattern::parse("^AbC$".chars().collect::<Vec<_>>().leak())
+                .unwrap();
 
         let mut ranges_buf = Vec::new();
 
@@ -675,7 +676,8 @@ mod tests {
 
     #[test]
     fn exact_match_1() {
-        let pattern = Pattern::parse("abc".chars().collect::<Vec<_>>().leak());
+        let pattern =
+            Pattern::parse("abc".chars().collect::<Vec<_>>().leak()).unwrap();
 
         let mut ranges_buf = Vec::new();
 

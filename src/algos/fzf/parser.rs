@@ -247,7 +247,7 @@ impl<'buf, 's> Iterator for Patterns<'buf, 's> {
             let word_is_condition = word != OR_BLOCK_SEPARATOR;
 
             if word_is_condition {
-                let word = Pattern::parse(word);
+                let Some(word) = Pattern::parse(word) else { continue };
 
                 if looking_for_or {
                     self.next = Some(word);
@@ -506,7 +506,7 @@ mod patterns_tests {
     }
 
     fn pattern(s: &str) -> Pattern<'static> {
-        Pattern::parse(s.chars().collect::<Vec<_>>().leak())
+        Pattern::parse(s.chars().collect::<Vec<_>>().leak()).unwrap()
     }
 
     #[test]

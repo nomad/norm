@@ -219,94 +219,60 @@ impl<'a> Pattern<'a> {
 
     /// TODO: docs
     #[inline]
-    pub(super) fn parse(mut text: &'a [char]) -> Self {
+    pub(super) fn parse(mut text: &'a [char]) -> Option<Self> {
         debug_assert!(!text.is_empty());
-
-        let first_char = text[0];
-
-        // If the pattern is a single character we always parse it as a fuzzy
-        // match. This diverges from fzf which seems to do the same for a
-        // single '$', but not for a single '^', '!', or '''.
-        if text.len() == 1 {
-            return Self {
-                text,
-                has_uppercase: first_char.is_uppercase(),
-                match_type: MatchType::Fuzzy,
-                is_inverse: false,
-                leading_spaces: 0,
-                trailing_spaces: 0,
-            };
-        }
-
-        let last_char = text[text.len() - 1];
 
         let mut is_inverse = false;
 
-        let match_type;
+        let mut match_type = MatchType::Fuzzy;
 
-        match first_char {
-            '\'' => {
-                text = &text[1..];
-                match_type = MatchType::Exact;
-            },
-
-            '^' if last_char == '$' => {
-                text = &text[1..text.len() - 1];
-                match_type = MatchType::EqualExact;
-            },
-
-            '^' => {
-                text = &text[1..];
-                match_type = MatchType::PrefixExact;
-            },
-
-            '!' if text.get(1).copied() == Some('\'') => {
-                text = &text[2..];
-                match_type = MatchType::Fuzzy;
-                is_inverse = true;
-            },
-
-            '!' if text.get(1).copied() == Some('^') => {
-                text = &text[2..];
-                match_type = MatchType::PrefixExact;
-                is_inverse = true;
-            },
-
-            '!' if last_char == '$' => {
-                text = &text[1..text.len() - 1];
-                match_type = MatchType::SuffixExact;
-                is_inverse = true;
-            },
-
-            '!' => {
-                text = &text[1..];
-                match_type = MatchType::Exact;
-                is_inverse = true;
-            },
-
-            _ if last_char == '$' => {
-                text = &text[..text.len() - 1];
-                match_type = MatchType::SuffixExact;
-            },
-
-            _ => {
-                match_type = MatchType::Fuzzy;
-            },
+        if starts_with(text, '!') {
+            is_inverse = true;
+            match_type = MatchType::Exact;
+            text = &text[1..];
         }
+
+        if ends_with(text, '$') && text.len() > 1 {
+            match_type = MatchType::SuffixExact;
+            text = &text[..text.len() - 1];
+        }
+
+        if starts_with(text, '\'') {
+            match_type =
+                if !is_inverse { MatchType::Exact } else { MatchType::Fuzzy };
+
+            text = &text[1..];
+        } else if starts_with(text, '^') {
+            match_type = if match_type == MatchType::SuffixExact {
+                MatchType::EqualExact
+            } else {
+                MatchType::PrefixExact
+            };
+
+            text = &text[1..];
+        }
+
+        if text.is_empty() {
+            return None;
+        }
+
+        let has_uppercase = text.iter().copied().any(char::is_uppercase);
 
         let leading_spaces = text.iter().take_while(|&&c| c == ' ').count();
 
         let trailing_spaces =
             text.iter().rev().take_while(|&&c| c == ' ').count();
 
-        Self {
+        let this = Self {
+            is_inverse,
+            match_type,
+            text,
+            has_uppercase,
             leading_spaces,
             trailing_spaces,
-            has_uppercase: text.iter().copied().any(char::is_uppercase),
-            text,
-            match_type,
-            is_inverse,
-        }
+        };
+
+        Some(this)
     }
 
     /// TODO: docs
@@ -316,9 +282,18 @@ impl<'a> Pattern<'a> {
     }
 }
 
+#[inline(always)]
+fn ends_with(haystack: &[char], needle: char) -> bool {
+    haystack.last().copied() == Some(needle)
+}
+
+#[inline(always)]
+fn starts_with(haystack: &[char], needle: char) -> bool {
+    haystack.first().copied() == Some(needle)
+}
+
 /// TODO: docs
-#[derive(Default, Clone, Copy)]
-#[cfg_attr(test, derive(Debug, PartialEq))]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) enum MatchType {
     /// TODO: docs
     #[default]
@@ -341,65 +316,60 @@ pub(super) enum MatchType {
 mod tests {
     use super::*;
 
-    fn pattern(s: &str) -> Pattern<'static> {
-        Pattern::parse(s.chars().collect::<Vec<_>>().leak())
-    }
-
     #[test]
-    fn pattern_parse_single_apostrophe() {
-        let pattern = pattern("'");
-        assert_eq!(pattern.into_string(), "'");
-        assert_eq!(pattern.match_type, MatchType::Fuzzy);
-    }
+    fn pattern_parse_specials_1() {
+        assert!(Pattern::parse(&['\'']).is_none());
+        assert!(Pattern::parse(&['^']).is_none());
+        assert!(Pattern::parse(&['!']).is_none());
 
-    #[test]
-    fn pattern_parse_single_caret() {
-        let pattern = pattern("^");
-        assert_eq!(pattern.into_string(), "^");
-        assert_eq!(pattern.match_type, MatchType::Fuzzy);
-    }
-
-    #[test]
-    fn pattern_parse_single_dollar() {
-        let pattern = pattern("$");
+        let pattern = Pattern::parse(&['$']).unwrap();
         assert_eq!(pattern.into_string(), "$");
         assert_eq!(pattern.match_type, MatchType::Fuzzy);
     }
 
     #[test]
-    fn pattern_parse_single_exclamation() {
-        let pattern = pattern("!");
+    fn pattern_parse_specials_2() {
+        assert!(Pattern::parse(&['!', '\'']).is_none());
+        assert!(Pattern::parse(&['!', '^']).is_none());
+        assert!(Pattern::parse(&['\'', '$']).is_none());
+        assert!(Pattern::parse(&['^', '$']).is_none());
+
+        let pattern = Pattern::parse(&['\'', '^']).unwrap();
+        assert_eq!(pattern.into_string(), "^");
+        assert_eq!(pattern.match_type, MatchType::Exact);
+
+        let pattern = Pattern::parse(&['!', '$']).unwrap();
+        assert_eq!(pattern.into_string(), "$");
+        assert_eq!(pattern.match_type, MatchType::Exact);
+        assert!(pattern.is_inverse);
+
+        let pattern = Pattern::parse(&['!', '!']).unwrap();
         assert_eq!(pattern.into_string(), "!");
-        assert_eq!(pattern.match_type, MatchType::Fuzzy);
-    }
+        assert_eq!(pattern.match_type, MatchType::Exact);
+        assert!(pattern.is_inverse);
 
-    #[test]
-    fn pattern_parse_double_caret() {
-        let pattern = pattern("^^");
-        assert_eq!(pattern.into_string(), "^");
-        assert_eq!(pattern.match_type, MatchType::PrefixExact);
-    }
-
-    #[test]
-    fn pattern_parse_double_dollar() {
-        let pattern = pattern("$$");
+        let pattern = Pattern::parse(&['$', '$']).unwrap();
         assert_eq!(pattern.into_string(), "$");
         assert_eq!(pattern.match_type, MatchType::SuffixExact);
     }
 
     #[test]
-    fn pattern_parse_exclamation_caret() {
-        let pattern = pattern("!^");
-        assert_eq!(pattern.into_string(), "");
-        assert_eq!(pattern.match_type, MatchType::PrefixExact);
-        assert!(pattern.is_inverse);
+    fn pattern_parse_specials_3() {
+        assert!(Pattern::parse(&['!', '^', '$']).is_none());
+
+        let pattern = Pattern::parse(&['\'', '^', '$']).unwrap();
+        assert_eq!(pattern.into_string(), "^");
+        assert_eq!(pattern.match_type, MatchType::Exact);
+
+        let pattern = Pattern::parse(&['\'', '!', '$']).unwrap();
+        assert_eq!(pattern.into_string(), "!");
+        assert_eq!(pattern.match_type, MatchType::Exact);
     }
 
     #[test]
-    fn pattern_parse_exlamation_dollar() {
-        let pattern = pattern("!$");
-        assert_eq!(pattern.into_string(), "");
-        assert_eq!(pattern.match_type, MatchType::SuffixExact);
-        assert!(pattern.is_inverse);
+    fn pattern_parse_specials_4() {
+        let pattern = Pattern::parse(&['\'', '^', '$', '$']).unwrap();
+        assert_eq!(pattern.into_string(), "^$");
+        assert_eq!(pattern.match_type, MatchType::Exact);
     }
 }

@@ -291,7 +291,7 @@ fn fzf_v2_score_4() {
         )
         .unwrap();
 
-    assert_eq!(ranges, [1..2, 7..9]);
+    assert_eq!(ranges, [7..9]);
 }
 
 #[test]
