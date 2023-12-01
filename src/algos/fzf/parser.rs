@@ -138,8 +138,8 @@ impl FzfParser {
     /// Parses the given query string without using fzf's extended-search mode.
     ///
     /// All the characters in the query string are used for fuzzy-matching,
-    /// with no special meaning attached to any of them. This should be
-    /// equivalent to calling `fzf` with the `--no-extended` flag.
+    /// with no special meaning attached to any of them. This is equivalent to
+    /// calling `fzf` with the `--no-extended` flag.
     ///
     /// If you want to apply fzf's extended-search mode to the query, parse it
     /// with [`parse`][FzfParser::parse] instead.
