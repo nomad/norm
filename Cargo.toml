@@ -5,9 +5,8 @@ edition = "2021"
 authors = ["Riccardo Mazzarini <me@noib3.dev>"]
 
 [features]
-default = ["tests"]
 fzf-v1 = []
-fzf-v2 = ["fzf-v1"]
+fzf-v2 = []
 
 # Private features.
 bench = ["tests"]
