@@ -114,6 +114,7 @@ impl<'a> Candidate<'a> {
     }
 
     /// TODO: docs
+    #[allow(dead_code)]
     #[inline(always)]
     pub fn find_last_from(
         self,

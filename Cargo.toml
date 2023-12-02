@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MIT"
 keywords = ["text", "fuzzy", "match", "search", "fzf"]
 categories = ["algorithms"]
-exclude = ["/.github", "/benches", "/examples", "/fuzz", "/tests"]
+exclude = ["/.github", "/benches", "/fuzz", "/tests"]
 
 [package.metadata.docs.rs]
 features = ["fzf-v1", "fzf-v2"]
@@ -31,33 +31,6 @@ memchr = "2"
 
 [dev-dependencies]
 criterion = "0.5"
-
-[[test]]
-name = "fzf_common"
-required-features = ["__tests"]
-
-[[test]]
-name = "fzf_v1"
-required-features = ["__tests"]
-
-[[test]]
-name = "fzf_v2"
-required-features = ["__tests"]
-
-[[bench]]
-name = "fzf_common"
-harness = false
-required-features = ["__benches"]
-
-[[bench]]
-name = "fzf_v1"
-harness = false
-required-features = ["__benches"]
-
-[[bench]]
-name = "fzf_v2"
-harness = false
-required-features = ["__benches"]
 
 [[example]]
 name = "cities"
