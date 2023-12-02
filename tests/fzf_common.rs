@@ -579,12 +579,12 @@ mod utils {
         }
 
         fn scheme(&self) -> &norm::fzf::Scheme {
-            #[cfg(feature = "tests")]
+            #[cfg(feature = "__tests")]
             {
                 self.scheme()
             }
 
-            #[cfg(not(feature = "tests"))]
+            #[cfg(not(feature = "__tests"))]
             {
                 unreachable!()
             }
@@ -600,12 +600,12 @@ mod utils {
         }
 
         fn scheme(&self) -> &norm::fzf::Scheme {
-            #[cfg(feature = "tests")]
+            #[cfg(feature = "__tests")]
             {
                 self.scheme()
             }
 
-            #[cfg(not(feature = "tests"))]
+            #[cfg(not(feature = "__tests"))]
             {
                 unreachable!()
             }

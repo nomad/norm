@@ -43,7 +43,7 @@ impl FzfDistance {
     /// This is not part of the public API and should not be relied upon.
     ///
     /// It's only used internally for testing and debugging purposes.
-    #[cfg(any(feature = "into-score", feature = "tests"))]
+    #[cfg(any(feature = "__into-score", feature = "__tests"))]
     #[inline(always)]
     pub fn into_score(self) -> Score {
         self.0

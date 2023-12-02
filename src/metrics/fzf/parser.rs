@@ -396,7 +396,7 @@ impl<'buf> Iterator for Words<'buf, '_> {
 }
 
 /// TODO: docs
-#[cfg(feature = "tests")]
+#[cfg(feature = "__tests")]
 #[doc(hidden)]
 pub fn parse(s: &str) -> FzfQuery<'static> {
     let parser = Box::leak(Box::new(FzfParser::new()));
@@ -561,7 +561,7 @@ mod patterns_tests {
     }
 }
 
-#[cfg(feature = "tests")]
+#[cfg(feature = "__tests")]
 #[doc(hidden)]
 pub fn words(s: &str) -> impl Iterator<Item = String> {
     let mut buf = Vec::new();

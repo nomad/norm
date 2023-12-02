@@ -81,16 +81,24 @@
 
 extern crate alloc;
 
+#[cfg(feature = "__any-metric")]
 mod candidate;
 mod case_sensitivity;
+#[cfg(feature = "__any-metric")]
 mod matched_ranges;
 mod metric;
+#[cfg(feature = "__any-metric")]
 mod metrics;
+#[cfg(feature = "__any-metric")]
 mod normalize;
+#[cfg(feature = "__any-metric")]
 mod utils;
 
+#[cfg(feature = "__any-metric")]
 use candidate::{Candidate, CandidateMatches};
 pub use case_sensitivity::CaseSensitivity;
+#[cfg(feature = "__any-metric")]
 use matched_ranges::MatchedRanges;
 pub use metric::Metric;
+#[cfg(feature = "__any-metric")]
 pub use metrics::*;

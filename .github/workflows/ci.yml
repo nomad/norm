@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: dtolnay/rust-toolchain@nightly
-      - run: cargo test --features tests --no-fail-fast
+      - run: cargo test --all-features --no-fail-fast
 
   bench:
     name: bench
@@ -27,8 +27,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo bench --all-features --no-run
 
-  clippy:
-    name: clippy
+  clippy-all-features:
+    name: clippy-all-features
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -36,6 +36,16 @@ jobs:
         with:
           components: clippy
       - run: cargo clippy --all-features --all-targets -- -D warnings
+
+  clippy-no-features:
+    name: clippy-no-features
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy
+      - run: cargo clippy  --all-targets -- -D warnings
 
   docs:
     name: docs

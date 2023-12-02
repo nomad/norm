@@ -5,13 +5,14 @@ edition = "2021"
 authors = ["Riccardo Mazzarini <me@noib3.dev>"]
 
 [features]
-fzf-v1 = []
-fzf-v2 = []
+fzf-v1 = ["__any-metric"]
+fzf-v2 = ["__any-metric"]
 
 # Private features.
-bench = ["tests"]
-into-score = []
-tests = ["fzf-v1", "fzf-v2"]
+__any-metric = []
+__benches = []
+__into-score = []
+__tests = []
 
 [dependencies]
 memchr = "2"
@@ -20,27 +21,31 @@ memchr = "2"
 criterion = "0.5"
 
 [[test]]
+name = "fzf_common"
+required-features = ["__tests"]
+
+[[test]]
 name = "fzf_v1"
-required-features = ["tests"]
+required-features = ["__tests"]
 
 [[test]]
 name = "fzf_v2"
-required-features = ["tests"]
+required-features = ["__tests"]
 
 [[bench]]
 name = "fzf_common"
 harness = false
-required-features = ["bench"]
+required-features = ["__benches"]
 
 [[bench]]
 name = "fzf_v1"
 harness = false
-required-features = ["bench"]
+required-features = ["__benches"]
 
 [[bench]]
 name = "fzf_v2"
 harness = false
-required-features = ["bench"]
+required-features = ["__benches"]
 
 [[example]]
 name = "cities"

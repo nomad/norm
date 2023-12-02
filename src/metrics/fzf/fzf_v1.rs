@@ -97,7 +97,7 @@ impl FzfV1 {
     }
 
     /// Returns the current scoring scheme. This is only used for testing.
-    #[cfg(feature = "tests")]
+    #[cfg(feature = "__tests")]
     pub fn scheme(&self) -> &Scheme {
         &self.scoring_scheme
     }
