@@ -3,6 +3,18 @@ name = "norm"
 version = "0.1.0"
 edition = "2021"
 authors = ["Riccardo Mazzarini <me@noib3.dev>"]
+description = "A collection of distance metrics on strings"
+documentation = "https://docs.rs/norms"
+repository = "https://github.com/nomad/norm"
+readme = "README.md"
+license = "MIT"
+keywords = ["text", "fuzzy", "match", "search", "fzf"]
+categories = ["algorithms"]
+exclude = ["/.github", "/benches", "/examples", "/fuzz", "/tests"]
+
+[package.metadata.docs.rs]
+features = ["fzf-v1", "fzf-v2"]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 fzf-v1 = ["__any-metric"]
