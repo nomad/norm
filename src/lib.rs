@@ -66,8 +66,8 @@
 //!
 //! # Features flags
 //!
-//! - `fzf-v1`: enables the [`FzfV1`](algos::fzf::FzfV1) metric;
-//! - `fzf-v2`: enables the [`FzfV2`](algos::fzf::FzfV2) metric;
+//! - `fzf-v1`: enables the [`FzfV1`](metrics::fzf::FzfV1) metric;
+//! - `fzf-v2`: enables the [`FzfV2`](metrics::fzf::FzfV2) metric;
 //!
 //! [bench]: https://github.com/noib3/fuzzy-benches
 
@@ -81,16 +81,16 @@
 
 extern crate alloc;
 
-mod algos;
 mod candidate;
 mod case_sensitivity;
 mod matched_ranges;
 mod metric;
+mod metrics;
 mod normalize;
 mod utils;
 
-pub use algos::*;
 use candidate::{Candidate, CandidateMatches};
 pub use case_sensitivity::CaseSensitivity;
 use matched_ranges::MatchedRanges;
 pub use metric::Metric;
+pub use metrics::*;
