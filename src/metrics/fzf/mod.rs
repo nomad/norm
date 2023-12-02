@@ -1,4 +1,4 @@
-//! Metrics implementing fzf's fuzzy search algorithm.
+//! Metrics implementing fzf's algorithms.
 //!
 //! This module contains two metrics -- [`FzfV1`] and [`FzfV2`] -- which were
 //! ported from [fzf], a popular command-line fuzzy-finder.

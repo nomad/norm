@@ -2,7 +2,7 @@ use core::fmt::Write;
 
 /// A parsed fzf query.
 ///
-/// This struct is created by the [`parse`](super::FzfParser::parse) method on
+/// This struct is created by parsing a query string via the
 /// [`FzfParser`](super::FzfParser). See its documentation for more.
 #[derive(Clone, Copy)]
 pub struct FzfQuery<'a> {
