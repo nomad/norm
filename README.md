@@ -28,6 +28,8 @@ each other, as well as to other popular libraries.
 ## Example usage
 
 ```rust
+use std::ops::Range;
+
 use norm::fzf::{FzfParser, FzfV2};
 use norm::Metric;
 
@@ -55,7 +57,7 @@ assert_eq!(results[1].0, "Ulaanbaatar");
 
 // We can also find out which sub-strings of each candidate matched the query.
 
-let mut ranges = Vec::new();
+let mut ranges: Vec<Range<usize>> = Vec::new();
 
 let _ = fzf.distance_and_ranges(query, results[0].0, &mut ranges);
 assert_eq!(ranges.len(), 2);

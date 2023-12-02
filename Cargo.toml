@@ -41,3 +41,7 @@ required-features = ["bench"]
 name = "fzf_v2"
 harness = false
 required-features = ["bench"]
+
+[[example]]
+name = "cities"
+required-features = ["fzf-v2"]

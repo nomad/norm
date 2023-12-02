@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use norm::fzf::{FzfParser, FzfV2};
 use norm::Metric;
 
@@ -22,7 +24,7 @@ fn main() {
     assert_eq!(results[0].0, "Adelaide");
     assert_eq!(results[1].0, "Ulaanbaatar");
 
-    let mut ranges = Vec::new();
+    let mut ranges: Vec<Range<usize>> = Vec::new();
 
     let _ = fzf.distance_and_ranges(query, results[0].0, &mut ranges);
     assert_eq!(ranges.len(), 2);
