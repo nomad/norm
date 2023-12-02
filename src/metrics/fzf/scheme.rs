@@ -1,8 +1,8 @@
 use super::{bonus, CharClass, Score};
 
-/// A distance scheme to tweak the distance algorithm.
+/// A type used to tweak the distance algorithm.
 ///
-/// This struct can be passed to both [`FzfV1`](super::FzfV1) and
+/// This enum can be passed to both [`FzfV1`](super::FzfV1) and
 /// [`FzfV2`](super::FzfV2) to tweak the distance algorithm based on the type
 /// of candidates being searched.
 #[derive(Debug, Default, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]

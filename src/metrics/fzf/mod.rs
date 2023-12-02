@@ -1,27 +1,15 @@
-//! Metrics implementing [fzf]'s fuzzy search algorithm.
+//! Metrics implementing fzf's fuzzy search algorithm.
 //!
-//! This module contains two metrics -- [`FzfV1`] and [`FzfV2`] -- both of
-//! which were ported directly from the original fzf project.
-//!
-//! ## `FzfV1` and `FzfV2`
-//!
-//! `FzfV1` is a simple metric that looks for the first "fuzzy" match of a
-//! query within a candidate. Its time complexity is `O(len(candidate))` for
-//! both matches and non-matches.
-//!
-//! `FzfV2` can often provide more accurate matches by finding the best
-//! possible position of a query within a candidate. This comes at the cost of
-//! a `O(len(query) * len(candidate))` time complexity for the distance
-//! calculation in the case of a match. Non-matches are still filtered out in
-//! `O(len(candidate))` time.
-//!
-//! For more information on the individual algorithms, refer to the
-//! documentation of each metric.
+//! This module contains two metrics -- [`FzfV1`] and [`FzfV2`] -- which were
+//! ported from [fzf], a popular command-line fuzzy-finder.
+//! The behavior of both metrics is intended to always match that of the latest
+//! release of fzf. Any discrepancy between our implementation and fzf's should
+//! be considered a bug.
 //!
 //! ## Extended-search mode
 //!
-//! Both metrics fully support fzf's [extended-search mode][esm] by parsing the
-//! query with [`FzfParser::parse`].
+//! fzf's [extended-search mode][esm] is fully-supported by parsing the query
+//! with [`FzfParser::parse`].
 //!
 //! In extended-search mode, spaces in the query are treated as logical AND
 //! operators, while the pipe character `|` is treated as a logical OR. For
@@ -32,12 +20,6 @@
 //!
 //! To know more about extended-search mode's syntax you can look directly at
 //! [fzf's docs][esm] on it, or at the documentation of the [`FzfParser`].
-//!
-//! ## Conformance to fzf
-//!
-//! The behavior of both [`FzfV1`] and [`FzfV2`] is intended to always match
-//! that of the latest release of fzf. Any discrepancy between our
-//! implementation and fzf's should be considered a bug.
 //!
 //! [fzf]: https://github.com/junegunn/fzf
 //! [esm]: https://github.com/junegunn/fzf#search-syntax
