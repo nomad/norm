@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## [0.1.0] - Nov 30 2023
+## [0.1.0] - Dec 2 2023
 
 Initial public release.
 
