@@ -120,7 +120,7 @@ impl<'a> Condition<'a> {
     #[inline]
     pub(super) fn iter(
         &self,
-    ) -> impl Iterator<Item = Pattern<'a>> + ExactSizeIterator + '_ {
+    ) -> impl ExactSizeIterator<Item = Pattern<'a>> + '_ {
         self.or_patterns.iter().copied()
     }
 
@@ -175,9 +175,7 @@ impl<'a> Pattern<'a> {
 
     /// TODO: docs
     #[inline]
-    pub(crate) fn chars(
-        &self,
-    ) -> impl Iterator<Item = char> + DoubleEndedIterator + '_ {
+    pub(crate) fn chars(&self) -> impl DoubleEndedIterator<Item = char> + '_ {
         self.text.iter().copied()
     }
 
