@@ -1,10 +1,10 @@
 [package]
-name = "norms"
+name = "norm"
 version = "0.1.1"
 edition = "2021"
 authors = ["Riccardo Mazzarini <me@noib3.dev>"]
 description = "A collection of distance metrics on strings"
-documentation = "https://docs.rs/norms"
+documentation = "https://docs.rs/norm"
 repository = "https://github.com/nomad/norm"
 readme = "README.md"
 license = "MIT"
@@ -15,9 +15,6 @@ exclude = ["/.github", "/fuzz", "CHANGELOG.md"]
 [package.metadata.docs.rs]
 features = ["fzf-v1", "fzf-v2"]
 rustdoc-args = ["--cfg", "docsrs"]
-
-[lib]
-name = "norm"
 
 [features]
 fzf-v1 = ["__any-metric"]

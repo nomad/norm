@@ -1,11 +1,11 @@
 # 📐 norm
 
-[![Latest version]](https://crates.io/crates/norms)
-[![Docs badge]](https://docs.rs/norms)
+[![Latest version]](https://crates.io/crates/norm)
+[![Docs badge]](https://docs.rs/norm)
 [![CI]](https://github.com/nomad/norm/actions)
 
-[Latest version]: https://img.shields.io/crates/v/norms.svg
-[Docs badge]: https://docs.rs/norms/badge.svg
+[Latest version]: https://img.shields.io/crates/v/norm.svg
+[Docs badge]: https://docs.rs/norm/badge.svg
 [CI]: https://github.com/nomad/norm/actions/workflows/ci.yml/badge.svg
 
 norm is a collection of different distance metrics on stings. This problem is
@@ -71,30 +71,4 @@ assert_eq!(ranges.len(), 1);
 assert_eq!(ranges[0], 2..4); // The first "aa" in "Ulaanbaatar"
 ```
 
-## A note on the crate's naming scheme
-
-norm's `package.name` is `norms`, while its `lib.name` is `norm`. This is
-because the package name has to be unique to be published to [crates.io], but
-unfortunately `norm` is already taken by a crate squatter.
-What this means is that you should import norm as `norms` in your `Cargo.toml`,
-and `use` it as `norm` in your source code.
-
-For example:
-
-```toml
-# Cargo.toml
-[dependencies]
-norms = { version = "0.1", features = ["fzf-v2"] }
-```
-
-```rust
-// main.rs
-use norm::fzf::FzfV2;
-
-fn main() {
-    println!("{:?}", FzfV2::new());
-}
-```
-
 [bench]: https://github.com/noib3/fuzzy-benches
-[crates.io]: https://crates.io
