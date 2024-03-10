@@ -1,5 +1,3 @@
-use core::cmp::{Ord, PartialOrd};
-
 pub(super) type Score = i64;
 
 /// The fzf distance type.

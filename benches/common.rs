@@ -150,9 +150,7 @@ pub fn short<M: Metric>(
     metric: M,
     suffix: Option<&str>,
     mut group: BenchmarkGroup<WallTime>,
-) where
-    M: Metric,
-{
+) {
     for_all_cases_and_ranges(metric, "short", suffix, |metric, id, ranges| {
         let query = "paradise";
         let candidates = core::iter::once("paradisematic");
@@ -165,9 +163,7 @@ pub fn medium_start<M: Metric>(
     metric: M,
     suffix: Option<&str>,
     mut group: BenchmarkGroup<WallTime>,
-) where
-    M: Metric,
-{
+) {
     for_all_cases_and_ranges(
         metric,
         "medium_start",
@@ -185,9 +181,7 @@ pub fn medium_middle<M: Metric>(
     metric: M,
     suffix: Option<&str>,
     mut group: BenchmarkGroup<WallTime>,
-) where
-    M: Metric,
-{
+) {
     for_all_cases_and_ranges(
         metric,
         "medium_middle",
@@ -205,9 +199,7 @@ pub fn medium_end<M: Metric>(
     metric: M,
     suffix: Option<&str>,
     mut group: BenchmarkGroup<WallTime>,
-) where
-    M: Metric,
-{
+) {
     for_all_cases_and_ranges(
         metric,
         "medium_end",
@@ -225,9 +217,7 @@ pub fn long_start<M: Metric>(
     metric: M,
     suffix: Option<&str>,
     mut group: BenchmarkGroup<WallTime>,
-) where
-    M: Metric,
-{
+) {
     for_all_cases_and_ranges(
         metric,
         "long_start",
@@ -245,9 +235,7 @@ pub fn long_middle<M: Metric>(
     metric: M,
     suffix: Option<&str>,
     mut group: BenchmarkGroup<WallTime>,
-) where
-    M: Metric,
-{
+) {
     for_all_cases_and_ranges(
         metric,
         "long_middle",
@@ -265,9 +253,7 @@ pub fn long_end<M: Metric>(
     metric: M,
     suffix: Option<&str>,
     mut group: BenchmarkGroup<WallTime>,
-) where
-    M: Metric,
-{
+) {
     for_all_cases_and_ranges(
         metric,
         "long_end",
