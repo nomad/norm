@@ -18,7 +18,9 @@ const fn linearize_batch<
     while array_idx < LINEARIZED_LEN {
         // TODO: use `char::from_u32_unchecked` when it becomes `const fn`.
         let raw_char = unsafe {
-            core::mem::transmute::<_, char>(first_raw_char + array_idx as u32)
+            core::mem::transmute::<u32, char>(
+                first_raw_char + array_idx as u32,
+            )
         };
 
         if batch[batch_idx].0 == raw_char {
